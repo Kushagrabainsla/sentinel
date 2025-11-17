@@ -30,7 +30,6 @@ resource "aws_iam_role_policy" "lambda_policy" {
             ], Resource = "*" },
             { Effect = "Allow", Action = ["sqs:*"], Resource = "*" },
             { Effect = "Allow", Action = ["ses:*"], Resource = "*" },
-            { Effect = "Allow", Action = ["rds-data:*"], Resource = "*" },
             { Effect = "Allow", Action = ["secretsmanager:GetSecretValue"], Resource = "*" },
             { Effect = "Allow", Action = ["events:Put*","scheduler:*"], Resource = "*" },
             { Effect = "Allow", Action = ["lambda:InvokeFunction"], Resource = "*" }

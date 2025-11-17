@@ -2,8 +2,11 @@ variable "name"              { type = string }
 variable "region"            { type = string }
 variable "roles"             { type = any }
 variable "queues"            { type = any }
-variable "db_arn"            { type = string }
-variable "secret_arn"        { type = string }
+variable "db_host"     { type = string }
+variable "db_port"     { type = number }
+variable "db_name"     { type = string }
+variable "db_user"     { type = string }
+variable "db_password" { type = string }
 variable "ses_from_address"  { type = string }
 variable "ses_template_name" { type = string }
 
@@ -52,8 +55,12 @@ resource "aws_lambda_function" "create_campaign" {
     timeout          = 20
     environment {
         variables = {
-            DB_ARN                    = var.db_arn
-            SECRET_ARN                = var.secret_arn
+            PG_HOST    = var.db_host
+            PG_PORT    = tostring(var.db_port)
+            PG_DB      = var.db_name
+            PG_USER    = var.db_user
+            PG_PASS    = var.db_password
+            PG_SSLMODE = "require"
             START_CAMPAIGN_QUEUE_URL  = var.queues.send_queue_url
             START_CAMPAIGN_LAMBDA_ARN = aws_lambda_function.start_campaign.arn
             EVENTBRIDGE_ROLE_ARN      = ""
@@ -72,8 +79,12 @@ resource "aws_lambda_function" "start_campaign" {
     timeout          = 60
     environment {
         variables = {
-            DB_ARN         = var.db_arn
-            SECRET_ARN     = var.secret_arn
+            PG_HOST    = var.db_host
+            PG_PORT    = tostring(var.db_port)
+            PG_DB      = var.db_name
+            PG_USER    = var.db_user
+            PG_PASS    = var.db_password
+            PG_SSLMODE = "require"
             SEND_QUEUE_URL = var.queues.send_queue_url
             AWS_REGION     = var.region
         }
@@ -90,8 +101,12 @@ resource "aws_lambda_function" "send_worker" {
     timeout          = 60
     environment {
         variables = {
-            DB_ARN            = var.db_arn
-            SECRET_ARN        = var.secret_arn
+            PG_HOST    = var.db_host
+            PG_PORT    = tostring(var.db_port)
+            PG_DB      = var.db_name
+            PG_USER    = var.db_user
+            PG_PASS    = var.db_password
+            PG_SSLMODE = "require"
             SES_FROM_ADDRESS  = var.ses_from_address
             SES_TEMPLATE_ARN  = var.ses_template_name
             AWS_REGION        = var.region
@@ -115,8 +130,12 @@ resource "aws_lambda_function" "event_normalizer" {
     timeout          = 20
     environment {
         variables = {
-            DB_ARN     = var.db_arn
-            SECRET_ARN = var.secret_arn
+            PG_HOST    = var.db_host
+            PG_PORT    = tostring(var.db_port)
+            PG_DB      = var.db_name
+            PG_USER    = var.db_user
+            PG_PASS    = var.db_password
+            PG_SSLMODE = "require"
             AWS_REGION = var.region
         }
     }

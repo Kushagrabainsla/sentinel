@@ -1,73 +1,74 @@
 import json
-import math
 import os
-
+import math
 import boto3
+from common_db import fetch_all, execute
 
-rds = boto3.client("rds-data")
+SQS_URL = os.environ.get("SEND_QUEUE_URL")  # set by Terraform (queues module)
+
 sqs = boto3.client("sqs")
 
-DB_ARN = os.environ["DB_ARN"]
-SECRET_ARN = os.environ["SECRET_ARN"]
-SEND_QUEUE_URL = os.environ["SEND_QUEUE_URL"]
-BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "200"))
+def _chunks(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i:i+n]
 
-
-def _sql(sql: str, params: list | None = None):
-    return rds.execute_statement(
-        resourceArn=DB_ARN,
-        secretArn=SECRET_ARN,
-        database="sentinel",
-        sql=sql,
-        parameters=params or [],
-    )
-
-
-def _parse_payload(event: dict) -> dict:
-    if isinstance(event, dict) and "body" in event:
+def lambda_handler(event, _context):
+    """
+    Event can be:
+      - direct invoke: {"campaign_id": 123}
+      - API Gateway payload: {"body": "{\"campaign_id\":123}"}
+      - EventBridge Scheduler input: {"campaign_id":123}
+    """
+    payload = event
+    if "body" in event and isinstance(event["body"], str):
         try:
-            return json.loads(event.get("body") or "{}")
+            payload = json.loads(event["body"])
         except Exception:
-            return {}
-    return event or {}
+            payload = {}
 
-
-def lambda_handler(event, context):
-    payload = _parse_payload(event)
     campaign_id = payload.get("campaign_id")
-
     if not campaign_id:
-        return {"statusCode": 400, "body": "missing campaign_id"}
+        return {"statusCode": 400, "body": json.dumps({"error": "campaign_id required"})}
 
-    # TODO: replace with real segmentation logic
-    res = _sql("SELECT id, email FROM contacts WHERE status = 'active';")
-    recipients = [
-        {"id": r[0]["longValue"], "email": r[1]["stringValue"]}
-        for r in res.get("records", [])
-    ]
+    # Materialize recipients (example: all active contacts).
+    # In real life, resolve segment_id from campaigns table then select accordingly.
+    contacts = fetch_all("SELECT id, email FROM contacts WHERE status = 'active'")
+    if not contacts:
+        execute("UPDATE campaigns SET state = 'done' WHERE id = %s", [campaign_id])
+        return {"statusCode": 200, "body": json.dumps({"message": "no recipients"})}
 
-    total = len(recipients)
-    if total == 0:
-        _sql(
-            "UPDATE campaigns SET state = 'done' WHERE id = :id",
-            [{"name": "id", "value": {"longValue": campaign_id}}],
+    # Write recipients table for tracking (idempotent upsert)
+    # NOTE: Use ON CONFLICT if you have a unique key (campaign_id, recipient_id)
+    for chunk in _chunks(contacts, 500):
+        values = [(campaign_id, c["id"], c["email"]) for c in chunk]
+        # Efficient multi-row insert
+        params = []
+        ph = []
+        for (cid, rid, email) in values:
+            ph.append("(%s, %s, %s, 'pending', now())")
+            params.extend([cid, rid, email])
+        execute(
+            f"INSERT INTO recipients (campaign_id, recipient_id, email, status, created_at) "
+            f"VALUES {', '.join(ph)} "
+            f"ON CONFLICT (campaign_id, recipient_id) DO NOTHING",
+            params
         )
-        return {"statusCode": 200, "body": "no recipients"}
 
-    # Chunk and enqueue batch jobs
-    for i in range(0, total, BATCH_SIZE):
-        batch = recipients[i : i + BATCH_SIZE]
-        msg = {
-            "campaign_id": campaign_id,
-            "batch_no": i // BATCH_SIZE,
-            "recipients": batch,
-        }
-        sqs.send_message(QueueUrl=SEND_QUEUE_URL, MessageBody=json.dumps(msg))
+    # Fan out to SQS in batches of up to 10 messages
+    for batch in _chunks(contacts, 10):
+        entries = []
+        for c in batch:
+            entries.append({
+                "Id": str(c["id"]),
+                "MessageBody": json.dumps({
+                    "campaign_id": campaign_id,
+                    "recipient_id": c["id"],
+                    "email": c["email"],
+                }),
+            })
+        sqs.send_message_batch(QueueUrl=SQS_URL, Entries=entries)
 
-    _sql(
-        "UPDATE campaigns SET state = 'sending' WHERE id = :id",
-        [{"name": "id", "value": {"longValue": campaign_id}}],
-    )
+    # Mark campaign as "sending"
+    execute("UPDATE campaigns SET state = 'sending' WHERE id = %s", [campaign_id])
 
-    batches = math.ceil(total / BATCH_SIZE)
-    return {"statusCode": 202, "body": f"queued {total} recipients in {batches} batches"}
+    return {"statusCode": 200, "body": json.dumps({"campaign_id": campaign_id, "enqueued": len(contacts)})}

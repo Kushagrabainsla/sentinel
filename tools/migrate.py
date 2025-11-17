@@ -1,15 +1,16 @@
+#!/usr/bin/env python3
 import argparse
-import base64
 import hashlib
-import json
 import os
 import sys
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
-import boto3
+import psycopg2
+import psycopg2.extras
 
 
+# ---------- Helpers ----------
 def sha256_str(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
@@ -19,81 +20,81 @@ def list_sql_files(dir_path: Path) -> List[Path]:
     return sorted(files, key=lambda p: p.name)  # V001__, V002__...
 
 
-def exec_sql(rds, db_arn: str, secret_arn: str, sql: str, params=None):
-    return rds.execute_statement(
-        resourceArn=db_arn,
-        secretArn=secret_arn,
-        database="sentinel",
-        sql=sql,
-        parameters=params or [],
+def connect_from_env(
+    host: str = None,
+    port: str = None,
+    db: str = None,
+    user: str = None,
+    password: str = None,
+    sslmode: str = None,
+):
+    dsn = {
+        "host": host or os.environ.get("PGHOST"),
+        "port": port or os.environ.get("PGPORT", "5432"),
+        "dbname": db or os.environ.get("PGDATABASE") or os.environ.get("PG_DB"),
+        "user": user or os.environ.get("PGUSER") or os.environ.get("PG_USER"),
+        "password": password or os.environ.get("PGPASSWORD") or os.environ.get("PG_PASS"),
+        "sslmode": sslmode or os.environ.get("PGSSLMODE", "require"),
+    }
+    missing = [k for k, v in dsn.items() if not v and k in ("host", "dbname", "user", "password")]
+    if missing:
+        raise RuntimeError(f"Missing required DB settings: {', '.join(missing)}")
+    return psycopg2.connect(
+        host=dsn["host"],
+        port=dsn["port"],
+        dbname=dsn["dbname"],
+        user=dsn["user"],
+        password=dsn["password"],
+        sslmode=dsn["sslmode"],
     )
 
 
-def ensure_migrations_table(rds, db_arn: str, secret_arn: str) -> None:
-    exec_sql(
-        rds,
-        db_arn,
-        secret_arn,
+# ---------- Migration primitives ----------
+def ensure_migrations_table(cur) -> None:
+    cur.execute(
         """
         CREATE TABLE IF NOT EXISTS schema_migrations (
             version     text PRIMARY KEY,
             applied_at  timestamptz NOT NULL DEFAULT now(),
             checksum    text NOT NULL
         );
-        """,
+        """
     )
 
 
-def get_applied_versions(rds, db_arn: str, secret_arn: str) -> dict:
-    resp = exec_sql(rds, db_arn, secret_arn, "SELECT version, checksum FROM schema_migrations;")
-    applied = {}
-    for row in resp.get("records", []):
-        ver = row[0]["stringValue"]
-        chk = row[1]["stringValue"]
-        applied[ver] = chk
-    return applied
+def get_applied_versions(cur) -> Dict[str, str]:
+    cur.execute("SELECT version, checksum FROM schema_migrations;")
+    return {row[0]: row[1] for row in cur.fetchall()}
 
 
-def apply_migration(rds, db_arn: str, secret_arn: str, version: str, sql_text: str, checksum: str) -> None:
-    # Data API transaction
-    tx = rds.begin_transaction(resourceArn=db_arn, secretArn=secret_arn, database="sentinel")
-    tx_id = tx["transactionId"]
+def apply_migration(conn, cur, version: str, sql_text: str, checksum: str) -> None:
+    """
+    Run one migration inside a transaction; record it in schema_migrations.
+    """
     try:
-        rds.execute_statement(
-            resourceArn=db_arn,
-            secretArn=secret_arn,
-            database="sentinel",
-            transactionId=tx_id,
-            sql=sql_text,
+        # psycopg2 starts a transaction automatically on first statement
+        cur.execute(sql_text)
+        cur.execute(
+            "INSERT INTO schema_migrations (version, checksum) VALUES (%s, %s)",
+            (version, checksum),
         )
-        rds.execute_statement(
-            resourceArn=db_arn,
-            secretArn=secret_arn,
-            database="sentinel",
-            transactionId=tx_id,
-            sql="INSERT INTO schema_migrations (version, checksum) VALUES (:v, :c)",
-            parameters=[
-                {"name": "v", "value": {"stringValue": version}},
-                {"name": "c", "value": {"stringValue": checksum}},
-            ],
-        )
-        rds.commit_transaction(resourceArn=db_arn, secretArn=secret_arn, transactionId=tx_id)
+        conn.commit()
         print(f"[OK] Applied {version}")
     except Exception as exc:
-        rds.rollback_transaction(resourceArn=db_arn, secretArn=secret_arn, transactionId=tx_id)
+        conn.rollback()
         print(f"[ERR] Migration {version} failed: {exc}")
         raise
 
 
-def run_dir(rds, db_arn: str, secret_arn: str, dir_path: Path) -> None:
-    if not dir_path.exists():
+def run_dir(conn, cur, dir_path: Path) -> None:
+    if not dir_path or not dir_path.exists():
         return
     files = list_sql_files(dir_path)
     if not files:
         return
 
-    ensure_migrations_table(rds, db_arn, secret_arn)
-    applied = get_applied_versions(rds, db_arn, secret_arn)
+    ensure_migrations_table(cur)
+    applied = get_applied_versions(cur)
 
     for f in files:
         version = f.stem  # e.g., V001__init
@@ -107,21 +108,38 @@ def run_dir(rds, db_arn: str, secret_arn: str, dir_path: Path) -> None:
                 print(f"[SKIP] {version} already applied.")
             continue
 
-        apply_migration(rds, db_arn, secret_arn, version, sql_text, checksum)
+        apply_migration(conn, cur, version, sql_text, checksum)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Apply DB migrations via RDS Data API.")
-    parser.add_argument("--db-arn", required=True, help="RDS Cluster ARN (Data API enabled)")
-    parser.add_argument("--secret-arn", required=True, help="Secrets Manager ARN for DB")
-    parser.add_argument("--migrations", default="db/migrations", help="Path to migrations dir")
-    parser.add_argument("--seeds", default="db/seed", help="Path to seeds dir (optional)")
-    args = parser.parse_args()
+# ---------- CLI ----------
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Apply DB migrations to Postgres (psycopg2).")
+    ap.add_argument("--migrations", default="db/migrations", help="Path to migrations dir")
+    ap.add_argument("--seeds", default="db/seed", help="Path to seeds dir (optional)")
+    # Optional explicit connection args (otherwise read PG* env vars)
+    ap.add_argument("--host")
+    ap.add_argument("--port")
+    ap.add_argument("--db")
+    ap.add_argument("--user")
+    ap.add_argument("--password")
+    ap.add_argument("--sslmode")
+    args = ap.parse_args()
 
-    rds = boto3.client("rds-data")
-
-    run_dir(rds, args.db_arn, args.secret_arn, Path(args.migrations))
-    run_dir(rds, args.db_arn, args.secret_arn, Path(args.seeds))
+    conn = connect_from_env(
+        host=args.host,
+        port=args.port,
+        db=args.db,
+        user=args.user,
+        password=args.password,
+        sslmode=args.sslmode,
+    )
+    try:
+        with conn, conn.cursor() as cur:
+            run_dir(conn, cur, Path(args.migrations))
+            run_dir(conn, cur, Path(args.seeds))
+    finally:
+        conn.close()
+    return 0
 
 
 if __name__ == "__main__":
