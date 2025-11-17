@@ -1,0 +1,72 @@
+name: Sentinel Terraform Deploy (Static Keys)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: us-east-1
+      TF_IN_AUTOMATION: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init -upgrade
+
+      - name: Terraform Validate
+        working-directory: infra
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: infra
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        working-directory: infra
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform outputs (JSON)
+        id: tfout
+        working-directory: infra
+        run: |
+          terraform output -json > tf-outputs.json
+          cat tf-outputs.json
+
+      - name: Extract DB ARNs
+        id: parse
+        working-directory: infra
+        run: |
+          DB_ARN=$(jq -r '.["module.rds.db_arn"].value // .db_arn.value // empty' tf-outputs.json || true)
+          SECRET_ARN=$(jq -r '.["module.rds.secret_arn"].value // .secret_arn.value // empty' tf-outputs.json || true)
+          echo "db_arn=$DB_ARN" >> $GITHUB_OUTPUT
+          echo "secret_arn=$SECRET_ARN" >> $GITHUB_OUTPUT
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install migration deps
+        run: pip install boto3
+
+      - name: Run migrations
+        env:
+          DB_ARN: ${{ steps.parse.outputs.db_arn }}
+          SECRET_ARN: ${{ steps.parse.outputs.secret_arn }}
+        run: |
+          python tools/migrate.py --db-arn "$DB_ARN" --secret-arn "$SECRET_ARN" --migrations db/migrations --seeds db/seed
