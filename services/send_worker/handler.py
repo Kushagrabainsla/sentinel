@@ -1,39 +1,39 @@
 import json
 import os
-
 import boto3
-from botocore.exceptions import ClientError
+from common_db import execute
 
-ses = boto3.client("sesv2")
+ses = boto3.client("ses")
+FROM = os.environ.get("SES_FROM_ADDRESS")       # set in Terraform
+TEMPLATE = os.environ.get("SES_TEMPLATE_ARN")   # set in Terraform (name is fine)
 
-SES_FROM_ADDRESS = os.environ["SES_FROM_ADDRESS"]
-SES_TEMPLATE_ARN = os.environ["SES_TEMPLATE_ARN"]
-
-
-def _destinations(recipients: list[dict]) -> list[dict]:
-    return [
-        {
-            "Destination": {"ToAddresses": [r["email"]]},
-            "ReplacementTemplateData": json.dumps({"email": r["email"]}),
-        }
-        for r in recipients
-    ]
-
-
-def lambda_handler(event, context):
-    for record in event.get("Records", []):
-        message = json.loads(record["body"])
-        recipients = message.get("recipients", [])
-        if not recipients:
-            continue
+def lambda_handler(event, _context):
+    """
+    Triggered by SQS event. Each record has body:
+    {"campaign_id":123, "recipient_id":456, "email":"user@example.com"}
+    """
+    for rec in event.get("Records", []):
+        body = json.loads(rec["body"])
+        campaign_id = body["campaign_id"]
+        recipient_id = body["recipient_id"]
+        email = body["email"]
 
         try:
-            ses.send_bulk_templated_email(
-                Source=SES_FROM_ADDRESS,
-                Template=SES_TEMPLATE_ARN,
-                DefaultTemplateData=json.dumps({"default": True}),
-                Destinations=_destinations(recipients),
+            # Send email via SES (TemplateName should exist)
+            ses.send_templated_email(
+                Source=FROM,
+                Destination={"ToAddresses": [email]},
+                Template=TEMPLATE,
+                TemplateData=json.dumps({"name": email.split("@")[0]}),
             )
-        except ClientError as exc:
-            # Let SQS redrive policy & retries handle transient errors
-            print(f"SES error for batch: {exc}")
+            status = "sent"
+        except Exception:
+            status = "failed"
+
+        # Update recipient status
+        execute(
+            "UPDATE recipients SET status = %s, last_event_at = now() WHERE campaign_id = %s AND recipient_id = %s",
+            [status, campaign_id, recipient_id]
+        )
+
+    return {"statusCode": 200, "body": json.dumps({"processed": len(event.get('Records', []))})}

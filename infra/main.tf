@@ -52,8 +52,11 @@ module "lambdas" {
     region            = var.region
     roles             = module.iam.roles
     queues            = module.queues
-    db_arn            = module.rds.db_arn
-    secret_arn        = module.rds.secret_arn
+    db_host     = module.rds.db_address
+    db_port     = module.rds.db_port
+    db_name     = module.rds.db_name
+    db_user     = module.rds.db_user
+    db_password = var.db_password
     ses_from_address  = var.ses_from_address
     ses_template_name = var.ses_template_name
 }
