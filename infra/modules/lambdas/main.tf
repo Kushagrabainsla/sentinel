@@ -15,28 +15,28 @@ resource "null_resource" "artifacts_dir" {
 
 data "archive_file" "create_campaign" {
     type        = "zip"
-    source_dir  = "${path.module}/../../../lambdas/create_campaign"
+    source_dir  = "${path.module}/../../../services/create_campaign"
     output_path = "${path.module}/.artifacts/create_campaign.zip"
     depends_on  = [null_resource.artifacts_dir]
 }
 
 data "archive_file" "start_campaign" {
     type        = "zip"
-    source_dir  = "${path.module}/../../../lambdas/start_campaign"
+    source_dir  = "${path.module}/../../../services/start_campaign"
     output_path = "${path.module}/.artifacts/start_campaign.zip"
     depends_on  = [null_resource.artifacts_dir]
 }
 
 data "archive_file" "send_worker" {
     type        = "zip"
-    source_dir  = "${path.module}/../../../lambdas/send_worker"
+    source_dir  = "${path.module}/../../../services/send_worker"
     output_path = "${path.module}/.artifacts/send_worker.zip"
     depends_on  = [null_resource.artifacts_dir]
 }
 
 data "archive_file" "event_normalizer" {
     type        = "zip"
-    source_dir  = "${path.module}/../../../lambdas/event_normalizer"
+    source_dir  = "${path.module}/../../../services/event_normalizer"
     output_path = "${path.module}/.artifacts/event_normalizer.zip"
     depends_on  = [null_resource.artifacts_dir]
 }

@@ -1,0 +1,91 @@
+# ==========================
+# Sentinel Project .gitignore
+# ==========================
+
+# ---- Terraform ----
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*.tfvars.json
+terraform.tfvars        # keep your sensitive AWS creds & subnet IDs out of git
+.terraform/
+.terraform.lock.hcl
+
+# ---- Terraform artifacts ----
+infra/modules/**/.artifacts/
+infra/modules/**/archive.zip
+infra/modules/**/lambda_package.zip
+
+# ---- Python (Lambdas & tools) ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+*.eggs/
+.Python
+build/
+dist/
+pip-wheel-metadata/
+*.log
+
+# ---- Virtual environments ----
+.env
+.venv
+env/
+venv/
+ENV/
+venv.bak/
+
+# ---- OS / Editor files ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---- Node (if you add frontend later) ----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---- Zip / Backup files ----
+*.zip
+*.tar.gz
+*.bak
+*.tmp
+
+# ---- Compiled binaries ----
+*.so
+*.dll
+*.exe
+*.out
+*.o
+
+# ---- Coverage / Testing ----
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+*.cover
+
+# ---- Local data ----
+*.sqlite3
+.env.local
+.envrc
+credentials.json
+*.pem
+
+# ---- Misc ----
+# ignore any local scripts or temporary scratchpads
+scratch/
+local_scripts/
+notes.txt
