@@ -28,12 +28,18 @@ module "queues" {
     name   = local.name
 }
 
+# Networking (new)
+module "network" {
+    source = "./modules/network"
+    name   = local.name
+}
+
 # RDS Aurora Serverless v2
 module "rds" {
     source              = "./modules/rds"
     name                = local.name
     engine_version      = var.db_engine_version
-    db_subnet_ids       = var.db_subnet_ids
+    db_subnet_ids       = module.network.private_subnet_ids
     deletion_protection = var.db_deletion_protection
     min_capacity        = var.db_min_capacity
     max_capacity        = var.db_max_capacity
@@ -66,8 +72,4 @@ module "events" {
     start_campaign_lambda_arn      = module.lambdas.start_campaign_arn
     start_campaign_invoke_role_arn = module.iam.scheduler_invoke_role_arn
     ses_events_lambda_arn          = module.lambdas.event_normalizer_arn
-}
-
-output "api_url" {
-    value = module.api.invoke_url
 }

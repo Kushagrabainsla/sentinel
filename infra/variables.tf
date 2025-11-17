@@ -7,11 +7,6 @@ variable "region" {
     type = string
 }
 
-# VPC subnets for Aurora
-variable "db_subnet_ids" {
-    type = list(string)
-}
-
 variable "db_engine_version" {
     type    = string
     default = "15.4"
@@ -38,5 +33,5 @@ variable "ses_from_address" {
 
 variable "ses_template_name" {
     type    = string
-    default = "DefaultTemplate"
+    default = "sentinelWrapperTemplate"
 }
