@@ -9,14 +9,21 @@ variable "use_serverless_v2" {
     default = false
 }
 
-variable "with_express_configuration" {
-    type    = bool
-    default = false
-}
 
 variable "instance_class" {
     type    = string
     default = "db.t3.medium"
+}
+
+variable "free_tier" {
+    type    = bool
+    default = false
+}
+
+variable "instance_master_password" {
+    type      = string
+    default   = ""
+    sensitive = true
 }
 
 resource "aws_db_subnet_group" "this" {
@@ -53,10 +60,6 @@ resource "aws_rds_cluster" "this" {
     manage_master_user_password     = true
     master_username                 = "sentinel_admin"
     enable_http_endpoint            = true
-    # When running in AWS free-tier accounts, the RDS API requires the
-    # WithExpressConfiguration flag to be set. Expose a toggle variable so
-    # callers can enable it (set to true in free-tier accounts).
-    with_express_configuration     = var.with_express_configuration
     dynamic "serverlessv2_scaling_configuration" {
         for_each = var.use_serverless_v2 ? [1] : []
         content {
@@ -65,6 +68,33 @@ resource "aws_rds_cluster" "this" {
         }
     }
     deletion_protection = var.deletion_protection
+}
+
+/*
+    Fallback single-instance RDS for free-tier accounts.
+    When `var.free_tier` is true we create a Postgres `aws_db_instance` and
+    adapt outputs to return its host/port/user. A random password is generated
+    when `var.instance_master_password` is not provided.
+*/
+
+resource "random_password" "instance" {
+    length           = 16
+    special          = true
+}
+
+resource "aws_db_instance" "this" {
+    count               = var.free_tier ? 1 : 0
+    identifier          = "${var.name}-instance"
+    engine              = "postgres"
+    engine_version      = var.engine_version
+    instance_class      = var.instance_class
+    allocated_storage   = 20
+    db_name             = "sentinel"
+    username            = "sentinel_admin"
+    password            = var.instance_master_password != "" ? var.instance_master_password : random_password.instance.result
+    db_subnet_group_name = aws_db_subnet_group.this.name
+    deletion_protection = var.deletion_protection
+    skip_final_snapshot = true
 }
 
 resource "aws_rds_cluster_instance" "this" {
@@ -76,26 +106,27 @@ resource "aws_rds_cluster_instance" "this" {
 }
 
 data "aws_secretsmanager_secret" "master" {
-    arn = aws_rds_cluster.this.master_user_secret[0].secret_arn
+    count = var.free_tier ? 0 : 1
+    arn   = aws_rds_cluster.this.master_user_secret[0].secret_arn
 }
 
 output "db_address" {
     description = "Primary cluster endpoint for the RDS/Aurora cluster"
-    value       = aws_rds_cluster.this.endpoint
+    value       = var.free_tier ? aws_db_instance.this[0].address : aws_rds_cluster.this.endpoint
 }
 
 output "db_port" {
     description = "Port for the RDS/Aurora cluster"
-    value       = aws_rds_cluster.this.port
+    value       = var.free_tier ? aws_db_instance.this[0].port : aws_rds_cluster.this.port
 }
 
 output "db_name" {
     description = "Database name created in the cluster"
     # aws_rds_cluster has the database_name argument; expose it if present, otherwise fall back to the literal used in the module
-    value = try(aws_rds_cluster.this.database_name, "sentinel")
+    value = var.free_tier ? try(aws_db_instance.this[0].db_name, "sentinel") : try(aws_rds_cluster.this.database_name, "sentinel")
 }
 
 output "db_user" {
     description = "Master username for the cluster"
-    value       = aws_rds_cluster.this.master_username
+    value       = var.free_tier ? aws_db_instance.this[0].username : aws_rds_cluster.this.master_username
 }
