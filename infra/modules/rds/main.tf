@@ -14,13 +14,17 @@ resource "aws_rds_cluster_parameter_group" "this" {
     name        = "${var.name}-aurora-pg15"
     family      = "aurora-postgresql15"
     description = "${var.name} aurora pg parameter group"
+
     parameter {
-        name = "rds.force_ssl"
-        value = "1"
+        name         = "rds.force_ssl"
+        value        = "1"
+        apply_method = "pending-reboot"
     }
+
     parameter {
-        name = "track_activity_query_size"
-        value = "2048" 
+        name         = "track_activity_query_size"
+        value        = "2048"
+        apply_method = "pending-reboot"
     }
 }
 
