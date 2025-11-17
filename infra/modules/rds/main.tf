@@ -9,6 +9,11 @@ variable "use_serverless_v2" {
     default = false
 }
 
+variable "with_express_configuration" {
+    type    = bool
+    default = false
+}
+
 variable "instance_class" {
     type    = string
     default = "db.t3.medium"
@@ -48,6 +53,10 @@ resource "aws_rds_cluster" "this" {
     manage_master_user_password     = true
     master_username                 = "sentinel_admin"
     enable_http_endpoint            = true
+    # When running in AWS free-tier accounts, the RDS API requires the
+    # WithExpressConfiguration flag to be set. Expose a toggle variable so
+    # callers can enable it (set to true in free-tier accounts).
+    with_express_configuration     = var.with_express_configuration
     dynamic "serverlessv2_scaling_configuration" {
         for_each = var.use_serverless_v2 ? [1] : []
         content {
