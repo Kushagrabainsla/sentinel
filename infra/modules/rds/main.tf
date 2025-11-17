@@ -4,6 +4,15 @@ variable "db_subnet_ids" { type = list(string) }
 variable "deletion_protection" { type = bool }
 variable "min_capacity" { type = number }
 variable "max_capacity" { type = number }
+variable "use_serverless_v2" {
+    type    = bool
+    default = false
+}
+
+variable "instance_class" {
+    type    = string
+    default = "db.t3.medium"
+}
 
 resource "aws_db_subnet_group" "this" {
     name       = "${var.name}-db-subnets"
@@ -39,9 +48,12 @@ resource "aws_rds_cluster" "this" {
     manage_master_user_password     = true
     master_username                 = "sentinel_admin"
     enable_http_endpoint            = true
-    serverlessv2_scaling_configuration {
-        min_capacity = var.min_capacity
-        max_capacity = var.max_capacity
+    dynamic "serverlessv2_scaling_configuration" {
+        for_each = var.use_serverless_v2 ? [1] : []
+        content {
+            min_capacity = var.min_capacity
+            max_capacity = var.max_capacity
+        }
     }
     deletion_protection = var.deletion_protection
 }
@@ -49,7 +61,7 @@ resource "aws_rds_cluster" "this" {
 resource "aws_rds_cluster_instance" "this" {
     identifier         = "${var.name}-aurora-instance-1"
     cluster_identifier = aws_rds_cluster.this.id
-    instance_class     = "db.serverless"
+    instance_class     = var.use_serverless_v2 ? "db.serverless" : var.instance_class
     engine             = aws_rds_cluster.this.engine
     engine_version     = aws_rds_cluster.this.engine_version
 }
