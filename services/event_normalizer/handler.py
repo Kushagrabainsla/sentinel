@@ -1,42 +1,39 @@
 import json
-import os
+from common_db import execute
 
-import boto3
-
-rds = boto3.client("rds-data")
-
-DB_ARN = os.environ["DB_ARN"]
-SECRET_ARN = os.environ["SECRET_ARN"]
-
-
-def _sql(sql: str, params: list | None = None):
-    return rds.execute_statement(
-        resourceArn=DB_ARN,
-        secretArn=SECRET_ARN,
-        database="sentinel",
-        sql=sql,
-        parameters=params or [],
-    )
-
-
-def lambda_handler(event, context):
+def lambda_handler(event, _context):
+    """
+    Subscribed to SNS topic that receives SES notifications.
+    Handles 'Bounce', 'Complaint', 'Delivery', 'Open', 'Click' (depending on SES setup).
+    """
     for rec in event.get("Records", []):
-        msg = json.loads(rec["Sns"]["Message"])
-        event_type = msg.get("eventType", "unknown")
-        mail = msg.get("mail", {})
-        ts = mail.get("timestamp", "")
-        provider_msg_id = mail.get("messageId", "")
+        if rec.get("EventSource") == "aws:sns":
+            msg = json.loads(rec["Sns"]["Message"])
+        else:
+            msg = rec  # fallback
 
-        _sql(
-            """
-            INSERT INTO events (type, ts, meta, provider_msg_id)
-            VALUES (:t, :ts, :m, :pid)
-            ON CONFLICT (provider_msg_id) DO NOTHING;
-            """,
-            [
-                {"name": "t", "value": {"stringValue": event_type}},
-                {"name": "ts", "value": {"stringValue": ts}},
-                {"name": "m", "value": {"stringValue": json.dumps(msg)}},
-                {"name": "pid", "value": {"stringValue": provider_msg_id}},
-            ],
+        etype = msg.get("notificationType") or msg.get("eventType") or "unknown"
+        mail = msg.get("mail", {})
+        destination = (mail.get("destination") or ["unknown@example.com"])[0]
+        headers = {h["name"].lower(): h["value"] for h in mail.get("headers", []) if "name" in h and "value" in h}
+        campaign_id = None
+        try:
+            campaign_id = int(headers.get("x-campaign-id") or headers.get("campaign-id") or 0)
+        except Exception:
+            campaign_id = 0
+
+        # Record event to your events table (ensure table exists in migrations)
+        execute(
+            "INSERT INTO events (campaign_id, email, type, created_at, raw) VALUES (%s, %s, %s, now(), %s::jsonb)",
+            [campaign_id, destination, etype.lower(), json.dumps(msg)]
         )
+
+        # Update recipient status on bounces/complaints
+        if campaign_id and etype in ("Bounce", "Complaint"):
+            status = "bounced" if etype == "Bounce" else "complained"
+            execute(
+                "UPDATE recipients SET status=%s, last_event_at=now() WHERE campaign_id=%s AND email=%s",
+                [status, campaign_id, destination]
+            )
+
+    return {"statusCode": 200, "body": json.dumps({"ok": True})}

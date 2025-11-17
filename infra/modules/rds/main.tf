@@ -58,10 +58,23 @@ data "aws_secretsmanager_secret" "master" {
     arn = aws_rds_cluster.this.master_user_secret[0].secret_arn
 }
 
-output "db_arn" {
-    value = aws_rds_cluster.this.arn
+output "db_address" {
+    description = "Primary cluster endpoint for the RDS/Aurora cluster"
+    value       = aws_rds_cluster.this.endpoint
 }
 
-output "secret_arn" {
-    value = data.aws_secretsmanager_secret.master.arn
+output "db_port" {
+    description = "Port for the RDS/Aurora cluster"
+    value       = aws_rds_cluster.this.port
+}
+
+output "db_name" {
+    description = "Database name created in the cluster"
+    # aws_rds_cluster has the database_name argument; expose it if present, otherwise fall back to the literal used in the module
+    value = try(aws_rds_cluster.this.database_name, "sentinel")
+}
+
+output "db_user" {
+    description = "Master username for the cluster"
+    value       = aws_rds_cluster.this.master_username
 }
