@@ -4,6 +4,12 @@ terraform {
         aws     = { source = "hashicorp/aws",     version = "~> 5.62" }
         archive = { source = "hashicorp/archive", version = "~> 2.5" }
     }
+    
+    backend "s3" {
+        bucket = "sentinel-terraform-state-us-east-1"  # Use a unique bucket name
+        key    = "infra/terraform.tfstate"
+        region = "us-east-1"
+    }
 }
 
 provider "aws" {

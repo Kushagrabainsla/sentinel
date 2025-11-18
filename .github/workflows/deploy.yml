@@ -40,12 +40,19 @@ jobs:
         working-directory: infra
         run: terraform init
 
+      - name: Terraform Plan
+        working-directory: infra
+        env:
+          TF_VAR_region: ${{ env.AWS_REGION }}
+          TF_VAR_ses_from_address: ${{ secrets.SES_FROM_ADDRESS }}
+        run: terraform plan -out=tfplan
+
       - name: Terraform Apply
         working-directory: infra
         env:
           TF_VAR_region: ${{ env.AWS_REGION }}
           TF_VAR_ses_from_address: ${{ secrets.SES_FROM_ADDRESS }}
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve tfplan
 
       - name: Deployment Summary
         run: |
