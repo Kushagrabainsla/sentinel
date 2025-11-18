@@ -99,15 +99,39 @@ def lambda_handler(event, _context):
     template_id = data.get("template_id")
     segment_id = data.get("segment_id")
     schedule_at = data.get("schedule_at")  # ISO8601 or None
+    
+    # Support direct email content (for testing and simple campaigns)
+    subject = data.get("subject")
+    html_body = data.get("html_body")
+    text_body = data.get("text_body")
+    from_email = data.get("from_email")
+    from_name = data.get("from_name")
 
-    if not name or not template_id or not segment_id:
-        return _response(400, {"error": "name, template_id, segment_id are required"})
+    # Either template_id OR direct content is required
+    if not name:
+        return _response(400, {"error": "name is required"})
+    
+    if not template_id and not (subject and html_body):
+        return _response(400, {"error": "Either template_id or (subject + html_body) are required"})
+    
+    if not segment_id:
+        segment_id = "all_active"  # Default segment
 
     # Default schedule: now (UTC) if not provided
     if not schedule_at:
         schedule_at = datetime.now(timezone.utc).isoformat()
 
-    campaign_id = create_campaign(name, template_id, segment_id, schedule_at)
+    campaign_id = create_campaign(
+        name=name, 
+        template_id=template_id, 
+        segment_id=segment_id, 
+        schedule_at=schedule_at,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+        from_email=from_email,
+        from_name=from_name
+    )
 
     # Parse schedule time to determine execution path
     schedule_dt = datetime.fromisoformat(schedule_at.replace('Z', '+00:00'))

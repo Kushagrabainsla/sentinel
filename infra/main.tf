@@ -67,6 +67,12 @@ module "lambdas" {
     scheduler_invoke_role_arn = module.iam.scheduler_invoke_role_arn
 }
 
+# SES Configuration with DKIM
+module "ses" {
+    source = "./modules/ses"
+    domain = "thesentinel.site"
+}
+
 # API Gateway
 module "api" {
     source              = "./modules/api"

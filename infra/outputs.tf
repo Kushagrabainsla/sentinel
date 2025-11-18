@@ -31,3 +31,14 @@ output "dynamodb_events_table" {
     description = "DynamoDB events table name"
     value       = module.dynamodb.events_table
 }
+
+# SES DKIM Configuration
+output "ses_dkim_tokens" {
+    description = "DKIM tokens for DNS CNAME records"
+    value       = module.ses.dkim_tokens
+}
+
+output "ses_domain_verification_token" {
+    description = "Domain verification token for DNS TXT record"
+    value       = module.ses.domain_verification_token
+}
