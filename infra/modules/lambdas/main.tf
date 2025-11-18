@@ -12,6 +12,7 @@ variable "dynamodb_link_mappings_table" { type = string }
 variable "ses_from_address"  { type = string }
 variable "ses_template_name" { type = string }
 variable "scheduler_invoke_role_arn" { type = string }
+variable "tracking_base_url" { type = string }
 
 resource "null_resource" "artifacts_dir" {
     provisioner "local-exec" {
@@ -112,7 +113,7 @@ resource "aws_lambda_function" "send_worker" {
             DYNAMODB_LINK_MAPPINGS_TABLE = var.dynamodb_link_mappings_table
             SES_FROM_ADDRESS             = var.ses_from_address
             SES_TEMPLATE_ARN             = var.ses_template_name
-            TRACKING_BASE_URL            = "https://api.thesentinel.site"
+            TRACKING_BASE_URL            = var.tracking_base_url
         }
     }
 }

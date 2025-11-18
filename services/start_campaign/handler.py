@@ -51,20 +51,26 @@ def lambda_handler(event, _context):
     for batch in _chunks(contacts, 10):
         entries = []
         for c in batch:
+            message_body = {
+                "campaign_id": campaign_id,
+                "recipient_id": c["id"],
+                "email": c["email"],
+                "template_data": {
+                    "subject": campaign.get("subject", ""),
+                    "html_body": campaign.get("html_body", ""),
+                    "text_body": campaign.get("text_body", ""),
+                    "from_email": campaign.get("from_email", "noreply@thesentinel.site"),
+                    "from_name": campaign.get("from_name", "Sentinel")
+                }
+            }
+            
+            # Include tracking mode if specified in campaign
+            if campaign.get("tracking_mode"):
+                message_body["tracking_mode"] = campaign["tracking_mode"]
+            
             entries.append({
                 "Id": str(c["id"]),
-                "MessageBody": json.dumps({
-                    "campaign_id": campaign_id,
-                    "recipient_id": c["id"],
-                    "email": c["email"],
-                    "template_data": {
-                        "subject": campaign.get("subject", ""),
-                        "html_body": campaign.get("html_body", ""),
-                        "text_body": campaign.get("text_body", ""),
-                        "from_email": campaign.get("from_email", "noreply@thesentinel.site"),
-                        "from_name": campaign.get("from_name", "Sentinel")
-                    }
-                }),
+                "MessageBody": json.dumps(message_body),
             })
         sqs.send_message_batch(QueueUrl=SQS_URL, Entries=entries)
 

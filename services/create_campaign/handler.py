@@ -106,6 +106,9 @@ def lambda_handler(event, _context):
     text_body = data.get("text_body")
     from_email = data.get("from_email")
     from_name = data.get("from_name")
+    
+    # Enhanced tracking mode support
+    tracking_mode = data.get("tracking_mode", "smart")  # smart, inline, external, disabled
 
     # Either template_id OR direct content is required
     if not name:
@@ -130,7 +133,8 @@ def lambda_handler(event, _context):
         html_body=html_body,
         text_body=text_body,
         from_email=from_email,
-        from_name=from_name
+        from_name=from_name,
+        tracking_mode=tracking_mode
     )
 
     # Parse schedule time to determine execution path
