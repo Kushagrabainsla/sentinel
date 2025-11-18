@@ -7,6 +7,21 @@ output "api_gateway_url" {
     value       = module.api.invoke_url
 }
 
+output "custom_domain_url" {
+    description = "Custom domain URL for API"
+    value       = module.api.custom_domain_url
+}
+
+output "domain_validation_records" {
+    description = "DNS records needed for SSL certificate validation"
+    value       = module.api.domain_validation_records
+}
+
+output "api_domain_target" {
+    description = "Target domain for CNAME record (api.thesentinel.site -> this value)"
+    value       = module.api.api_domain_target
+}
+
 output "send_queue_url" {
     value = module.queues.send_queue_url
 }

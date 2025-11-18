@@ -65,7 +65,7 @@ module "lambdas" {
     ses_from_address          = var.ses_from_address
     ses_template_name         = var.ses_template_name
     scheduler_invoke_role_arn = module.iam.scheduler_invoke_role_arn
-    tracking_base_url         = module.api.invoke_url
+    tracking_base_url         = module.api.custom_domain_url
 }
 
 # SES Configuration with DKIM
