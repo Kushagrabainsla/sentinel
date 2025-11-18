@@ -14,4 +14,4 @@ end'
 
 echo ""
 echo "📧 Once verified, update your Terraform configuration:"
-echo 'SES_FROM_ADDRESS = "noreply@thesentinel.site"'
+echo 'SES_FROM_ADDRESS = "no-reply@thesentinel.site"'
