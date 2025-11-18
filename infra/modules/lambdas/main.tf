@@ -10,6 +10,7 @@ variable "dynamodb_events_table"     { type = string }
 
 variable "ses_from_address"  { type = string }
 variable "ses_template_name" { type = string }
+variable "scheduler_invoke_role_arn" { type = string }
 
 resource "null_resource" "artifacts_dir" {
     provisioner "local-exec" {
@@ -62,7 +63,7 @@ resource "aws_lambda_function" "create_campaign" {
             DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             START_CAMPAIGN_QUEUE_URL  = var.queues.send_queue_url
             START_CAMPAIGN_LAMBDA_ARN = aws_lambda_function.start_campaign.arn
-            EVENTBRIDGE_ROLE_ARN      = ""
+            EVENTBRIDGE_ROLE_ARN      = var.scheduler_invoke_role_arn
         }
     }
 }

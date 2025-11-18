@@ -61,8 +61,9 @@ module "lambdas" {
     dynamodb_recipients_table = module.dynamodb.recipients_table
     dynamodb_events_table     = module.dynamodb.events_table
     
-    ses_from_address  = var.ses_from_address
-    ses_template_name = var.ses_template_name
+    ses_from_address          = var.ses_from_address
+    ses_template_name         = var.ses_template_name
+    scheduler_invoke_role_arn = module.iam.scheduler_invoke_role_arn
 }
 
 # API Gateway
