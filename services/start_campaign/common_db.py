@@ -54,3 +54,17 @@ def update_campaign_state(campaign_id, state):
         ExpressionAttributeNames={'#s': 'state'},
         ExpressionAttributeValues={':s': state}
     )
+
+def fetch_campaign_details(campaign_id):
+    """Fetch campaign details including template data"""
+    table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
+    if not table_name:
+        raise RuntimeError("DYNAMODB_CAMPAIGNS_TABLE env var not set")
+    table = _get_dynamo().Table(table_name)
+    
+    try:
+        response = table.get_item(Key={'id': str(campaign_id)})
+        return response.get('Item')
+    except ClientError as e:
+        print(f"Error fetching campaign {campaign_id}: {e}")
+        return None

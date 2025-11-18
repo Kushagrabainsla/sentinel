@@ -2,7 +2,7 @@ import json
 import os
 import math
 import boto3
-from common_db import fetch_all_active_contacts, write_recipients_batch, update_campaign_state
+from common_db import fetch_all_active_contacts, write_recipients_batch, update_campaign_state, fetch_campaign_details
 
 SQS_URL = os.environ.get("SEND_QUEUE_URL")  # set by Terraform (queues module)
 
@@ -30,6 +30,11 @@ def lambda_handler(event, _context):
     if not campaign_id:
         return {"statusCode": 400, "body": json.dumps({"error": "campaign_id required"})}
 
+    # Fetch campaign details including template data
+    campaign = fetch_campaign_details(campaign_id)
+    if not campaign:
+        return {"statusCode": 404, "body": json.dumps({"error": "Campaign not found"})}
+
     # Materialize recipients (example: all active contacts).
     # In real life, resolve segment_id from campaigns table then select accordingly.
     contacts = fetch_all_active_contacts()
@@ -52,6 +57,13 @@ def lambda_handler(event, _context):
                     "campaign_id": campaign_id,
                     "recipient_id": c["id"],
                     "email": c["email"],
+                    "template_data": {
+                        "subject": campaign.get("subject", ""),
+                        "html_body": campaign.get("html_body", ""),
+                        "text_body": campaign.get("text_body", ""),
+                        "from_email": campaign.get("from_email", "noreply@thesentinel.site"),
+                        "from_name": campaign.get("from_name", "Sentinel")
+                    }
                 }),
             })
         sqs.send_message_batch(QueueUrl=SQS_URL, Entries=entries)

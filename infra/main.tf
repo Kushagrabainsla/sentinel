@@ -56,10 +56,11 @@ module "lambdas" {
     queues            = module.queues
     
     # DynamoDB tables
-    dynamodb_campaigns_table  = module.dynamodb.campaigns_table
-    dynamodb_contacts_table   = module.dynamodb.contacts_table
-    dynamodb_recipients_table = module.dynamodb.recipients_table
-    dynamodb_events_table     = module.dynamodb.events_table
+    dynamodb_campaigns_table     = module.dynamodb.campaigns_table
+    dynamodb_contacts_table      = module.dynamodb.contacts_table
+    dynamodb_recipients_table    = module.dynamodb.recipients_table
+    dynamodb_events_table        = module.dynamodb.events_table
+    dynamodb_link_mappings_table = module.dynamodb.link_mappings_table
     
     ses_from_address          = var.ses_from_address
     ses_template_name         = var.ses_template_name
@@ -71,6 +72,7 @@ module "api" {
     source              = "./modules/api"
     name                = local.name
     create_campaign_arn = module.lambdas.create_campaign_arn
+    tracking_api_arn    = module.lambdas.tracking_api_arn
 }
 
 # Events (SES webhooks + Scheduler)

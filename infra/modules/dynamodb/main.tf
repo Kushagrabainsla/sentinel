@@ -93,6 +93,36 @@ resource "aws_dynamodb_table" "events" {
   }
 }
 
+resource "aws_dynamodb_table" "link_mappings" {
+  name         = "${var.name}-link-mappings"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "tracking_id"
+  attribute {
+    name = "tracking_id"
+    type = "S"
+  }
+  attribute {
+    name = "campaign_id"
+    type = "S"
+  }
+  attribute {
+    name = "recipient_id"
+    type = "S"
+  }
+  global_secondary_index {
+    name               = "campaign_recipient_index"
+    hash_key           = "campaign_id"
+    range_key          = "recipient_id"
+    projection_type    = "ALL"
+  }
+  
+  # TTL for automatic cleanup of old tracking links (90 days)
+  ttl {
+    attribute_name = "expires_at"
+    enabled        = true
+  }
+}
+
 output "campaigns_table" {
   value = aws_dynamodb_table.campaigns.name
 }
@@ -107,4 +137,8 @@ output "recipients_table" {
 
 output "events_table" {
   value = aws_dynamodb_table.events.name
+}
+
+output "link_mappings_table" {
+  value = aws_dynamodb_table.link_mappings.name
 }

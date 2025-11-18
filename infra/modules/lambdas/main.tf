@@ -7,6 +7,7 @@ variable "dynamodb_campaigns_table"  { type = string }
 variable "dynamodb_contacts_table"   { type = string }
 variable "dynamodb_recipients_table" { type = string }
 variable "dynamodb_events_table"     { type = string }
+variable "dynamodb_link_mappings_table" { type = string }
 
 variable "ses_from_address"  { type = string }
 variable "ses_template_name" { type = string }
@@ -43,6 +44,13 @@ data "archive_file" "event_normalizer" {
     type        = "zip"
     source_dir  = "${path.module}/../../../services/event_normalizer"
     output_path = "${path.module}/.artifacts/event_normalizer.zip"
+    depends_on  = [null_resource.artifacts_dir]
+}
+
+data "archive_file" "tracking_api" {
+    type        = "zip"
+    source_dir  = "${path.module}/../../../services/tracking_api"
+    output_path = "${path.module}/.artifacts/tracking_api.zip"
     depends_on  = [null_resource.artifacts_dir]
 }
 
@@ -97,12 +105,14 @@ resource "aws_lambda_function" "send_worker" {
     timeout          = 60
     environment {
         variables = {
-            DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
-            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
-            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
-            DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
-            SES_FROM_ADDRESS  = var.ses_from_address
-            SES_TEMPLATE_ARN  = var.ses_template_name
+            DYNAMODB_CAMPAIGNS_TABLE     = var.dynamodb_campaigns_table
+            DYNAMODB_CONTACTS_TABLE      = var.dynamodb_contacts_table
+            DYNAMODB_RECIPIENTS_TABLE    = var.dynamodb_recipients_table
+            DYNAMODB_EVENTS_TABLE        = var.dynamodb_events_table
+            DYNAMODB_LINK_MAPPINGS_TABLE = var.dynamodb_link_mappings_table
+            SES_FROM_ADDRESS             = var.ses_from_address
+            SES_TEMPLATE_ARN             = var.ses_template_name
+            TRACKING_BASE_URL            = "https://api.thesentinel.site"
         }
     }
 }
@@ -131,6 +141,26 @@ resource "aws_lambda_function" "event_normalizer" {
     }
 }
 
+resource "aws_lambda_function" "tracking_api" {
+    function_name    = "${var.name}-tracking-api"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = data.archive_file.tracking_api.output_path
+    source_code_hash = data.archive_file.tracking_api.output_base64sha256
+    timeout          = 30
+    environment {
+        variables = {
+            DYNAMODB_CAMPAIGNS_TABLE     = var.dynamodb_campaigns_table
+            DYNAMODB_CONTACTS_TABLE      = var.dynamodb_contacts_table
+            DYNAMODB_RECIPIENTS_TABLE    = var.dynamodb_recipients_table
+            DYNAMODB_EVENTS_TABLE        = var.dynamodb_events_table
+            DYNAMODB_LINK_MAPPINGS_TABLE = var.dynamodb_link_mappings_table
+        }
+    }
+}
+
 output "create_campaign_arn"  { value = aws_lambda_function.create_campaign.arn }
 output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
 output "event_normalizer_arn" { value = aws_lambda_function.event_normalizer.arn }
+output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }
