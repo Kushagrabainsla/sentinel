@@ -63,7 +63,6 @@ resource "aws_lambda_function" "create_campaign" {
             START_CAMPAIGN_QUEUE_URL  = var.queues.send_queue_url
             START_CAMPAIGN_LAMBDA_ARN = aws_lambda_function.start_campaign.arn
             EVENTBRIDGE_ROLE_ARN      = ""
-            AWS_REGION                = var.region
         }
     }
 }
@@ -83,7 +82,6 @@ resource "aws_lambda_function" "start_campaign" {
             DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
             DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             SEND_QUEUE_URL = var.queues.send_queue_url
-            AWS_REGION     = var.region
         }
     }
 }
@@ -104,7 +102,6 @@ resource "aws_lambda_function" "send_worker" {
             DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             SES_FROM_ADDRESS  = var.ses_from_address
             SES_TEMPLATE_ARN  = var.ses_template_name
-            AWS_REGION        = var.region
         }
     }
 }
@@ -129,7 +126,6 @@ resource "aws_lambda_function" "event_normalizer" {
             DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
             DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
             DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
-            AWS_REGION = var.region
         }
     }
 }
