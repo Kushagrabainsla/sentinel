@@ -1,21 +1,41 @@
 import os
-import psycopg2
-import psycopg2.extras
+import uuid
+import time
+import boto3
+from botocore.exceptions import ClientError
 
-def get_conn():
-    return psycopg2.connect(
-        host=os.environ["PG_HOST"],
-        port=os.environ.get("PG_PORT", "5432"),
-        dbname=os.environ["PG_DB"],
-        user=os.environ["PG_USER"],
-        password=os.environ["PG_PASS"],
-        sslmode=os.environ.get("PG_SSLMODE", "require"),
-    )
+_dynamo = None
 
-def fetch_one(sql, params=None):
-    with get_conn() as conn, conn.cursor() as cur:
-        cur.execute(sql, params or [])
-        return cur.fetchone()
+def _get_dynamo():
+    global _dynamo
+    if _dynamo is None:
+        session = boto3.session.Session()
+        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+        _dynamo = session.resource("dynamodb", region_name=region)
+    return _dynamo
+
+def create_campaign(name, template_id, segment_id, schedule_at=None):
+    """Create a campaign item and return its id (string UUID)."""
+    table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
+    if not table_name:
+        raise RuntimeError("DYNAMODB_CAMPAIGNS_TABLE env var not set")
+
+    table = _get_dynamo().Table(table_name)
+    campaign_id = str(uuid.uuid4())
+    item = {
+        "id": campaign_id,
+        "name": name,
+        "template_id": template_id,
+        "segment_id": segment_id,
+        "schedule_at": schedule_at,
+        "state": "scheduled",
+        "created_at": int(time.time()),
+    }
+    try:
+        table.put_item(Item=item)
+    except ClientError:
+        raise
+    return campaign_id
 
 def execute(sql, params=None):
     with get_conn() as conn, conn.cursor() as cur:

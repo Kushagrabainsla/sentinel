@@ -2,11 +2,12 @@ variable "name"              { type = string }
 variable "region"            { type = string }
 variable "roles"             { type = any }
 variable "queues"            { type = any }
-variable "db_host"     { type = string }
-variable "db_port"     { type = number }
-variable "db_name"     { type = string }
-variable "db_user"     { type = string }
-variable "db_password" { type = string }
+
+variable "dynamodb_campaigns_table"  { type = string }
+variable "dynamodb_contacts_table"   { type = string }
+variable "dynamodb_recipients_table" { type = string }
+variable "dynamodb_events_table"     { type = string }
+
 variable "ses_from_address"  { type = string }
 variable "ses_template_name" { type = string }
 
@@ -55,12 +56,10 @@ resource "aws_lambda_function" "create_campaign" {
     timeout          = 20
     environment {
         variables = {
-            PG_HOST    = var.db_host
-            PG_PORT    = tostring(var.db_port)
-            PG_DB      = var.db_name
-            PG_USER    = var.db_user
-            PG_PASS    = var.db_password
-            PG_SSLMODE = "require"
+            DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
+            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
+            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
+            DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             START_CAMPAIGN_QUEUE_URL  = var.queues.send_queue_url
             START_CAMPAIGN_LAMBDA_ARN = aws_lambda_function.start_campaign.arn
             EVENTBRIDGE_ROLE_ARN      = ""
@@ -79,12 +78,10 @@ resource "aws_lambda_function" "start_campaign" {
     timeout          = 60
     environment {
         variables = {
-            PG_HOST    = var.db_host
-            PG_PORT    = tostring(var.db_port)
-            PG_DB      = var.db_name
-            PG_USER    = var.db_user
-            PG_PASS    = var.db_password
-            PG_SSLMODE = "require"
+            DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
+            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
+            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
+            DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             SEND_QUEUE_URL = var.queues.send_queue_url
             AWS_REGION     = var.region
         }
@@ -101,12 +98,10 @@ resource "aws_lambda_function" "send_worker" {
     timeout          = 60
     environment {
         variables = {
-            PG_HOST    = var.db_host
-            PG_PORT    = tostring(var.db_port)
-            PG_DB      = var.db_name
-            PG_USER    = var.db_user
-            PG_PASS    = var.db_password
-            PG_SSLMODE = "require"
+            DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
+            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
+            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
+            DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             SES_FROM_ADDRESS  = var.ses_from_address
             SES_TEMPLATE_ARN  = var.ses_template_name
             AWS_REGION        = var.region
@@ -130,12 +125,10 @@ resource "aws_lambda_function" "event_normalizer" {
     timeout          = 20
     environment {
         variables = {
-            PG_HOST    = var.db_host
-            PG_PORT    = tostring(var.db_port)
-            PG_DB      = var.db_name
-            PG_USER    = var.db_user
-            PG_PASS    = var.db_password
-            PG_SSLMODE = "require"
+            DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
+            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
+            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
+            DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             AWS_REGION = var.region
         }
     }

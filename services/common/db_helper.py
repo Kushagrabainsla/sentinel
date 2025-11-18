@@ -1,26 +1,28 @@
-import os, psycopg2, psycopg2.extras
+import os
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
 
-def get_conn():
-    return psycopg2.connect(
-        host=os.environ["PG_HOST"],
-        port=os.environ.get("PG_PORT", "5432"),
-        dbname=os.environ["PG_DB"],
-        user=os.environ["PG_USER"],
-        password=os.environ["PG_PASS"],
-        sslmode=os.environ.get("PG_SSLMODE", "require"),
-    )
+def get_dynamodb_resource():
+    """Get DynamoDB resource"""
+    return boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-def fetch_one(sql, params=None):
-    with get_conn() as conn, conn.cursor() as cur:
-        cur.execute(sql, params or [])
-        return cur.fetchone()
+def get_table(table_name):
+    """Get DynamoDB table"""
+    dynamodb = get_dynamodb_resource()
+    return dynamodb.Table(table_name)
 
-def fetch_all(sql, params=None):
-    with get_conn() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(sql, params or [])
-        return cur.fetchall()
+def get_campaigns_table():
+    """Get campaigns table"""
+    return get_table(os.environ['DYNAMODB_CAMPAIGNS_TABLE'])
 
-def execute(sql, params=None):
-    with get_conn() as conn, conn.cursor() as cur:
-        cur.execute(sql, params or [])
-        conn.commit()
+def get_contacts_table():
+    """Get contacts table"""
+    return get_table(os.environ['DYNAMODB_CONTACTS_TABLE'])
+
+def get_recipients_table():
+    """Get recipients table"""
+    return get_table(os.environ['DYNAMODB_RECIPIENTS_TABLE'])
+
+def get_events_table():
+    """Get events table"""
+    return get_table(os.environ['DYNAMODB_EVENTS_TABLE'])

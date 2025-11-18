@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime, timezone
-from common_db import fetch_one
+from common_db import create_campaign
 
 def _parse_body(event):
     if isinstance(event, dict) and "body" in event:
@@ -37,15 +37,7 @@ def lambda_handler(event, _context):
     if not schedule_at:
         schedule_at = datetime.now(timezone.utc).isoformat()
 
-    row = fetch_one(
-        """
-        INSERT INTO campaigns (name, template_id, segment_id, schedule_at, state, created_at)
-        VALUES (%s, %s, %s, %s, %s, now())
-        RETURNING id
-        """,
-        [name, template_id, segment_id, schedule_at, "scheduled"],
-    )
-    campaign_id = row[0]
+    campaign_id = create_campaign(name, template_id, segment_id, schedule_at)
 
     # The web app (or create path) can immediately invoke Start Campaign via API/Lambda,
     # or EventBridge Scheduler will trigger it later, depending on schedule_at.

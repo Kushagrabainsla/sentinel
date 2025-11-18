@@ -1,35 +1,23 @@
 variable "environment" {
-    type    = string
-    default = "prod"
+    type        = string
+    default     = "prod"
+    description = "Fixed environment name"
 }
 
 variable "region" {
     type = string
 }
 
-variable "db_password" {
-    type      = string
-    sensitive = true
+variable "enable_global_tables" {
+    type        = bool
+    default     = false
+    description = "Enable DynamoDB global tables across regions"
 }
 
-variable "db_engine_version" {
-    type    = string
-    default = "15.4"
-}
-
-variable "db_min_capacity" {
-    type    = number
-    default = 0.5
-}
-
-variable "db_max_capacity" {
-    type    = number
-    default = 2.0
-}
-
-variable "db_deletion_protection" {
-    type    = bool
-    default = false
+variable "global_table_regions" {
+    type        = list(string)
+    default     = []
+    description = "List of regions for DynamoDB global tables"
 }
 
 variable "ses_from_address" {

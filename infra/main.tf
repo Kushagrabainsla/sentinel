@@ -12,8 +12,7 @@ provider "aws" {
 
 locals {
     project = "sentinel"
-    env     = var.environment
-    name    = "${local.project}-${local.env}"
+    name    = "sentinel"
 }
 
 # IAM
@@ -34,15 +33,12 @@ module "network" {
     name   = local.name
 }
 
-# RDS Aurora Serverless v2
-module "rds" {
-    source              = "./modules/rds"
-    name                = local.name
-    engine_version      = var.db_engine_version
-    db_subnet_ids       = module.network.private_subnet_ids
-    deletion_protection = var.db_deletion_protection
-    min_capacity        = var.db_min_capacity
-    max_capacity        = var.db_max_capacity
+# DynamoDB
+module "dynamodb" {
+    source                = "./modules/dynamodb"
+    name                  = local.name
+    enable_global_tables  = var.enable_global_tables
+    global_table_regions  = var.global_table_regions
 }
 
 # Lambdas
@@ -52,11 +48,13 @@ module "lambdas" {
     region            = var.region
     roles             = module.iam.roles
     queues            = module.queues
-    db_host     = module.rds.db_address
-    db_port     = module.rds.db_port
-    db_name     = module.rds.db_name
-    db_user     = module.rds.db_user
-    db_password = var.db_password
+    
+    # DynamoDB tables
+    dynamodb_campaigns_table  = module.dynamodb.campaigns_table
+    dynamodb_contacts_table   = module.dynamodb.contacts_table
+    dynamodb_recipients_table = module.dynamodb.recipients_table
+    dynamodb_events_table     = module.dynamodb.events_table
+    
     ses_from_address  = var.ses_from_address
     ses_template_name = var.ses_template_name
 }

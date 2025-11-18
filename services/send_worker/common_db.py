@@ -1,17 +1,29 @@
 import os
-import psycopg2
+import time
+import boto3
+from botocore.exceptions import ClientError
 
-def get_conn():
-    return psycopg2.connect(
-        host=os.environ["PG_HOST"],
-        port=os.environ.get("PG_PORT", "5432"),
-        dbname=os.environ["PG_DB"],
-        user=os.environ["PG_USER"],
-        password=os.environ["PG_PASS"],
-        sslmode=os.environ.get("PG_SSLMODE", "require"),
+_dynamo = None
+
+def _get_dynamo():
+    global _dynamo
+    if _dynamo is None:
+        session = boto3.session.Session()
+        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+        _dynamo = session.resource("dynamodb", region_name=region)
+    return _dynamo
+
+def update_recipient_status(campaign_id, recipient_id, status):
+    table_name = os.environ.get("DYNAMODB_RECIPIENTS_TABLE")
+    if not table_name:
+        raise RuntimeError("DYNAMODB_RECIPIENTS_TABLE env var not set")
+    table = _get_dynamo().Table(table_name)
+    table.update_item(
+        Key={
+            'campaign_id': str(campaign_id),
+            'recipient_id': str(recipient_id)
+        },
+        UpdateExpression='SET #s = :s, last_event_at = :t',
+        ExpressionAttributeNames={'#s': 'status'},
+        ExpressionAttributeValues={':s': status, ':t': int(time.time())}
     )
-
-def execute(sql, params=None):
-    with get_conn() as conn, conn.cursor() as cur:
-        cur.execute(sql, params or [])
-        conn.commit()

@@ -1,5 +1,5 @@
 import json
-from common_db import execute
+from common_db import record_event, update_recipient_by_campaign_and_email
 
 def lambda_handler(event, _context):
     """
@@ -22,18 +22,12 @@ def lambda_handler(event, _context):
         except Exception:
             campaign_id = 0
 
-        # Record event to your events table (ensure table exists in migrations)
-        execute(
-            "INSERT INTO events (campaign_id, email, type, created_at, raw) VALUES (%s, %s, %s, now(), %s::jsonb)",
-            [campaign_id, destination, etype.lower(), json.dumps(msg)]
-        )
+        # Record event to events table
+        record_event(campaign_id or "0", destination, etype.lower(), msg)
 
         # Update recipient status on bounces/complaints
         if campaign_id and etype in ("Bounce", "Complaint"):
             status = "bounced" if etype == "Bounce" else "complained"
-            execute(
-                "UPDATE recipients SET status=%s, last_event_at=now() WHERE campaign_id=%s AND email=%s",
-                [status, campaign_id, destination]
-            )
+            update_recipient_by_campaign_and_email(campaign_id, destination, status)
 
     return {"statusCode": 200, "body": json.dumps({"ok": True})}

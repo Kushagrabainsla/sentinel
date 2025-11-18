@@ -1,7 +1,7 @@
 import json
 import os
 import boto3
-from common_db import execute
+from common_db import update_recipient_status
 
 ses = boto3.client("ses")
 FROM = os.environ.get("SES_FROM_ADDRESS")       # set in Terraform
@@ -31,9 +31,6 @@ def lambda_handler(event, _context):
             status = "failed"
 
         # Update recipient status
-        execute(
-            "UPDATE recipients SET status = %s, last_event_at = now() WHERE campaign_id = %s AND recipient_id = %s",
-            [status, campaign_id, recipient_id]
-        )
+        update_recipient_status(campaign_id, recipient_id, status)
 
     return {"statusCode": 200, "body": json.dumps({"processed": len(event.get('Records', []))})}
