@@ -107,9 +107,8 @@ Test Link: https://example.com/test
 
 ✅ Campaign system is working correctly!""",
         "from_email": "no-reply@thesentinel.site",
-        "from_name": "Sentinel Test",
-        "segment_id": "all_active",
-        "tracking_mode": "smart"
+        "from_name": "The Sentinel",
+        "segment_id": "all_active"
     }
     
     # Add scheduling if needed

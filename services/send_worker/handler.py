@@ -9,8 +9,6 @@ ses = boto3.client("ses")
 FROM = os.environ.get("SES_FROM_ADDRESS")       # set in Terraform
 TEMPLATE = os.environ.get("SES_TEMPLATE_ARN")   # set in Terraform (name is fine)
 
-# Enhanced tracking configuration
-TRACKING_MODE = os.environ.get("TRACKING_MODE", "smart")  # smart, inline, external, disabled
 
 def extract_cta_links(html_content):
     """
@@ -91,26 +89,20 @@ def lambda_handler(event, _context):
             msg_template_data = body.get("template_data", {})
             html_body = msg_template_data.get("html_body", "")
             
-            # Check for custom tracking mode in the message, fallback to environment variable
-            tracking_mode = body.get("tracking_mode", TRACKING_MODE)
-            
             print(f"📧 Processing email for {email} (Campaign: {campaign_id})")
-            print(f"🎯 Tracking mode: {tracking_mode}")
+            print(f"🎯 Using inline tracking (no security warnings)")
             
-            # Extract CTA links from HTML content (if tracking enabled)
-            cta_links = {}
-            if tracking_mode != "disabled":
-                cta_links = extract_cta_links(html_body)
-                if cta_links:
-                    print(f"🔗 Found {len(cta_links)} CTA links to track")
+            # Extract CTA links from HTML content for tracking
+            cta_links = extract_cta_links(html_body)
+            if cta_links:
+                print(f"🔗 Found {len(cta_links)} CTA links to track")
             
-            # Generate enhanced tracking data with specified mode
+            # Generate tracking data with inline pixels (no security warnings)
             tracking_data = generate_tracking_data(
                 campaign_id=campaign_id, 
                 recipient_id=recipient_id, 
                 email=email,
-                cta_links=cta_links,
-                tracking_mode=tracking_mode
+                cta_links=cta_links
             )
             
             # Replace original CTA links with tracking links in HTML
@@ -172,7 +164,6 @@ def lambda_handler(event, _context):
                 Tags=[
                     {"Name": "campaign_id", "Value": str(campaign_id)},
                     {"Name": "recipient_id", "Value": str(recipient_id)},
-                    {"Name": "tracking_mode", "Value": tracking_mode},
                     {"Name": "cta_count", "Value": str(len(cta_links))}
                 ]
             )

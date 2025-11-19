@@ -64,9 +64,7 @@ def lambda_handler(event, _context):
                 }
             }
             
-            # Include tracking mode if specified in campaign
-            if campaign.get("tracking_mode"):
-                message_body["tracking_mode"] = campaign["tracking_mode"]
+            # Inline tracking is used by default
             
             entries.append({
                 "Id": str(c["id"]),

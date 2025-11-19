@@ -14,7 +14,7 @@ def _get_dynamo():
         _dynamo = session.resource("dynamodb", region_name=region)
     return _dynamo
 
-def create_campaign(name, template_id, segment_id, schedule_at=None, subject=None, html_body=None, text_body=None, from_email=None, from_name=None, tracking_mode=None):
+def create_campaign(name, template_id, segment_id, schedule_at=None, subject=None, html_body=None, text_body=None, from_email=None, from_name=None):
     """Create a campaign item and return its id (string UUID)."""
     table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
     if not table_name:
@@ -43,8 +43,6 @@ def create_campaign(name, template_id, segment_id, schedule_at=None, subject=Non
         item["from_email"] = from_email
     if from_name:
         item["from_name"] = from_name
-    if tracking_mode:
-        item["tracking_mode"] = tracking_mode
     
     try:
         table.put_item(Item=item)
