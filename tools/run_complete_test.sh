@@ -254,28 +254,11 @@ else
     warning "No messages in queue to process"
 fi
 
-# Step 8: Test event processing
+# Step 8: Test event processing (skipped - no SES event configuration)
 echo ""
-echo "📊 Step 8: Testing event processing..."
-
-# Get event normalizer Lambda
-EVENT_LAMBDA=$(aws lambda list-functions --query 'Functions[?contains(FunctionName, `event-normalizer`)].FunctionName' --output text --region us-east-1)
-
-if [[ -n "$EVENT_LAMBDA" ]]; then
-    # Test bounce event
-    BOUNCE_EVENT='{"Records": [{"EventSource": "aws:sns", "Sns": {"Message": "{\"notificationType\":\"Bounce\",\"mail\":{\"destination\":[\"test1001@example.com\"],\"headers\":[{\"name\":\"x-campaign-id\",\"value\":\"'$CAMPAIGN_ID'\"}]},\"bounce\":{\"bounceType\":\"Permanent\"}}"}}]}'
-    
-    BOUNCE_PAYLOAD=$(echo "$BOUNCE_EVENT" | base64)
-    aws lambda invoke \
-        --function-name "$EVENT_LAMBDA" \
-        --payload "$BOUNCE_PAYLOAD" \
-        --region us-east-1 \
-        /tmp/event_response.json > /dev/null
-    
-    success "Processed bounce event"
-else
-    warning "Event normalizer Lambda not found"
-fi
+echo "📊 Step 8: Event processing not configured"
+echo "ℹ️  SES events (bounces, complaints) are not currently captured"
+echo "   This would require SES configuration sets and SNS integration"
 
 # Step 9: Final verification
 echo ""

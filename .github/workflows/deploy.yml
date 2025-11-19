@@ -30,7 +30,7 @@ jobs:
       - name: Prepare Lambda functions
         run: |
           # Copy common database helper to each service
-          for service in create_campaign event_normalizer send_worker start_campaign; do
+          for service in create_campaign send_worker start_campaign; do
             if [ -f services/common/db_helper.py ]; then
               cp services/common/db_helper.py services/$service/
             fi

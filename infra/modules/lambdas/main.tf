@@ -41,12 +41,7 @@ data "archive_file" "send_worker" {
     depends_on  = [null_resource.artifacts_dir]
 }
 
-data "archive_file" "event_normalizer" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/event_normalizer"
-    output_path = "${path.module}/.artifacts/event_normalizer.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
+
 
 data "archive_file" "tracking_api" {
     type        = "zip"
@@ -124,23 +119,7 @@ resource "aws_lambda_event_source_mapping" "send_worker_sqs" {
     batch_size       = 10
 }
 
-resource "aws_lambda_function" "event_normalizer" {
-    function_name    = "${var.name}-event-normalizer"
-    role             = var.roles.lambda_exec
-    handler          = "handler.lambda_handler"
-    runtime          = "python3.11"
-    filename         = data.archive_file.event_normalizer.output_path
-    source_code_hash = data.archive_file.event_normalizer.output_base64sha256
-    timeout          = 20
-    environment {
-        variables = {
-            DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
-            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
-            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
-            DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
-        }
-    }
-}
+
 
 resource "aws_lambda_function" "tracking_api" {
     function_name    = "${var.name}-tracking-api"
@@ -163,5 +142,5 @@ resource "aws_lambda_function" "tracking_api" {
 
 output "create_campaign_arn"  { value = aws_lambda_function.create_campaign.arn }
 output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
-output "event_normalizer_arn" { value = aws_lambda_function.event_normalizer.arn }
+
 output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }

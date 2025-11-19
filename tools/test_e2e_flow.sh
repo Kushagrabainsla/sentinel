@@ -83,22 +83,11 @@ aws dynamodb query \
   }' \
   --region us-east-1
 
-# Step 5: Simulate email events (for testing event normalizer)
-echo "=== Step 5: Testing Event Processing ==="
-
-# Create a test SNS message for bounce event
-BOUNCE_MESSAGE='{
-  "Records": [{
-    "EventSource": "aws:sns",
-    "Sns": {
-      "Message": "{\"notificationType\":\"Bounce\",\"mail\":{\"destination\":[\"test1@example.com\"],\"headers\":[{\"name\":\"x-campaign-id\",\"value\":\"'$CAMPAIGN_ID'\"}]},\"bounce\":{\"bounceType\":\"Permanent\"}}"
-    }
-  }]
-}'
-
-# You can test the event normalizer lambda directly
-echo "Test bounce event payload:"
-echo $BOUNCE_MESSAGE
+# Step 5: Event Processing (not configured)
+echo "=== Step 5: Event Processing Status ==="
+echo "ℹ️  SES event processing is not currently configured"
+echo "   Email bounces and complaints are not automatically captured"
+echo "   To enable this, SES configuration sets and SNS integration would be needed"
 
 # Step 6: Check final state
 echo "=== Step 6: Final State Check ==="

@@ -82,11 +82,11 @@ module "api" {
     tracking_api_arn    = module.lambdas.tracking_api_arn
 }
 
-# Events (SES webhooks + Scheduler)
-module "events" {
-    source                         = "./modules/events"
-    name                           = local.name
-    start_campaign_lambda_arn      = module.lambdas.start_campaign_arn
-    start_campaign_invoke_role_arn = module.iam.scheduler_invoke_role_arn
-    ses_events_lambda_arn          = module.lambdas.event_normalizer_arn
-}
+# Events (EventBridge Scheduler only - SES events not configured)
+# module "events" {
+#     source                         = "./modules/events"
+#     name                           = local.name
+#     start_campaign_lambda_arn      = module.lambdas.start_campaign_arn
+#     start_campaign_invoke_role_arn = module.iam.scheduler_invoke_role_arn
+#     ses_events_lambda_arn          = module.lambdas.event_normalizer_arn
+# }
