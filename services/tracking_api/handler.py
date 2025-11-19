@@ -115,6 +115,7 @@ def lambda_handler(event, context):
         elif path.startswith('/events/'):
             return handle_events_api(path, http_method, query_params)
         else:
+            print(f"❌ Unknown tracking path: {path}")
             return {
                 'statusCode': 404,
                 'body': json.dumps({'error': 'Not found'})
