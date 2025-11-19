@@ -101,60 +101,43 @@ def create_cta_tracking_link(campaign_id, recipient_id, cta_id, original_url, em
 
 def generate_warning_free_tracking(campaign_id, recipient_id, email, base_url=None):
     """
-    Generate beacon-only tracking (no images, no external requests).
+    Generate reliable email open tracking using tracking pixels.
     
     This method:
-    1. Uses only JavaScript beacon for open tracking
-    2. No images or pixels (completely warning-free)
-    3. Relies on SES delivery events as primary tracking
-    4. Clean, modern approach that respects user privacy
-    5. Enhances ALL links with tracking (reliable click data)
+    1. Uses invisible 1x1 tracking pixel (widely supported)
+    2. Pixel is served from tracking API endpoint
+    3. Works in all email clients (Gmail, Outlook, Apple Mail, etc.)
+    4. No JavaScript required (better deliverability)
+    5. Clean, standards-compliant approach
     
-    Result: Clean email with optional JavaScript tracking and full click analytics.
+    Result: Reliable open tracking without security warnings.
     """
     
     if not base_url:
         base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
     
-    # Create clean email wrapper with tracking metadata
-    tracking_html = f'''<!-- Sentinel Email: Beacon-Only Tracking -->
-<div class="sentinel-email" 
-     data-campaign="{campaign_id}" 
-     data-recipient="{recipient_id}" 
-     data-email="{email}"
-     data-ts="{int(time.time())}"
-     style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
+    # Generate tracking pixel URL with encoded email parameter
+    pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}&ts={int(time.time())}"
+    
+    # Create invisible tracking pixel (1x1 transparent image)
+    tracking_pixel_html = f'''<img src="{pixel_url}" width="1" height="1" border="0" style="display:none !important; visibility:hidden !important; opacity:0 !important; background:transparent !important; width:1px !important; height:1px !important; border:none !important; margin:0 !important; padding:0 !important;" alt="" />'''
+    
+    # Clean email wrapper (optional styling)
+    tracking_html = f'''<!-- Sentinel Email Tracking -->
+<div class="sentinel-email" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
 <style>
 .sentinel-email a {{ color: #007cba; text-decoration: none; }}
 .sentinel-email a:hover {{ text-decoration: underline; }}
-.sentinel-footer {{ margin-top: 30px; font-size: 12px; color: #666; }}
 </style>
 <div class="sentinel-content">'''
     
-    # JavaScript beacon for open tracking (privacy-friendly, no images)
-    beacon_script = f'''<script type="text/javascript">
-// Sentinel open tracking beacon (privacy-friendly)
-(function() {{
-    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {{
-        // Use sendBeacon for reliable tracking
-        navigator.sendBeacon('{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}&method=beacon');
-    }} else if (typeof fetch !== 'undefined') {{
-        // Fallback to fetch for older browsers
-        fetch('{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}&method=fetch', {{
-            method: 'GET',
-            mode: 'no-cors'
-        }}).catch(function() {{ /* ignore errors */ }});
-    }}
-}})();
-</script>'''
-    
     return {
         "pixel_html": tracking_html,
-        "pixel_url": None,  # No pixel/image tracking
-        "tracking_image": "",  # No tracking image
-        "beacon_script": beacon_script,
-        "closing_html": f'{beacon_script}</div></div><!-- End Sentinel Tracking -->',
-        "method": "beacon_only_tracking"
+        "pixel_url": pixel_url,
+        "tracking_image": tracking_pixel_html,
+        "beacon_script": None,  # No JavaScript needed
+        "closing_html": f'{tracking_pixel_html}</div></div><!-- End Sentinel Email -->',
+        "method": "tracking_pixel"
     }
 
 
