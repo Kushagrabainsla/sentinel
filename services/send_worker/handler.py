@@ -34,13 +34,37 @@ def extract_cta_links(html_content):
         r'javascript:',  # javascript links
     ]
     
+    def clean_text_for_id(text):
+        """Convert link text to a clean, URL-safe ID"""
+        # Remove HTML tags
+        clean_text = re.sub(r'<[^>]+>', '', text)
+        # Remove extra whitespace and convert to lowercase
+        clean_text = re.sub(r'\s+', ' ', clean_text.strip()).lower()
+        # Replace spaces and special chars with underscores
+        clean_text = re.sub(r'[^a-z0-9]+', '_', clean_text)
+        # Remove leading/trailing underscores and limit length
+        clean_text = clean_text.strip('_')[:50]
+        return clean_text or 'unknown_link'
+    
+    used_ids = set()
+    
     for i, (url, link_text) in enumerate(matches):
         # Skip excluded links
         should_exclude = any(re.search(pattern, url.lower()) or re.search(pattern, link_text.lower()) 
                            for pattern in excluded_patterns)
         
         if not should_exclude and url.startswith(('http://', 'https://')):
-            cta_id = f"cta_link_{i+1}"
+            # Generate meaningful ID from link text
+            base_id = clean_text_for_id(link_text)
+            
+            # Handle duplicates by adding a number suffix
+            cta_id = base_id
+            counter = 1
+            while cta_id in used_ids:
+                cta_id = f"{base_id}_{counter}"
+                counter += 1
+            
+            used_ids.add(cta_id)
             cta_links[cta_id] = url
     
     return cta_links
