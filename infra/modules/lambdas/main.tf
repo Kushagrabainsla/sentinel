@@ -13,6 +13,8 @@ variable "ses_from_address"  { type = string }
 variable "ses_template_name" { type = string }
 variable "scheduler_invoke_role_arn" { type = string }
 variable "tracking_base_url" { type = string }
+variable "assets_bucket_name" { type = string }
+variable "sentinel_logo_url" { type = string }
 
 resource "null_resource" "artifacts_dir" {
     provisioner "local-exec" {
@@ -109,6 +111,8 @@ resource "aws_lambda_function" "send_worker" {
             SES_FROM_ADDRESS             = var.ses_from_address
             SES_TEMPLATE_ARN             = var.ses_template_name
             TRACKING_BASE_URL            = var.tracking_base_url
+            S3_ASSETS_BUCKET             = var.assets_bucket_name
+            SENTINEL_LOGO_URL            = var.sentinel_logo_url
         }
     }
 }
@@ -136,6 +140,8 @@ resource "aws_lambda_function" "tracking_api" {
             DYNAMODB_RECIPIENTS_TABLE    = var.dynamodb_recipients_table
             DYNAMODB_EVENTS_TABLE        = var.dynamodb_events_table
             DYNAMODB_LINK_MAPPINGS_TABLE = var.dynamodb_link_mappings_table
+            S3_ASSETS_BUCKET             = var.assets_bucket_name
+            SENTINEL_LOGO_URL            = var.sentinel_logo_url
         }
     }
 }

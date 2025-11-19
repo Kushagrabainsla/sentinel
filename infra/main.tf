@@ -66,12 +66,20 @@ module "lambdas" {
     ses_template_name         = var.ses_template_name
     scheduler_invoke_role_arn = module.iam.scheduler_invoke_role_arn
     tracking_base_url         = module.api.custom_domain_url
+    assets_bucket_name        = module.s3_assets.bucket_name
+    sentinel_logo_url         = module.s3_assets.sentinel_logo_url
 }
 
 # SES Configuration with DKIM
 module "ses" {
     source = "./modules/ses"
     domain = "thesentinel.site"
+}
+
+# S3 Assets Bucket
+module "s3_assets" {
+    source = "./modules/s3_assets"
+    name   = local.name
 }
 
 # API Gateway

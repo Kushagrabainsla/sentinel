@@ -57,3 +57,13 @@ output "ses_domain_verification_token" {
     description = "Domain verification token for DNS TXT record"
     value       = module.ses.domain_verification_token
 }
+
+output "assets_bucket_name" {
+    description = "S3 assets bucket name"
+    value       = module.s3_assets.bucket_name
+}
+
+output "sentinel_logo_url" {
+    description = "URL for Sentinel logo (used for tracking)"
+    value       = module.s3_assets.sentinel_logo_url
+}

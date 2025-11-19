@@ -148,7 +148,7 @@ def lambda_handler(event, context):
         }
 
 def handle_open_tracking(path, user_agent, ip_address, query_params):
-    """Handle email open tracking pixel requests"""
+    """Handle email open tracking pixel requests - redirect to S3 asset"""
     
     # Parse path: /track/open/{campaign_id}/{recipient_id}.png
     path_parts = path.strip('/').split('/')
@@ -177,20 +177,34 @@ def handle_open_tracking(path, user_agent, ip_address, query_params):
         # Update recipient status to 'opened'
         update_recipient_status(campaign_id, recipient_id, 'opened')
     
-    # Always return a 1x1 transparent pixel
-    pixel_data = generate_1x1_pixel()
+    # Redirect to the real S3 image instead of generating a pixel
+    tracking_pixel_url = os.environ.get('TRACKING_PIXEL_URL')
     
-    return {
-        'statusCode': 200,
-        'headers': {
-            'Content-Type': 'image/png',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        },
-        'body': base64.b64encode(pixel_data).decode('utf-8'),
-        'isBase64Encoded': True
-    }
+    if tracking_pixel_url:
+        # Redirect to S3 asset - this serves a real image file
+        return {
+            'statusCode': 302,
+            'headers': {
+                'Location': tracking_pixel_url,
+                'Cache-Control': 'no-cache, no-store, must-revalidate'
+            },
+            'body': ''
+        }
+    else:
+        # Fallback: return 1x1 transparent pixel if S3 URL not configured
+        pixel_data = generate_1x1_pixel()
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'image/png',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            'body': base64.b64encode(pixel_data).decode('utf-8'),
+            'isBase64Encoded': True
+        }
 
 def handle_click_tracking(path, user_agent, ip_address, query_params, tracking_id=None):
     """Handle link click tracking and redirect"""
