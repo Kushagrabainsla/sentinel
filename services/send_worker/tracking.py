@@ -101,24 +101,23 @@ def create_cta_tracking_link(campaign_id, recipient_id, cta_id, original_url, em
 
 def generate_warning_free_tracking(campaign_id, recipient_id, email, base_url=None):
     """
-    Generate warning-free tracking using embedded data URI (no external requests).
+    Generate beacon-only tracking (no images, no external requests).
     
     This method:
-    1. Uses embedded base64 image data (no external requests)
-    2. Includes tracking metadata in HTML for server-side analytics
-    3. Relies on delivery/bounce events from SES for open tracking
-    4. No external image requests = No security warnings
+    1. Uses only JavaScript beacon for open tracking
+    2. No images or pixels (completely warning-free)
+    3. Relies on SES delivery events as primary tracking
+    4. Clean, modern approach that respects user privacy
     5. Enhances ALL links with tracking (reliable click data)
     
-    Result: Full tracking capability without triggering Gmail warnings.
+    Result: Clean email with optional JavaScript tracking and full click analytics.
     """
     
-    # Create a small Sentinel logo as base64 data URI (no external requests)
-    # This is a tiny 16x16 Sentinel "S" logo
-    sentinel_logo_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFmSURBVDiNpZPLSgJhFMd/M8OYmZlpmpZWVlqWVkRFBBW0aBG0aBEtWrRo0aJFixYtWrRo0aJFixYtWrRo0aJFixYtWrRo0aJFixYtWrRo0aJFixYtWrRo0aJFixYtWrRo0aJFi2g="
+    if not base_url:
+        base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
     
-    # Create tracking metadata for server-side processing
-    tracking_html = f'''<!-- Sentinel Email: Server-Side Tracking -->
+    # Create clean email wrapper with tracking metadata
+    tracking_html = f'''<!-- Sentinel Email: Beacon-Only Tracking -->
 <div class="sentinel-email" 
      data-campaign="{campaign_id}" 
      data-recipient="{recipient_id}" 
@@ -129,27 +128,33 @@ def generate_warning_free_tracking(campaign_id, recipient_id, email, base_url=No
 .sentinel-email a {{ color: #007cba; text-decoration: none; }}
 .sentinel-email a:hover {{ text-decoration: underline; }}
 .sentinel-footer {{ margin-top: 30px; font-size: 12px; color: #666; }}
-.sentinel-logo {{ display: inline-block; width: 16px; height: 16px; border: 0; vertical-align: middle; }}
 </style>
 <div class="sentinel-content">'''
     
-    # Add embedded Sentinel logo (no external requests)
-    tracking_image = f'<img src="{sentinel_logo_b64}" alt="Sentinel" class="sentinel-logo" width="16" height="16" style="display: inline-block; width: 16px; height: 16px; border: 0; outline: none; opacity: 0.8; margin: 2px;">'
-    
-    # Create a beacon script for open tracking (optional, works if JS enabled)
+    # JavaScript beacon for open tracking (privacy-friendly, no images)
     beacon_script = f'''<script type="text/javascript">
-if(navigator.sendBeacon) {{
-    navigator.sendBeacon('https://api.thesentinel.site/track/open/{campaign_id}/{recipient_id}.png?email={email}&js=1');
-}}
-</script>''' if base_url else ""
+// Sentinel open tracking beacon (privacy-friendly)
+(function() {{
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {{
+        // Use sendBeacon for reliable tracking
+        navigator.sendBeacon('{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}&method=beacon');
+    }} else if (typeof fetch !== 'undefined') {{
+        // Fallback to fetch for older browsers
+        fetch('{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}&method=fetch', {{
+            method: 'GET',
+            mode: 'no-cors'
+        }}).catch(function() {{ /* ignore errors */ }});
+    }}
+}})();
+</script>'''
     
     return {
         "pixel_html": tracking_html,
-        "pixel_url": sentinel_logo_b64,  # Data URI, not external URL
-        "tracking_image": tracking_image,
+        "pixel_url": None,  # No pixel/image tracking
+        "tracking_image": "",  # No tracking image
         "beacon_script": beacon_script,
-        "closing_html": f'{tracking_image}{beacon_script}</div></div><!-- End Sentinel Tracking -->',
-        "method": "embedded_data_uri_tracking"
+        "closing_html": f'{beacon_script}</div></div><!-- End Sentinel Tracking -->',
+        "method": "beacon_only_tracking"
     }
 
 
