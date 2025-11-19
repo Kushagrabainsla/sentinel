@@ -84,7 +84,7 @@ def generate_1x1_pixel():
     return pixel_data
 
 def lambda_handler(event, context):
-    print("🚀 Tracking API Handler Invoked", event)
+    print("🚀 Tracking API Handler Invoked", json.dumps(event, default=str))
     """
     Handle tracking requests:
     - GET /track/open/{campaign_id}/{recipient_id}.png - Email open tracking
@@ -93,24 +93,42 @@ def lambda_handler(event, context):
     - GET /events/{campaign_id} - Retrieve tracking events for a campaign
     """
     
-    # Parse the request
-    http_method = event.get('httpMethod', 'GET')
-    path = event.get('path', '')
-    headers = event.get('headers', {})
-    query_params = event.get('queryStringParameters') or {}
+    # Parse the request - support both API Gateway v1.0 and v2.0 formats
+    if 'version' in event and event['version'] == '2.0':
+        # API Gateway v2.0 format
+        http_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+        path = event.get('rawPath', '')
+        headers = event.get('headers', {})
+        query_params = event.get('queryStringParameters') or {}
+        path_params = event.get('pathParameters') or {}
+        
+        # For v2.0, the tracking ID is in pathParameters.proxy
+        if 'proxy' in path_params:
+            tracking_id = path_params['proxy']
+        else:
+            tracking_id = None
+            
+    else:
+        # API Gateway v1.0 format (fallback)
+        http_method = event.get('httpMethod', 'GET')
+        path = event.get('path', '')
+        headers = event.get('headers', {})
+        query_params = event.get('queryStringParameters') or {}
+        tracking_id = None
     
     print(f"📊 Tracking request: {http_method} {path}")
+    print(f"🔍 Parsed tracking_id: {tracking_id}")
     
     # Extract user agent and IP for analytics
-    user_agent = headers.get('User-Agent', '')
-    ip_address = headers.get('X-Forwarded-For', '').split(',')[0].strip() or headers.get('X-Real-IP', 'unknown')
+    user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
+    ip_address = headers.get('x-forwarded-for', headers.get('X-Forwarded-For', '')).split(',')[0].strip() or headers.get('x-real-ip', headers.get('X-Real-IP', 'unknown'))
     
     try:
         # Route based on path
         if path.startswith('/track/open/'):
             return handle_open_tracking(path, user_agent, ip_address, query_params)
         elif path.startswith('/track/click/'):
-            return handle_click_tracking(path, user_agent, ip_address, query_params)
+            return handle_click_tracking(path, user_agent, ip_address, query_params, tracking_id)
         elif path.startswith('/unsubscribe/'):
             return handle_unsubscribe(path, user_agent, ip_address, query_params)
         elif path.startswith('/events/'):
@@ -174,15 +192,19 @@ def handle_open_tracking(path, user_agent, ip_address, query_params):
         'isBase64Encoded': True
     }
 
-def handle_click_tracking(path, user_agent, ip_address, query_params):
+def handle_click_tracking(path, user_agent, ip_address, query_params, tracking_id=None):
     """Handle link click tracking and redirect"""
     
-    # Parse path: /track/click/{tracking_id}
-    path_parts = path.strip('/').split('/')
+    # Use tracking_id from path parameters if available (API Gateway v2.0)
+    # Otherwise parse from path (API Gateway v1.0 fallback)
+    if not tracking_id:
+        path_parts = path.strip('/').split('/')
+        if len(path_parts) >= 3:
+            tracking_id = path_parts[2]
     
-    if len(path_parts) >= 3:
-        tracking_id = path_parts[2]
-        
+    print(f"🔗 Processing click tracking for ID: {tracking_id}")
+    
+    if tracking_id:
         # Get link mapping
         link_mapping = get_link_mapping(tracking_id)
         
@@ -192,6 +214,8 @@ def handle_click_tracking(path, user_agent, ip_address, query_params):
             original_url = link_mapping['original_url']
             link_id = link_mapping.get('link_id', 'unknown')
             
+            print(f"✅ Found mapping: {original_url} for campaign {campaign_id}")
+            
             # Record click event
             metadata = {
                 'user_agent': user_agent,
@@ -199,6 +223,7 @@ def handle_click_tracking(path, user_agent, ip_address, query_params):
                 'timestamp': int(time.time()),
                 'link_id': link_id,
                 'original_url': original_url,
+                'tracking_id': tracking_id,
                 'query_params': query_params
             }
             
@@ -224,10 +249,14 @@ def handle_click_tracking(path, user_agent, ip_address, query_params):
             }
         else:
             # Tracking ID not found in database
-            print(f"⚠️ Tracking ID not found: {tracking_id}")
+            print(f"⚠️ Tracking ID not found in database: {tracking_id}")
+    else:
+        print(f"❌ No tracking ID found in request")
     
     # If tracking ID not found or path format is wrong, redirect to fallback URL
     fallback_url = query_params.get('fallback', 'https://thesentinel.site')
+    
+    print(f"🔄 Redirecting to fallback URL: {fallback_url}")
     
     return {
         'statusCode': 302,
