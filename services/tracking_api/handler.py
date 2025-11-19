@@ -89,6 +89,7 @@ def lambda_handler(event, context):
     - GET /track/open/{campaign_id}/{recipient_id}.png - Email open tracking
     - GET /track/click/{tracking_id} - Link click tracking  
     - GET /unsubscribe/{token} - Unsubscribe tracking
+    - GET /events/{campaign_id} - Retrieve tracking events for a campaign
     """
     
     # Parse the request
@@ -111,6 +112,8 @@ def lambda_handler(event, context):
             return handle_click_tracking(path, user_agent, ip_address, query_params)
         elif path.startswith('/unsubscribe/'):
             return handle_unsubscribe(path, user_agent, ip_address, query_params)
+        elif path.startswith('/events/'):
+            return handle_events_api(path, http_method, query_params)
         else:
             return {
                 'statusCode': 404,
@@ -282,3 +285,84 @@ def handle_unsubscribe(path, user_agent, ip_address, query_params):
         },
         'body': unsubscribe_html
     }
+
+def handle_events_api(path, http_method, query_params):
+    """Handle events API requests - GET /events/{campaign_id}"""
+    
+    if http_method != 'GET':
+        return {
+            'statusCode': 405,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({'error': 'Method not allowed'})
+        }
+    
+    # Parse path: /events/{campaign_id}
+    path_parts = path.strip('/').split('/')
+    
+    if len(path_parts) < 2:
+        return {
+            'statusCode': 400,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({'error': 'Campaign ID required'})
+        }
+    
+    campaign_id = path_parts[1]
+    
+    try:
+        events_table = get_table('DYNAMODB_EVENTS_TABLE')
+        
+        # Scan for events with this campaign_id
+        response = events_table.scan(
+            FilterExpression='campaign_id = :cid',
+            ExpressionAttributeValues={':cid': campaign_id}
+        )
+        
+        events = response.get('Items', [])
+        
+        # Sort events by created_at (most recent first)
+        events.sort(key=lambda x: x.get('created_at', 0), reverse=True)
+        
+        # Group events by type for summary
+        event_summary = {}
+        for event in events:
+            event_type = event.get('type', 'unknown')
+            if event_type not in event_summary:
+                event_summary[event_type] = 0
+            event_summary[event_type] += 1
+        
+        # Format response
+        result = {
+            'campaign_id': campaign_id,
+            'total_events': len(events),
+            'event_summary': event_summary,
+            'events': events[:50]  # Limit to first 50 events for performance
+        }
+        
+        if len(events) > 50:
+            result['note'] = f'Showing first 50 of {len(events)} total events'
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps(result, indent=2)
+        }
+        
+    except Exception as e:
+        print(f"❌ Error retrieving events for campaign {campaign_id}: {e}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({'error': f'Failed to retrieve events: {str(e)}'})
+        }
