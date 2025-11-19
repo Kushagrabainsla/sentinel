@@ -90,7 +90,7 @@ def lambda_handler(event, _context):
             html_body = msg_template_data.get("html_body", "")
             
             print(f"📧 Processing email for {email} (Campaign: {campaign_id})")
-            print(f"🎯 Using inline tracking (no security warnings)")
+            print(f"🎯 Using external tracking pixels for Gmail compatibility")
             
             # Extract CTA links from HTML content for tracking
             cta_links = extract_cta_links(html_body)
@@ -129,21 +129,18 @@ def lambda_handler(event, _context):
             if tracking_data.get("tracked_cta_links"):
                 print(f"🎯 CTA links tracked: {list(tracking_data['tracked_cta_links'].keys())}")
             
-            # Add tracking pixel using enhanced method
+            # Add warning-free tracking wrapper
             html_content = template_data["html_body"]
             if tracking_data.get("tracking_pixel_html"):
-                # Find best insertion point for tracking pixel
-                if "</body>" in html_content.lower():
-                    # Insert before closing body tag
-                    html_content = html_content.replace("</body>", f"{tracking_data['tracking_pixel_html']}</body>")
-                elif "</html>" in html_content.lower():
-                    # Insert before closing html tag
-                    html_content = html_content.replace("</html>", f"{tracking_data['tracking_pixel_html']}</html>")
-                else:
-                    # Append to end
-                    html_content += tracking_data["tracking_pixel_html"]
+                # Wrap email content with tracking elements (no external requests)
+                opening_wrapper = tracking_data["tracking_pixel_html"]
+                closing_wrapper = tracking_data.get("closing_html", "")
                 
-                print(f"📊 Added tracking pixel using method: {tracking_data.get('tracking_method', 'Unknown')}")
+                # Wrap the entire email content
+                html_content = f"{opening_wrapper}{html_content}{closing_wrapper}"
+                
+                print(f"📊 Added warning-free tracking wrapper: {tracking_data.get('tracking_method', 'Unknown')}")
+                print(f"🛡️ No external images = No Gmail warnings")
             
             # Add unsubscribe link to text version if available
             text_content = template_data["text_body"]
