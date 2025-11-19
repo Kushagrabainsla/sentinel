@@ -40,14 +40,13 @@ resource "aws_s3_bucket_policy" "assets_public_read" {
     depends_on = [aws_s3_bucket_public_access_block.assets]
 }
 
-# Upload Sentinel logo that doubles as our tracking image
+# Upload Sentinel logo from local file
 resource "aws_s3_object" "sentinel_logo" {
     bucket       = aws_s3_bucket.assets.id
     key          = "images/sentinel-logo.png"
+    source       = "${path.module}/../../../assets/images/sentinel-logo.png"
     content_type = "image/png"
-    
-    # Small Sentinel logo (24x24 with "S" branding) - real PNG image  
-    content_base64 = "iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAJQSURBVEiJtZU9aBRBFMd/s7t3l0QSCxsLwcJCG1sLG0uxsLGwsLBQsLCwsLBQsLCwsLGwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLCwsLBQsLBQ"
+    etag         = filemd5("${path.module}/../../../assets/images/sentinel-logo.png")
     
     cache_control = "public, max-age=31536000"  # 1 year cache
     
