@@ -115,14 +115,12 @@ def generate_warning_free_tracking(campaign_id, recipient_id, email, base_url=No
     if not base_url:
         base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
     
-    # Use S3 logo URL directly with tracking parameters
-    assets_bucket = os.environ.get("S3_ASSETS_BUCKET")
-    if assets_bucket:
-        # Direct S3 URL to Sentinel logo - this is a real image that won't trigger warnings
-        open_tracking_url = f"https://{assets_bucket}.s3.amazonaws.com/images/sentinel-logo.png?campaign={campaign_id}&recipient={recipient_id}&email={email}&t={int(time.time())}"
-    else:
-        # Fallback to tracking API endpoint  
-        open_tracking_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}"
+    # Always use tracking API endpoint to capture opens, then serve S3 image
+    if not base_url:
+        base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
+    
+    # Use tracking API that will capture the event and then serve the S3 image
+    open_tracking_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}"
     
     tracking_html = f'''<!-- Sentinel Email Tracking: Branded Logo Method -->
 <div class="sentinel-email" data-campaign="{campaign_id}" data-recipient="{recipient_id}" data-ts="{int(time.time())}">
@@ -135,8 +133,8 @@ def generate_warning_free_tracking(campaign_id, recipient_id, email, base_url=No
 </style>
 <div class="sentinel-content">'''
     
-    # Add the Sentinel logo as tracking image (visible but small)
-    tracking_image = f'<img src="{open_tracking_url}" alt="Sentinel" class="sentinel-logo" width="16" height="16" style="display: inline-block; width: 16px; height: 16px; border: 0; outline: none; opacity: 0.7; margin: 2px;">'
+    # Add the Sentinel logo as visible tracking image (legitimate branding content)
+    tracking_image = f'<img src="{open_tracking_url}" alt="Sentinel" class="sentinel-logo" width="16" height="16" style="display: inline-block; width: 16px; height: 16px; border: 0; outline: none; opacity: 0.8; margin: 2px;">'
     
     return {
         "pixel_html": tracking_html,

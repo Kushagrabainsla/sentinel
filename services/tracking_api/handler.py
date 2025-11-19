@@ -177,15 +177,15 @@ def handle_open_tracking(path, user_agent, ip_address, query_params):
         # Update recipient status to 'opened'
         update_recipient_status(campaign_id, recipient_id, 'opened')
     
-    # Redirect to the real S3 image instead of generating a pixel
-    tracking_pixel_url = os.environ.get('TRACKING_PIXEL_URL')
+    # Redirect to the real S3 Sentinel logo after recording tracking
+    sentinel_logo_url = os.environ.get('SENTINEL_LOGO_URL')
     
-    if tracking_pixel_url:
-        # Redirect to S3 asset - this serves a real image file
+    if sentinel_logo_url:
+        # Redirect to S3 Sentinel logo - this serves the real branded image
         return {
             'statusCode': 302,
             'headers': {
-                'Location': tracking_pixel_url,
+                'Location': sentinel_logo_url,
                 'Cache-Control': 'no-cache, no-store, must-revalidate'
             },
             'body': ''
