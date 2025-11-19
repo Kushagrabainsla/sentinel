@@ -3,12 +3,25 @@ import os
 import time
 import uuid
 import base64
+from decimal import Decimal
 from urllib.parse import unquote
 import boto3
 from botocore.exceptions import ClientError
 
 # DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+
+def decimal_to_int(obj):
+    """Convert DynamoDB Decimal objects to regular Python types for JSON serialization"""
+    if isinstance(obj, dict):
+        return {key: decimal_to_int(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [decimal_to_int(item) for item in obj]
+    elif isinstance(obj, Decimal):
+        # Convert Decimal to int if it's a whole number, otherwise float
+        return int(obj) if obj % 1 == 0 else float(obj)
+    else:
+        return obj
 
 def get_table(table_env_var):
     """Get DynamoDB table from environment variable"""
@@ -395,7 +408,7 @@ def handle_events_api(path, http_method, query_params):
                 event_summary[event_type] = 0
             event_summary[event_type] += 1
         
-        # Format response
+        # Format response and convert Decimal objects
         result = {
             'campaign_id': campaign_id,
             'total_events': len(events),
@@ -405,6 +418,9 @@ def handle_events_api(path, http_method, query_params):
         
         if len(events) > 50:
             result['note'] = f'Showing first 50 of {len(events)} total events'
+        
+        # Convert Decimal objects to regular Python types for JSON serialization
+        result = decimal_to_int(result)
         
         return {
             'statusCode': 200,
