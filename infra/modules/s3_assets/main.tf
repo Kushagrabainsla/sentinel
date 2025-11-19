@@ -51,8 +51,8 @@ resource "aws_s3_object" "sentinel_logo" {
     cache_control = "public, max-age=31536000"  # 1 year cache
     
     tags = {
-        Name        = "Sentinel Logo"
-        Purpose     = "Email Tracking & Branding"  
+        Name        = "SentinelLogo"
+        Purpose     = "EmailTrackingAndBranding"  
         Environment = var.name
     }
 }
