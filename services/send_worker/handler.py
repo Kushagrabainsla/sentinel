@@ -132,7 +132,7 @@ def lambda_handler(event, _context):
             # Add warning-free tracking wrapper
             html_content = template_data["html_body"]
             if tracking_data.get("tracking_pixel_html"):
-                # Wrap email content with tracking elements (no external requests)
+                # Wrap email content with tracking elements (embedded data only)
                 opening_wrapper = tracking_data["tracking_pixel_html"]
                 closing_wrapper = tracking_data.get("closing_html", "")
                 
@@ -140,7 +140,11 @@ def lambda_handler(event, _context):
                 html_content = f"{opening_wrapper}{html_content}{closing_wrapper}"
                 
                 print(f"📊 Added warning-free tracking wrapper: {tracking_data.get('tracking_method', 'Unknown')}")
-                print(f"🛡️ No external images = No Gmail warnings")
+                print(f"🛡️ Embedded data URIs + SES events = No Gmail warnings")
+                
+                # Log tracking approach
+                if tracking_data.get("beacon_script"):
+                    print("🔧 Added JavaScript beacon for enhanced tracking")
             
             # Add unsubscribe link to text version if available
             text_content = template_data["text_body"]
