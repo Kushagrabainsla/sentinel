@@ -77,7 +77,7 @@ resource "aws_apigatewayv2_route" "post_campaigns" {
 # Tracking routes
 resource "aws_apigatewayv2_route" "track_open" {
     api_id    = aws_apigatewayv2_api.http.id
-    route_key = "GET /track/open/{campaign_id}/{recipient_id}"
+    route_key = "GET /track/open/{campaign_id}/{recipient_id}.png"
     target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
 }
 
