@@ -99,102 +99,32 @@ def create_cta_tracking_link(campaign_id, recipient_id, cta_id, original_url, em
     
     return tracking_url
 
-def generate_warning_free_tracking(campaign_id, recipient_id, email, base_url=None):
-    """
-    Generate reliable email open tracking using tracking pixels.
-    
-    This method:
-    1. Uses invisible 1x1 tracking pixel (widely supported)
-    2. Pixel is served from tracking API endpoint
-    3. Works in all email clients (Gmail, Outlook, Apple Mail, etc.)
-    4. No JavaScript required (better deliverability)
-    5. Clean, standards-compliant approach
-    
-    Result: Reliable open tracking without security warnings.
-    """
-    
-    if not base_url:
-        base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
-    
-    # Generate tracking pixel URL with encoded email parameter
-    pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}&ts={int(time.time())}"
-    
-    # Create invisible tracking pixel (1x1 transparent image)
-    tracking_pixel_html = f'''<img src="{pixel_url}" width="1" height="1" border="0" style="display:none !important; visibility:hidden !important; opacity:0 !important; background:transparent !important; width:1px !important; height:1px !important; border:none !important; margin:0 !important; padding:0 !important;" alt="" />'''
-    
-    # Clean email wrapper (optional styling)
-    tracking_html = f'''<!-- Sentinel Email Tracking -->
-<div class="sentinel-email" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
-<style>
-.sentinel-email a {{ color: #007cba; text-decoration: none; }}
-.sentinel-email a:hover {{ text-decoration: underline; }}
-</style>
-<div class="sentinel-content">'''
-    
-    return {
-        "pixel_html": tracking_html,
-        "pixel_url": pixel_url,
-        "tracking_image": tracking_pixel_html,
-        "beacon_script": None,  # No JavaScript needed
-        "closing_html": f'{tracking_pixel_html}</div></div><!-- End Sentinel Email -->',
-        "method": "tracking_pixel"
-    }
-
-
 def generate_tracking_data(campaign_id, recipient_id, email, cta_links=None, base_url=None):
-    """
-    Generate tracking URLs and data for email using inline data URI pixels.
-    
-    Args:
-        campaign_id: Campaign identifier
-        recipient_id: Recipient identifier
-        email: Recipient email address
-        cta_links: Dict of CTA links to track {"cta_id": "original_url"}
-        base_url: Base tracking domain
-    
-    Returns:
-        Tracking data with inline pixels (no security warnings)
-    """
+    """Generate simple email tracking: open pixel + CTA link tracking"""
     if not base_url:
         base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
     
-    # Generate unsubscribe URL
-    unsubscribe_token = f"{campaign_id}-{recipient_id}-{int(time.time())}"
-    unsubscribe_url = f"{base_url}/unsubscribe/{unsubscribe_token}"
+    # Open tracking pixel
+    pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}"
+    tracking_pixel = f'<img src="{pixel_url}" width="1" height="1" style="display:none;" alt="">'
     
-    # Generate tracking links ONLY for provided CTA links
+    # CTA link tracking
     tracked_cta_links = {}
-    
     if cta_links:
-        print(f"🎯 Processing {len(cta_links)} CTA links for tracking...")
-        
         for cta_id, original_url in cta_links.items():
             if original_url and original_url.startswith(('http://', 'https://')):
                 tracking_url = create_cta_tracking_link(
-                    campaign_id=campaign_id,
-                    recipient_id=recipient_id,
-                    cta_id=cta_id,
-                    original_url=original_url,
-                    email=email,
-                    base_url=base_url
+                    campaign_id, recipient_id, cta_id, original_url, email, base_url
                 )
                 tracked_cta_links[cta_id] = tracking_url
-            else:
-                print(f"⚠️  Skipping invalid CTA URL for '{cta_id}': {original_url}")
     
-    # Generate warning-free tracking (single method that works without triggering Gmail warnings)
-    tracking_pixel = generate_warning_free_tracking(campaign_id, recipient_id, email, base_url)
+    # Unsubscribe link
+    unsubscribe_token = f"{campaign_id}-{recipient_id}-{int(time.time())}"
+    unsubscribe_url = f"{base_url}/unsubscribe/{unsubscribe_token}"
     
-    tracking_data = {
-        "unsubscribe_url": unsubscribe_url,
+    return {
         "tracked_cta_links": tracked_cta_links,
-        "tracking_pixel_html": tracking_pixel["pixel_html"],
-        "tracking_pixel_url": tracking_pixel.get("pixel_url"),
-        "tracking_image": tracking_pixel.get("tracking_image"),
-        "closing_html": tracking_pixel.get("closing_html", ""),
-        "tracking_method": tracking_pixel["method"]
+        "unsubscribe_url": unsubscribe_url,
+        "tracking_pixel": tracking_pixel,
+        "pixel_url": pixel_url
     }
-    
-    print(f"📊 Generated warning-free tracking (no external requests, enhanced click tracking)")
-    
-    return tracking_data

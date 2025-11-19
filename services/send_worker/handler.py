@@ -150,24 +150,13 @@ def lambda_handler(event, _context):
             if tracking_data.get("tracked_cta_links"):
                 print(f"🎯 CTA links tracked: {list(tracking_data['tracked_cta_links'].keys())}")
             
-            # Add email open tracking
+            # Add tracking pixel to HTML content
             html_content = template_data["html_body"]
-            if tracking_data.get("tracking_pixel_html"):
-                # Wrap email content with clean styling and tracking
-                opening_wrapper = tracking_data["tracking_pixel_html"]
-                closing_wrapper = tracking_data.get("closing_html", "")
-                
-                # Wrap the entire email content
-                html_content = f"{opening_wrapper}{html_content}{closing_wrapper}"
-                
-                print(f"📊 Added email open tracking: {tracking_data.get('tracking_method', 'Unknown')}")
-                print(f"🎯 Tracking pixel URL: {tracking_data.get('pixel_url', 'None')}")
-                
-                # Log tracking approach
-                if tracking_data.get("tracking_method") == "tracking_pixel":
-                    print("📧 Using reliable 1x1 pixel for open tracking (works in all email clients)")
+            if tracking_data.get("tracking_pixel"):
+                html_content += tracking_data["tracking_pixel"]
+                print(f"📊 Added open tracking pixel: {tracking_data.get('pixel_url')}")
             
-            # Add unsubscribe link to text version if available
+            # Add unsubscribe link to text version
             text_content = template_data["text_body"]
             if tracking_data.get("unsubscribe_url") and text_content:
                 text_content += f"\n\nUnsubscribe: {tracking_data['unsubscribe_url']}"
