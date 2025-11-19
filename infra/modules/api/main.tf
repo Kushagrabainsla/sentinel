@@ -93,6 +93,12 @@ resource "aws_apigatewayv2_route" "unsubscribe" {
     target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
 }
 
+resource "aws_apigatewayv2_route" "events" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /events/{campaign_id}"
+    target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
+}
+
 resource "aws_lambda_permission" "api_invoke" {
     statement_id  = "AllowAPIGatewayInvokeCreate"
     action        = "lambda:InvokeFunction"
