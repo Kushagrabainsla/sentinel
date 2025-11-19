@@ -220,8 +220,11 @@ def handle_click_tracking(path, user_agent, ip_address, query_params):
                 },
                 'body': ''
             }
+        else:
+            # Tracking ID not found in database
+            print(f"⚠️ Tracking ID not found: {tracking_id}")
     
-    # If tracking ID not found, redirect to fallback URL
+    # If tracking ID not found or path format is wrong, redirect to fallback URL
     fallback_url = query_params.get('fallback', 'https://thesentinel.site')
     
     return {
