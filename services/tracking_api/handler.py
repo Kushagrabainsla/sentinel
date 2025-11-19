@@ -84,6 +84,7 @@ def generate_1x1_pixel():
     return pixel_data
 
 def lambda_handler(event, context):
+    print("🚀 Tracking API Handler Invoked", event)
     """
     Handle tracking requests:
     - GET /track/open/{campaign_id}/{recipient_id}.png - Email open tracking
