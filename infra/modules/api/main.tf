@@ -74,28 +74,28 @@ resource "aws_apigatewayv2_route" "post_campaigns" {
     target    = "integrations/${aws_apigatewayv2_integration.create_campaign.id}"
 }
 
-# Tracking routes
+# Tracking routes  
 resource "aws_apigatewayv2_route" "track_open" {
     api_id    = aws_apigatewayv2_api.http.id
-    route_key = "GET /track/open/{campaign_id}/{recipient_id}.png"
+    route_key = "GET /track/open/{proxy+}"
     target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
 }
 
 resource "aws_apigatewayv2_route" "track_click" {
     api_id    = aws_apigatewayv2_api.http.id
-    route_key = "GET /track/click/{tracking_id}"
+    route_key = "GET /track/click/{proxy+}"
     target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
 }
 
 resource "aws_apigatewayv2_route" "unsubscribe" {
     api_id    = aws_apigatewayv2_api.http.id
-    route_key = "GET /unsubscribe/{token}"
+    route_key = "GET /unsubscribe/{proxy+}"
     target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
 }
 
 resource "aws_apigatewayv2_route" "events" {
     api_id    = aws_apigatewayv2_api.http.id
-    route_key = "GET /events/{campaign_id}"
+    route_key = "GET /events/{proxy+}"
     target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
 }
 
