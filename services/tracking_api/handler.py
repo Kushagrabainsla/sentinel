@@ -177,34 +177,45 @@ def handle_open_tracking(path, user_agent, ip_address, query_params):
         # Update recipient status to 'opened'
         update_recipient_status(campaign_id, recipient_id, 'opened')
     
-    # Redirect to the real S3 Sentinel logo after recording tracking
+    # Serve the S3 logo directly (fetch and return the image data)
     sentinel_logo_url = os.environ.get('SENTINEL_LOGO_URL')
     
     if sentinel_logo_url:
-        # Redirect to S3 Sentinel logo - this serves the real branded image
-        return {
-            'statusCode': 302,
-            'headers': {
-                'Location': sentinel_logo_url,
-                'Cache-Control': 'no-cache, no-store, must-revalidate'
-            },
-            'body': ''
-        }
-    else:
-        # Fallback: return 1x1 transparent pixel if S3 URL not configured
-        pixel_data = generate_1x1_pixel()
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'image/png',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-            },
-            'body': base64.b64encode(pixel_data).decode('utf-8'),
-            'isBase64Encoded': True
-        }
+        try:
+            import urllib.request
+            
+            # Fetch the actual logo from S3 and serve it directly
+            with urllib.request.urlopen(sentinel_logo_url) as response:
+                logo_data = response.read()
+                
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Content-Type': 'image/png',
+                    'Cache-Control': 'public, max-age=3600',
+                    'Content-Length': str(len(logo_data))
+                },
+                'body': base64.b64encode(logo_data).decode('utf-8'),
+                'isBase64Encoded': True
+            }
+        except Exception as e:
+            print(f"❌ Failed to fetch logo from S3: {e}")
+            # Fallback to pixel
+    
+    # Fallback: return 1x1 transparent pixel if S3 fetch fails
+    pixel_data = generate_1x1_pixel()
+    
+    return {
+        'statusCode': 200,
+        'headers': {
+            'Content-Type': 'image/png',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        },
+        'body': base64.b64encode(pixel_data).decode('utf-8'),
+        'isBase64Encoded': True
+    }
 
 def handle_click_tracking(path, user_agent, ip_address, query_params, tracking_id=None):
     """Handle link click tracking and redirect"""
