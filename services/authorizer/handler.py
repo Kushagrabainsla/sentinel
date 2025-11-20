@@ -40,10 +40,10 @@ def lambda_handler(event, context):
     """
     API Gateway Lambda Authorizer for API Key authentication
     
-    Expected event structure:
+    Expected event structure (API Gateway v2):
     {
         "type": "REQUEST",
-        "methodArn": "arn:aws:execute-api:...",
+        "routeArn": "arn:aws:execute-api:...",
         "headers": {
             "x-api-key": "user-api-key"
         },
@@ -88,14 +88,15 @@ def lambda_handler(event, context):
             print(f"✅ User authenticated: {user.get('email')} (ID: {user.get('id')})")
             
             # Generate allow policy with user context
+            # API Gateway v2 requires all context values to be strings
             policy = generate_policy(
                 effect='Allow',
-                resource=event['methodArn'],
-                principal_id=user['id'],
+                resource=event.get('routeArn', event.get('methodArn', '*')),
+                principal_id=str(user['id']),
                 context={
-                    'user_id': user['id'],
-                    'user_email': user['email'],
-                    'user_status': user.get('status', 'active')
+                    'user_id': str(user['id']),
+                    'user_email': str(user['email']),
+                    'user_status': str(user.get('status', 'active'))
                 }
             )
             
@@ -108,4 +109,4 @@ def lambda_handler(event, context):
     except Exception as e:
         print(f"❌ Authorization failed: {str(e)}")
         # Return deny policy for any errors
-        return generate_policy('Deny', event.get('methodArn', '*'))
+        return generate_policy('Deny', event.get('routeArn', event.get('methodArn', '*')))

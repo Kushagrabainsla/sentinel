@@ -28,7 +28,7 @@ resource "aws_apigatewayv2_authorizer" "api_key_auth" {
     name                              = "${var.name}-api-key-authorizer"
     authorizer_payload_format_version = "2.0"
     authorizer_result_ttl_in_seconds  = 300  # Cache authorization results for 5 minutes
-    identity_sources                  = ["$request.header.x-api-key", "$request.header.X-API-Key", "$request.header.Authorization"]
+    identity_sources                  = ["$request.header.X-API-Key"]
 }
 
 # Lambda permission for API Gateway to invoke authorizer

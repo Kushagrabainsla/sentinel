@@ -119,7 +119,7 @@ def test_invalid_api_key():
     
     response = requests.get(f"{API_BASE_URL}/segments", headers=headers)
     
-    if response.status_code == 401:
+    if response.status_code in [401, 403]:
         print("✅ Correctly rejected invalid API key!")
         return True
     else:

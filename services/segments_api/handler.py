@@ -12,30 +12,45 @@ from boto3.dynamodb.conditions import Key, Attr
 # Authentication utilities (moved from common/auth_utils.py)
 def get_user_from_context(event):
     """
-    Extract user information from API Gateway authorizer context
+    Extract user information from API Gateway v2 authorizer context
     
-    When using Lambda authorizer, user info is available in:
-    event['requestContext']['authorizer']
+    For API Gateway v2 with Lambda authorizer, the context is available in:
+    event['requestContext']['authorizer']['lambda']['key']
     """
     try:
-        authorizer_context = event.get('requestContext', {}).get('authorizer', {})
+        print(f"DEBUG: Full event context: {json.dumps(event.get('requestContext', {}), default=str)}")
         
-        if not authorizer_context:
+        request_context = event.get('requestContext', {})
+        
+        # API Gateway v2 stores authorizer context in lambda key
+        authorizer_data = request_context.get('authorizer', {})
+        
+        # The authorizer context might be directly in authorizer or in lambda sub-key
+        lambda_context = authorizer_data.get('lambda', {})
+        
+        # Try lambda context first, then fall back to direct authorizer context
+        context = lambda_context if lambda_context else authorizer_data
+        
+        print(f"DEBUG: Authorizer context: {json.dumps(context, default=str)}")
+        
+        if not context:
             raise ValueError("No authorizer context found")
         
         # Extract user info from authorizer context
         user = {
-            'id': authorizer_context.get('user_id'),
-            'email': authorizer_context.get('user_email'),
-            'status': authorizer_context.get('user_status', 'active')
+            'id': context.get('user_id'),
+            'email': context.get('user_email'),
+            'status': context.get('user_status', 'active')
         }
         
         if not user['id'] or not user['email']:
-            raise ValueError("Invalid user context from authorizer")
+            raise ValueError(f"Invalid user context from authorizer. Context keys: {list(context.keys())}")
             
+        print(f"DEBUG: Extracted user: {user}")
         return user
         
     except Exception as e:
+        print(f"ERROR: Context extraction failed: {str(e)}")
         raise ValueError(f"Failed to extract user from context: {str(e)}")
 
 class DecimalEncoder(json.JSONEncoder):
@@ -286,12 +301,18 @@ def list_segments(event):
         if status_filter:
             filter_expression = filter_expression & Attr('status').eq(status_filter)
         
-        response = segments_table.query(
-            IndexName='owner_index',
-            KeyConditionExpression=Key('owner_id').eq(user['id']),
-            FilterExpression=filter_expression if status_filter else None,
-            Limit=limit
-        )
+        # Build query parameters
+        query_params = {
+            'IndexName': 'owner_index',
+            'KeyConditionExpression': Key('owner_id').eq(user['id']),
+            'Limit': limit
+        }
+        
+        # Only add FilterExpression if we have a filter
+        if status_filter:
+            query_params['FilterExpression'] = filter_expression
+        
+        response = segments_table.query(**query_params)
         
         segments = convert_decimals(response.get('Items', []))
         
