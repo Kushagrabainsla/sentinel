@@ -3,9 +3,35 @@ import os
 import time
 import uuid
 from datetime import datetime
+from decimal import Decimal
 import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
+
+class DecimalEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle Decimal objects from DynamoDB"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            # Convert Decimal to int if it's a whole number, otherwise to float
+            if obj % 1 == 0:
+                return int(obj)
+            else:
+                return float(obj)
+        return super(DecimalEncoder, self).default(obj)
+
+def convert_decimals(obj):
+    """Recursively convert Decimal objects to int/float in DynamoDB items"""
+    if isinstance(obj, list):
+        return [convert_decimals(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_decimals(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        if obj % 1 == 0:
+            return int(obj)
+        else:
+            return float(obj)
+    else:
+        return obj
 
 # DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -32,7 +58,7 @@ def _response(status_code, body, headers=None):
     return {
         "statusCode": status_code,
         "headers": default_headers,
-        "body": json.dumps(body)
+        "body": json.dumps(body, cls=DecimalEncoder)
     }
 
 def validate_segment_data(data, required_fields=None):
@@ -192,7 +218,7 @@ def get_segment(event):
         if 'Item' not in response:
             return _response(404, {"error": f"Segment '{segment_id}' not found"})
         
-        segment = response['Item']
+        segment = convert_decimals(response['Item'])
         
         # Update contact count in real-time for built-in segments
         if segment_id in ['all_active', 'all_contacts']:
@@ -221,7 +247,7 @@ def list_segments(event):
         else:
             response = segments_table.scan(Limit=limit)
         
-        segments = response.get('Items', [])
+        segments = convert_decimals(response.get('Items', []))
         
         # Sort by updated_at (most recent first)
         segments.sort(key=lambda x: x.get('updated_at', 0), reverse=True)
@@ -293,7 +319,7 @@ def update_segment(event):
         
         # Get updated segment
         response = segments_table.get_item(Key={'id': segment_id})
-        segment = response['Item']
+        segment = convert_decimals(response['Item'])
         
         return _response(200, {
             "message": "Segment updated successfully",
@@ -355,7 +381,8 @@ def get_segment_contacts(event):
             if 'Item' not in response:
                 return _response(404, {"error": f"Segment '{segment_id}' not found"})
             
-            segment_emails = response['Item'].get('emails', [])
+            item = convert_decimals(response['Item'])
+            segment_emails = item.get('emails', [])
             # Apply limit to emails list
             emails = segment_emails[:limit]
         
@@ -363,7 +390,7 @@ def get_segment_contacts(event):
             "segment_id": segment_id,
             "emails": emails,
             "count": len(emails),
-            "has_more": len(emails) == limit and (segment_id not in ['all_active', 'all_contacts'] and len(response['Item'].get('emails', [])) > limit)
+            "has_more": len(emails) == limit and (segment_id not in ['all_active', 'all_contacts'] and len(segment_emails) > limit)
         })
         
     except Exception as e:
@@ -397,7 +424,8 @@ def add_emails_to_segment(event):
         if 'Item' not in response:
             return _response(404, {"error": f"Segment '{segment_id}' not found"})
         
-        current_emails = set(response['Item'].get('emails', []))
+        item = convert_decimals(response['Item'])
+        current_emails = set(item.get('emails', []))
         new_emails_set = set(email.lower().strip() for email in new_emails)
         
         # Merge emails
@@ -445,7 +473,8 @@ def remove_emails_from_segment(event):
         if 'Item' not in response:
             return _response(404, {"error": f"Segment '{segment_id}' not found"})
         
-        current_emails = set(response['Item'].get('emails', []))
+        item = convert_decimals(response['Item'])
+        current_emails = set(item.get('emails', []))
         emails_to_remove_set = set(email.lower().strip() for email in emails_to_remove)
         
         # Remove emails
