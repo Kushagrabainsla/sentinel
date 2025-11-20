@@ -19,6 +19,7 @@ def create_immediate_campaign():
     campaign_data = {
         "name": "Immediate Test Campaign",
         "subject": "🚀 Immediate Test Email",
+        "type": "I",  # Immediate campaign
         "html_body": """
         <html>
         <head>
@@ -59,7 +60,6 @@ def create_immediate_campaign():
         </body>
         </html>
         """.format(timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")),
-        "text_body": "Hello from Sentinel! This is an immediate test email sent at {timestamp}.\n\nTest Links (click tracking enabled):\n- Project Repository: https://github.com/Kushagrabainsla/sentinel\n- AWS SES Docs: https://docs.aws.amazon.com/ses/\n- Campaign Events: https://api.thesentinel.site/events/test\n- DynamoDB Console: https://console.aws.amazon.com/dynamodb\n- CloudWatch Logs: https://console.aws.amazon.com/cloudwatch/\n\nIf you received this, the immediate campaign flow is working correctly!".format(timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")),
         "from_email": "no-reply@thesentinel.site",
         "from_name": "Sentinel Test",
         "segment_id": "all_active",

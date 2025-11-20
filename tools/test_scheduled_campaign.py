@@ -11,19 +11,20 @@ from datetime import datetime, timezone, timedelta
 # Configuration
 API_BASE_URL = "https://api.thesentinel.site"
 CREATE_CAMPAIGN_ENDPOINT = f"{API_BASE_URL}/v1/campaigns"
-SCHEDULE_DELAY_MINUTES = 2
+SCHEDULE_DELAY_MINUTES = 1
 
 def create_scheduled_campaign():
     """Create a scheduled email campaign to be sent in 3 minutes via API."""
     
-    # Calculate schedule time (3 minutes from now)
+    # Calculate schedule time (3 minutes from now) as epoch timestamp
     schedule_time = datetime.now(timezone.utc) + timedelta(minutes=SCHEDULE_DELAY_MINUTES)
-    schedule_at = schedule_time.isoformat()
+    schedule_at = int(schedule_time.timestamp())
     
     # Campaign payload for scheduled sending
     campaign_data = {
         "name": f"Scheduled Test Campaign (+{SCHEDULE_DELAY_MINUTES}min)",
         "subject": "⏰ Scheduled Test Email",
+        "type": "S",  # Scheduled campaign
         "html_body": """
         <html>
         <head>
@@ -75,7 +76,6 @@ def create_scheduled_campaign():
             created_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
             scheduled_at=schedule_time.strftime("%Y-%m-%d %H:%M:%S UTC")
         ),
-        "text_body": f"Hello from Sentinel Scheduler! This is a scheduled test email.\n\nSchedule Info:\n- Created at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n- Scheduled for: {schedule_time.strftime('%Y-%m-%d %H:%M:%S UTC')}\n- Execution: EventBridge Scheduler\n\nTest Links (click tracking enabled):\n- GitHub Actions: https://github.com/Kushagrabainsla/sentinel/actions\n- EventBridge Rules: https://console.aws.amazon.com/events/home#/rules\n- Scheduled Events: https://api.thesentinel.site/events/scheduled-test\n- EventBridge Scheduler: https://console.aws.amazon.com/scheduler/home\n- Start Campaign Logs: https://console.aws.amazon.com/cloudwatch/\n- Sentinel Homepage: https://thesentinel.site\n\nIf you received this, the scheduled campaign flow is working correctly!",
         "from_email": "no-reply@thesentinel.site",
         "from_name": "Sentinel Scheduler",
         "segment_id": "all_active",
