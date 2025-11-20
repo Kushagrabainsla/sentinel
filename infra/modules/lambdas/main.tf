@@ -22,12 +22,7 @@ resource "null_resource" "artifacts_dir" {
     }
 }
 
-data "archive_file" "create_campaign" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/create_campaign"
-    output_path = "${path.module}/.artifacts/create_campaign.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
+
 
 data "archive_file" "start_campaign" {
     type        = "zip"
@@ -80,26 +75,7 @@ data "archive_file" "campaigns_api" {
     depends_on  = [null_resource.artifacts_dir]
 }
 
-resource "aws_lambda_function" "create_campaign" {
-    function_name    = "${var.name}-create-campaign"
-    role             = var.roles.lambda_exec
-    package_type     = "Zip"
-    handler          = "handler.lambda_handler"
-    runtime          = "python3.11"
-    filename         = data.archive_file.create_campaign.output_path
-    source_code_hash = data.archive_file.create_campaign.output_base64sha256
-    timeout          = 20
-    environment {
-        variables = {
-            DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
-            DYNAMODB_SEGMENTS_TABLE   = var.dynamodb_segments_table
-            DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
-            START_CAMPAIGN_QUEUE_URL  = var.queues.send_queue_url
-            START_CAMPAIGN_LAMBDA_ARN = aws_lambda_function.start_campaign.arn
-            EVENTBRIDGE_ROLE_ARN      = var.scheduler_invoke_role_arn
-        }
-    }
-}
+
 
 resource "aws_lambda_function" "start_campaign" {
     function_name    = "${var.name}-start-campaign"
@@ -235,7 +211,7 @@ resource "aws_lambda_function" "campaigns_api" {
     }
 }
 
-output "create_campaign_arn"  { value = aws_lambda_function.create_campaign.arn }
+
 output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
 
 output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }
