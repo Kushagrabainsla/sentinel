@@ -111,5 +111,6 @@ def lambda_handler(event, context):
             
     except Exception as e:
         print(f"❌ Authorization failed: {str(e)}")
-        # Return deny policy for any errors
-        return generate_policy('Deny', event.get('routeArn', event.get('methodArn', '*')))
+        # Return deny policy for any errors - handle both API Gateway v1 and v2
+        resource_arn = event.get('routeArn') or event.get('methodArn') or '*'
+        return generate_policy('Deny', resource_arn)
