@@ -27,7 +27,7 @@ resource "aws_apigatewayv2_authorizer" "api_key_auth" {
     authorizer_uri                    = var.authorizer_arn
     name                              = "${var.name}-api-key-authorizer"
     authorizer_payload_format_version = "2.0"
-    authorizer_result_ttl_in_seconds  = 30   # Cache authorization results for 30 seconds (balanced for testing + performance)
+    authorizer_result_ttl_in_seconds  = 0
     identity_sources                  = ["$request.header.X-API-Key"]
 }
 
