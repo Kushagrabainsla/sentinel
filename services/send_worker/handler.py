@@ -142,7 +142,6 @@ def lambda_handler(event, _context):
                 "name": email.split("@")[0],
                 "subject": msg_template_data.get("subject", "Newsletter"),
                 "html_body": processed_html,
-                "text_body": msg_template_data.get("text_body", ""),
             }
             
             print(f"📧 Sending email to {email} for campaign {campaign_id}")
@@ -155,9 +154,13 @@ def lambda_handler(event, _context):
                 html_content += tracking_data["tracking_pixel"]
                 print(f"📊 Added open tracking pixel: {tracking_data.get('pixel_url')}")
             
+            # Generate plain text content from HTML (fallback)
+            import re
+            text_content = re.sub('<[^<]+?>', '', template_data["html_body"])  # Simple HTML strip
+            text_content = text_content.strip() or "Please view this email in HTML format."
+            
             # Add unsubscribe link to text version
-            text_content = template_data["text_body"]
-            if tracking_data.get("unsubscribe_url") and text_content:
+            if tracking_data.get("unsubscribe_url"):
                 text_content += f"\n\nUnsubscribe: {tracking_data['unsubscribe_url']}"
             
             # Send email via SES with enhanced tracking

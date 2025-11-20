@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 import boto3
-from common_db import create_campaign
+from common_db import create_campaign, CampaignType, CampaignState
 
 def _parse_body(event):
     if isinstance(event, dict) and "body" in event:
@@ -35,8 +35,8 @@ def _create_scheduler_rule(campaign_id, schedule_at):
         return False
     
     try:
-        # Parse schedule_at datetime
-        schedule_dt = datetime.fromisoformat(schedule_at.replace('Z', '+00:00'))
+        # Convert epoch timestamp to datetime
+        schedule_dt = datetime.fromtimestamp(schedule_at, timezone.utc)
         
         # Only create scheduler if it's in the future
         if schedule_dt <= datetime.now(timezone.utc):
@@ -97,12 +97,12 @@ def lambda_handler(event, _context):
     data = _parse_body(event)
     name = data.get("name")
     segment_id = data.get("segment_id")
-    schedule_at = data.get("schedule_at")  # ISO8601 or None
+    campaign_type = data.get("type")
+    schedule_at = data.get("schedule_at")  # Epoch timestamp or None
     
     # Direct email content is required
     subject = data.get("subject")
     html_body = data.get("html_body")
-    text_body = data.get("text_body")
     from_email = data.get("from_email")
     from_name = data.get("from_name")
     
@@ -112,54 +112,55 @@ def lambda_handler(event, _context):
     if not name:
         return _response(400, {"error": "name is required"})
     
+    if not campaign_type:
+        return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE} for immediate, {CampaignType.SCHEDULED} for scheduled)"})
+    
     if not (subject and html_body):
         return _response(400, {"error": "subject and html_body are required"})
     
     if not segment_id:
         segment_id = "all_active"  # Default segment
 
-    # Default schedule: now (UTC) if not provided
-    if not schedule_at:
-        schedule_at = datetime.now(timezone.utc).isoformat()
+    try:
+        campaign_id = create_campaign(
+            name=name, 
+            segment_id=segment_id,
+            campaign_type=campaign_type,
+            schedule_at=schedule_at,
+            subject=subject,
+            html_body=html_body,
+            from_email=from_email,
+            from_name=from_name
+        )
+    except ValueError as e:
+        return _response(400, {"error": str(e)})
 
-    campaign_id = create_campaign(
-        name=name, 
-        segment_id=segment_id, 
-        schedule_at=schedule_at,
-        subject=subject,
-        html_body=html_body,
-        text_body=text_body,
-        from_email=from_email,
-        from_name=from_name
-    )
-
-    # Parse schedule time to determine execution path
-    schedule_dt = datetime.fromisoformat(schedule_at.replace('Z', '+00:00'))
-    now = datetime.now(timezone.utc)
-    time_diff = (schedule_dt - now).total_seconds()
-
-    # Dual-path approach:
-    if time_diff <= 60:  # If scheduled within 1 minute, trigger immediately
+    # Dual-path approach based on campaign type:
+    if campaign_type == CampaignType.IMMEDIATE:  # Immediate campaigns
         print(f"⚡ Immediate execution path for campaign {campaign_id}")
         immediate_triggered = _trigger_immediate_campaign(campaign_id)
         
         response_data = {
             "campaign_id": campaign_id,
-            "state": "sending",  # Immediate campaigns go to sending state
+            "state": CampaignState.PENDING,
+            "type": campaign_type,
             "schedule_at": schedule_at,
             "execution_path": "immediate",
             "triggered": immediate_triggered
         }
-    else:
+    elif campaign_type == CampaignType.SCHEDULED:  # Scheduled campaigns
         print(f"📅 Scheduled execution path for campaign {campaign_id}")
         scheduler_created = _create_scheduler_rule(campaign_id, schedule_at)
         
         response_data = {
             "campaign_id": campaign_id,
-            "state": "scheduled",  # Future campaigns stay scheduled
+            "state": CampaignState.SCHEDULED,
+            "type": campaign_type,
             "schedule_at": schedule_at,
             "execution_path": "scheduled",
             "auto_scheduler": scheduler_created
         }
+    else:
+        return _response(400, {"error": "Invalid campaign type"})
     
     return _response(201, response_data)

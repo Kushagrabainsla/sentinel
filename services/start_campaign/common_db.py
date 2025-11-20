@@ -1,8 +1,21 @@
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 import boto3
 from botocore.exceptions import ClientError
+
+# Campaign Enums (matching create_campaign)
+class CampaignState:
+    SCHEDULED = "SC"  # Scheduled for future execution
+    PENDING = "P"     # Pending immediate execution
+    SENDING = "SE"    # Currently sending
+    DONE = "D"        # Completed
+    FAILED = "F"      # Failed
+
+class CampaignStatus:
+    ACTIVE = "A"      # Active campaign
+    INACTIVE = "I"    # Inactive campaign
 
 _dynamo = None
 
@@ -50,9 +63,12 @@ def update_campaign_state(campaign_id, state):
     table = _get_dynamo().Table(table_name)
     table.update_item(
         Key={'id': str(campaign_id)},
-        UpdateExpression='SET #s = :s',
+        UpdateExpression='SET #s = :s, updated_at = :updated_at',
         ExpressionAttributeNames={'#s': 'state'},
-        ExpressionAttributeValues={':s': state}
+        ExpressionAttributeValues={
+            ':s': state,
+            ':updated_at': int(time.time())
+        }
     )
 
 def fetch_campaign_details(campaign_id):
@@ -68,3 +84,6 @@ def fetch_campaign_details(campaign_id):
     except ClientError as e:
         print(f"Error fetching campaign {campaign_id}: {e}")
         return None
+
+# Analytics are tracked in separate tables/services
+# Campaign table only contains campaign configuration
