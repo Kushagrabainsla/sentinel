@@ -48,5 +48,10 @@ jobs:
       - name: Deployment Summary
         run: |
           echo "✅ Deployment Complete!"
-          echo "API URL: $(cd infra && terraform output -raw api_url 2>/dev/null || echo 'N/A')"
-          echo "Database: DynamoDB"
+          echo ""
+          echo "📡 API Endpoints:"
+          echo "  Custom Domain: $(cd infra && terraform output -raw custom_domain_url 2>/dev/null || echo 'N/A')"
+          echo "  Gateway URL: $(cd infra && terraform output -raw api_gateway_url 2>/dev/null || echo 'N/A')"
+          echo ""
+          echo "🗄️  Database:"
+          echo "  DynamoDB Tables: $(cd infra && terraform output -raw dynamodb_campaigns_table 2>/dev/null || echo 'N/A'), $(cd infra && terraform output -raw dynamodb_segments_table 2>/dev/null || echo 'N/A'), $(cd infra && terraform output -raw dynamodb_events_table 2>/dev/null || echo 'N/A')"

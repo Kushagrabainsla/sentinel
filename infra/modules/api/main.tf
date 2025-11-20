@@ -2,7 +2,10 @@ variable "name" { type = string }
 variable "create_campaign_arn" { type = string }
 variable "tracking_api_arn" { type = string }
 variable "segments_api_arn" { type = string }
-variable "authorizer_arn" { type = string }
+variable "authorizer_arn" { 
+    type = string
+    description = "Lambda authorizer invoke ARN for API Gateway v2"
+}
 variable "auth_api_arn" { type = string }
 
 # Custom domain configuration
@@ -32,7 +35,7 @@ resource "aws_apigatewayv2_authorizer" "api_key_auth" {
 resource "aws_lambda_permission" "authorizer_invoke" {
     statement_id  = "AllowAPIGatewayInvokeAuthorizer"
     action        = "lambda:InvokeFunction"
-    function_name = var.authorizer_arn
+    function_name = "${var.name}-authorizer"
     principal     = "apigateway.amazonaws.com"
     source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }

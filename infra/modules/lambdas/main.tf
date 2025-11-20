@@ -214,5 +214,5 @@ output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
 
 output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }
 output "segments_api_arn"     { value = aws_lambda_function.segments_api.arn }
-output "authorizer_arn"       { value = aws_lambda_function.authorizer.arn }
+output "authorizer_arn"       { value = aws_lambda_function.authorizer.invoke_arn }
 output "auth_api_arn"         { value = aws_lambda_function.auth_api.arn }
