@@ -2,6 +2,8 @@ import json
 import os
 import boto3
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key
+
 
 # DynamoDB client
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -68,8 +70,7 @@ def lambda_handler(event, context):
         try:
             response = users_table.query(
                 IndexName='api_key_index',
-                KeyConditionExpression='api_key = :api_key',
-                ExpressionAttributeValues={':api_key': api_key}
+                KeyConditionExpression=Key('api_key').eq(api_key)
             )
             
             users = response.get('Items', [])

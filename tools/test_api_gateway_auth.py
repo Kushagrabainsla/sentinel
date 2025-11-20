@@ -26,8 +26,10 @@ def test_registration():
     
     if response.status_code == 201:
         result = response.json()
-        print(f"✅ Registration successful! API Key: {result.get('api_key', 'Not provided')}")
-        return result.get('api_key')
+        print(result)
+        api_key = result.get('user', {}).get('api_key')
+        print(f"✅ Registration successful! API Key: {api_key if api_key else 'Not provided'}")
+        return api_key
     else:
         print(f"❌ Registration failed: {response.status_code} - {response.text}")
         return None
