@@ -1,4 +1,4 @@
-<img src="assets/images/sentinel-logo.png" alt="Sentinel Logo" width="60" height="60" align="left" style="margin-right: 15px; border: 2px solid #e1e5e9; border-radius: 8px; padding: 4px;">
+<img src="/assets/images/sentinel-logo.png" alt="Sentinel Logo" width="60" height="60" align="left" style="margin-right: 15px; border: 2px solid #e1e5e9; border-radius: 8px; padding: 4px;">
 
 # Sentinel: A Cloud-Native Email Marketing & Analytics SaaS
 
