@@ -513,10 +513,16 @@ def refresh_segment_counts(event):
 
 def lambda_handler(event, context):
     """Main handler for segments API"""
-    print(f"Segments API Handler: {json.dumps(event, default=str)}")
+    print(f"Segments API Handler - Full Event: {json.dumps(event, default=str)}")
     
     http_method = event.get('requestContext', {}).get('http', {}).get('method') or event.get('httpMethod', 'GET')
     path = event.get('rawPath') or event.get('path', '')
+    
+    print(f"DEBUG - HTTP Method: {http_method}")
+    print(f"DEBUG - Path: {path}")
+    print(f"DEBUG - Path Parameters: {event.get('pathParameters')}")
+    print(f"DEBUG - Query Parameters: {event.get('queryStringParameters')}")
+    print(f"DEBUG - Request Context: {event.get('requestContext', {})}")
     
     # Handle CORS preflight
     if http_method == 'OPTIONS':
@@ -531,35 +537,59 @@ def lambda_handler(event, context):
                 return create_segment(event)
         
         elif path.startswith('/segments/') or path.startswith('/v1/segments/'):
-            # Extract segment ID from path
-            path_parts = path.strip('/').split('/')
-            if len(path_parts) >= 2:
-                segment_id = path_parts[-1]
+            # First check if API Gateway v2 already provided pathParameters
+            path_params = event.get('pathParameters', {})
+            segment_id = path_params.get('id') if path_params else None
+            
+            # If not provided, extract segment ID from path manually
+            if not segment_id:
+                path_parts = path.strip('/').split('/')
+                print(f"DEBUG - Path parts: {path_parts}")
                 
-                # Handle sub-resources
-                if len(path_parts) >= 3:
-                    if path_parts[-2] == 'emails' or path_parts[-2] == 'contacts':
-                        if http_method == 'GET':
-                            # GET /segments/{id}/emails or /segments/{id}/contacts
-                            modified_event = event.copy()
-                            modified_event['pathParameters'] = {'id': segment_id}
-                            return get_segment_contacts(modified_event)
-                        elif http_method == 'POST':
-                            # POST /segments/{id}/emails - add emails to segment
-                            modified_event = event.copy()
-                            modified_event['pathParameters'] = {'id': segment_id}
-                            return add_emails_to_segment(modified_event)
-                        elif http_method == 'DELETE':
-                            # DELETE /segments/{id}/emails - remove emails from segment
-                            modified_event = event.copy()
-                            modified_event['pathParameters'] = {'id': segment_id}
-                            return remove_emails_from_segment(modified_event)
+                # For /v1/segments/{id}, path_parts = ['v1', 'segments', 'id']
+                # For /segments/{id}, path_parts = ['segments', 'id'] 
+                segments_index = -1
+                for i, part in enumerate(path_parts):
+                    if part == 'segments':
+                        segments_index = i
+                        break
+                
+                if segments_index >= 0 and len(path_parts) > segments_index + 1:
+                    segment_id = path_parts[segments_index + 1]
+                    print(f"DEBUG - Extracted segment_id: {segment_id}")
+            
+            if segment_id:
+                # Check for sub-resources
+                path_parts = path.strip('/').split('/')
+                is_sub_resource = False
+                sub_resource = None
+                
+                # Find segments index and check if there's a sub-resource after the ID
+                segments_index = -1
+                for i, part in enumerate(path_parts):
+                    if part == 'segments':
+                        segments_index = i
+                        break
+                
+                if segments_index >= 0 and len(path_parts) > segments_index + 2:
+                    sub_resource = path_parts[segments_index + 2]
+                    is_sub_resource = True
+                
+                # Create modified event with proper pathParameters
+                modified_event = event.copy()
+                modified_event['pathParameters'] = {'id': segment_id}
+                
+                # Handle sub-resources like /v1/segments/{id}/emails
+                if is_sub_resource and sub_resource in ['emails', 'contacts']:
+                    if http_method == 'GET':
+                        return get_segment_contacts(modified_event)
+                    elif http_method == 'POST':
+                        return add_emails_to_segment(modified_event)
+                    elif http_method == 'DELETE':
+                        return remove_emails_from_segment(modified_event)
                 
                 # Handle main segment operations
                 else:
-                    modified_event = event.copy()
-                    modified_event['pathParameters'] = {'id': segment_id}
-                    
                     if http_method == 'GET':
                         return get_segment(modified_event)
                     elif http_method == 'PUT':
