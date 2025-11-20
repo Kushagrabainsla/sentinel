@@ -39,7 +39,7 @@ def _get_dynamo():
     return _dynamo
 
 def create_campaign(name, segment_id=None, campaign_type=None, delivery_type=None, recipient_email=None, 
-                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None):
+                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None):
     """Create a campaign item and return its id (string UUID)."""
     table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
     if not table_name:
@@ -94,6 +94,7 @@ def create_campaign(name, segment_id=None, campaign_type=None, delivery_type=Non
         "schedule_at": schedule_at,
         "state": CampaignState.SCHEDULED if campaign_type == CampaignType.SCHEDULED else CampaignState.PENDING,
         "status": CampaignStatus.ACTIVE,
+        "owner_id": owner_id,
         "tags": [],  # For categorization and filtering
         "metadata": {}  # For additional custom fields
     }

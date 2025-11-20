@@ -27,15 +27,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Prepare Lambda functions
-        run: |
-          # Copy common database helper to each service
-          for service in create_campaign send_worker start_campaign; do
-            if [ -f services/common/db_helper.py ]; then
-              cp services/common/db_helper.py services/$service/
-            fi
-          done
-
       - name: Terraform Init
         working-directory: infra
         run: terraform init

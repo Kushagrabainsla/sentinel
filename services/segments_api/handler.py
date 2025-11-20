@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import uuid
 from datetime import datetime
@@ -7,6 +8,35 @@ from decimal import Decimal
 import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
+
+# Authentication utilities (moved from common/auth_utils.py)
+def get_user_from_context(event):
+    """
+    Extract user information from API Gateway authorizer context
+    
+    When using Lambda authorizer, user info is available in:
+    event['requestContext']['authorizer']
+    """
+    try:
+        authorizer_context = event.get('requestContext', {}).get('authorizer', {})
+        
+        if not authorizer_context:
+            raise ValueError("No authorizer context found")
+        
+        # Extract user info from authorizer context
+        user = {
+            'id': authorizer_context.get('user_id'),
+            'email': authorizer_context.get('user_email'),
+            'status': authorizer_context.get('user_status', 'active')
+        }
+        
+        if not user['id'] or not user['email']:
+            raise ValueError("Invalid user context from authorizer")
+            
+        return user
+        
+    except Exception as e:
+        raise ValueError(f"Failed to extract user from context: {str(e)}")
 
 class DecimalEncoder(json.JSONEncoder):
     """Custom JSON encoder to handle Decimal objects from DynamoDB"""
@@ -156,6 +186,8 @@ def count_segment_contacts(segment_id, emails_list=None):
 
 def create_segment(event):
     """Create a new segment"""
+    user = event['user']  # User already authenticated in handler
+    
     try:
         body = json.loads(event.get('body', '{}'))
     except json.JSONDecodeError:
@@ -180,7 +212,7 @@ def create_segment(event):
     # Remove duplicates and normalize emails
     unique_emails = list(set(email.lower().strip() for email in emails))
     
-    # Create segment
+    # Create segment with owner information
     segment_item = {
         'id': segment_id,
         'name': body['name'],
@@ -191,7 +223,8 @@ def create_segment(event):
         'contact_count': len(unique_emails),
         'created_at': current_time,
         'updated_at': current_time,
-        'created_by': body.get('created_by', 'api'),
+        'created_by': user['id'],
+        'owner_id': user['id'],  # Add owner information
         'tags': body.get('tags', [])
     }
     
@@ -208,6 +241,7 @@ def create_segment(event):
 
 def get_segment(event):
     """Get a specific segment by ID"""
+    user = event['user']  # User already authenticated in handler
     segment_id = event['pathParameters']['id']
     
     segments_table = get_table('DYNAMODB_SEGMENTS_TABLE')
@@ -220,10 +254,15 @@ def get_segment(event):
         
         segment = convert_decimals(response['Item'])
         
-        # Update contact count in real-time for built-in segments
+        # Handle built-in segments (global access)
         if segment_id in ['all_active', 'all_contacts']:
             contact_count = count_segment_contacts(segment_id)
             segment['contact_count'] = contact_count
+            return _response(200, {"segment": segment})
+        
+        # Check ownership for custom segments
+        if segment.get('owner_id') != user['id']:
+            return _response(403, {"error": "Access denied. You can only access your own segments."})
         
         return _response(200, {"segment": segment})
         
@@ -231,7 +270,8 @@ def get_segment(event):
         return _response(500, {"error": f"Failed to retrieve segment: {str(e)}"})
 
 def list_segments(event):
-    """List all segments with optional filtering"""
+    """List user's segments with optional filtering"""
+    user = event['user']  # User already authenticated in handler
     query_params = event.get('queryStringParameters') or {}
     status_filter = query_params.get('status')
     limit = min(int(query_params.get('limit', 50)), 100)  # Max 100 items
@@ -239,23 +279,27 @@ def list_segments(event):
     segments_table = get_table('DYNAMODB_SEGMENTS_TABLE')
     
     try:
+        # Query user's segments using owner_id index
+        filter_expression = Attr('owner_id').eq(user['id'])
+        
+        # Add status filter if provided
         if status_filter:
-            response = segments_table.scan(
-                FilterExpression=Attr('status').eq(status_filter),
-                Limit=limit
-            )
-        else:
-            response = segments_table.scan(Limit=limit)
+            filter_expression = filter_expression & Attr('status').eq(status_filter)
+        
+        response = segments_table.query(
+            IndexName='owner_index',
+            KeyConditionExpression=Key('owner_id').eq(user['id']),
+            FilterExpression=filter_expression if status_filter else None,
+            Limit=limit
+        )
         
         segments = convert_decimals(response.get('Items', []))
         
         # Sort by updated_at (most recent first)
         segments.sort(key=lambda x: x.get('updated_at', 0), reverse=True)
         
-        # Add real-time contact counts for built-in segments
-        for segment in segments:
-            if segment['id'] in ['all_active', 'all_contacts']:
-                segment['contact_count'] = count_segment_contacts(segment['id'])
+        # Note: Built-in segments (all_active, all_contacts) are not user-specific
+        # They would need special handling if we want to include them
         
         return _response(200, {
             "segments": segments,
@@ -268,7 +312,12 @@ def list_segments(event):
 
 def update_segment(event):
     """Update an existing segment"""
+    user = event['user']  # User already authenticated in handler
     segment_id = event['pathParameters']['id']
+    
+    # Prevent updating built-in segments
+    if segment_id in ['all_active', 'all_contacts']:
+        return _response(400, {"error": f"Cannot update built-in segment '{segment_id}'"})
     
     try:
         body = json.loads(event.get('body', '{}'))
@@ -282,11 +331,16 @@ def update_segment(event):
     
     segments_table = get_table('DYNAMODB_SEGMENTS_TABLE')
     
-    # Check if segment exists
+    # Check if segment exists and user owns it
     try:
         response = segments_table.get_item(Key={'id': segment_id})
         if 'Item' not in response:
             return _response(404, {"error": f"Segment '{segment_id}' not found"})
+        
+        segment = response['Item']
+        if segment.get('owner_id') != user['id']:
+            return _response(403, {"error": "Access denied. You can only update your own segments."})
+            
     except Exception as e:
         return _response(500, {"error": f"Failed to check segment existence: {str(e)}"})
     
@@ -331,6 +385,7 @@ def update_segment(event):
 
 def delete_segment(event):
     """Delete a segment"""
+    user = event['user']  # User already authenticated in handler
     segment_id = event['pathParameters']['id']
     
     # Prevent deletion of built-in segments
@@ -339,14 +394,19 @@ def delete_segment(event):
     
     segments_table = get_table('DYNAMODB_SEGMENTS_TABLE')
     
-    # Check if segment exists
+    # Check if segment exists and user owns it
     try:
         response = segments_table.get_item(Key={'id': segment_id})
         if 'Item' not in response:
             return _response(404, {"error": f"Segment '{segment_id}' not found"})
+            
+        segment = response['Item']
+        if segment.get('owner_id') != user['id']:
+            return _response(403, {"error": "Access denied. You can only delete your own segments."})
+            
     except Exception as e:
         return _response(500, {"error": f"Failed to check segment existence: {str(e)}"})
-    
+
     try:
         segments_table.delete_item(Key={'id': segment_id})
         
@@ -360,6 +420,7 @@ def delete_segment(event):
 
 def get_segment_contacts(event):
     """Get emails in a segment"""
+    user = event['user']  # User already authenticated in handler
     segment_id = event['pathParameters']['id']
     query_params = event.get('queryStringParameters') or {}
     limit = min(int(query_params.get('limit', 50)), 100)
@@ -382,6 +443,11 @@ def get_segment_contacts(event):
                 return _response(404, {"error": f"Segment '{segment_id}' not found"})
             
             item = convert_decimals(response['Item'])
+            
+            # Check ownership for custom segments
+            if item.get('owner_id') != user['id']:
+                return _response(403, {"error": "Access denied. You can only access your own segments."})
+            
             segment_emails = item.get('emails', [])
             # Apply limit to emails list
             emails = segment_emails[:limit]
@@ -398,6 +464,7 @@ def get_segment_contacts(event):
 
 def add_emails_to_segment(event):
     """Add emails to a segment"""
+    user = event['user']  # User already authenticated in handler
     segment_id = event['pathParameters']['id']
     
     try:
@@ -425,6 +492,11 @@ def add_emails_to_segment(event):
             return _response(404, {"error": f"Segment '{segment_id}' not found"})
         
         item = convert_decimals(response['Item'])
+        
+        # Check ownership
+        if item.get('owner_id') != user['id']:
+            return _response(403, {"error": "Access denied. You can only modify your own segments."})
+        
         current_emails = set(item.get('emails', []))
         new_emails_set = set(email.lower().strip() for email in new_emails)
         
@@ -454,6 +526,7 @@ def add_emails_to_segment(event):
 
 def remove_emails_from_segment(event):
     """Remove emails from a segment"""
+    user = event['user']  # User already authenticated in handler
     segment_id = event['pathParameters']['id']
     
     try:
@@ -474,6 +547,11 @@ def remove_emails_from_segment(event):
             return _response(404, {"error": f"Segment '{segment_id}' not found"})
         
         item = convert_decimals(response['Item'])
+        
+        # Check ownership
+        if item.get('owner_id') != user['id']:
+            return _response(403, {"error": "Access denied. You can only modify your own segments."})
+        
         current_emails = set(item.get('emails', []))
         emails_to_remove_set = set(email.lower().strip() for email in emails_to_remove)
         
@@ -502,12 +580,16 @@ def remove_emails_from_segment(event):
         return _response(500, {"error": f"Failed to remove emails from segment: {str(e)}"})
 
 def refresh_segment_counts(event):
-    """Refresh contact counts for all segments"""
+    """Refresh contact counts for user's segments"""
+    user = event['user']  # User already authenticated in handler
     segments_table = get_table('DYNAMODB_SEGMENTS_TABLE')
     
     try:
-        # Get all segments
-        response = segments_table.scan()
+        # Get user's segments only
+        response = segments_table.query(
+            IndexName='owner_index',
+            KeyConditionExpression=Key('owner_id').eq(user['id'])
+        )
         segments = response.get('Items', [])
         
         updated_segments = []
@@ -542,20 +624,20 @@ def refresh_segment_counts(event):
 
 def lambda_handler(event, context):
     """Main handler for segments API"""
-    print(f"Segments API Handler - Full Event: {json.dumps(event, default=str)}")
-    
     http_method = event.get('requestContext', {}).get('http', {}).get('method') or event.get('httpMethod', 'GET')
     path = event.get('rawPath') or event.get('path', '')
-    
-    print(f"DEBUG - HTTP Method: {http_method}")
-    print(f"DEBUG - Path: {path}")
-    print(f"DEBUG - Path Parameters: {event.get('pathParameters')}")
-    print(f"DEBUG - Query Parameters: {event.get('queryStringParameters')}")
-    print(f"DEBUG - Request Context: {event.get('requestContext', {})}")
     
     # Handle CORS preflight
     if http_method == 'OPTIONS':
         return _response(200, {})
+    
+    # Authenticate user from API Gateway authorizer context
+    try:
+        user = get_user_from_context(event)
+        # Add user to event for use in route handlers
+        event['user'] = user
+    except Exception as e:
+        return _response(401, {"error": f"Authentication failed: {str(e)}"})
     
     try:
         # Route requests based on path and method
@@ -566,65 +648,47 @@ def lambda_handler(event, context):
                 return create_segment(event)
         
         elif path.startswith('/segments/') or path.startswith('/v1/segments/'):
-            # First check if API Gateway v2 already provided pathParameters
+            # Get segment ID from path parameters or extract from path
             path_params = event.get('pathParameters', {})
-            segment_id = path_params.get('id') if path_params else None
+            segment_id = path_params.get('id')
             
-            # If not provided, extract segment ID from path manually
             if not segment_id:
                 path_parts = path.strip('/').split('/')
-                print(f"DEBUG - Path parts: {path_parts}")
-                
-                # For /v1/segments/{id}, path_parts = ['v1', 'segments', 'id']
-                # For /segments/{id}, path_parts = ['segments', 'id'] 
-                segments_index = -1
-                for i, part in enumerate(path_parts):
-                    if part == 'segments':
-                        segments_index = i
-                        break
-                
+                # Find segments index and get the next part as segment_id
+                segments_index = next((i for i, part in enumerate(path_parts) if part == 'segments'), -1)
                 if segments_index >= 0 and len(path_parts) > segments_index + 1:
                     segment_id = path_parts[segments_index + 1]
-                    print(f"DEBUG - Extracted segment_id: {segment_id}")
             
             if segment_id:
                 # Check for sub-resources
                 path_parts = path.strip('/').split('/')
-                is_sub_resource = False
+                segments_index = next((i for i, part in enumerate(path_parts) if part == 'segments'), -1)
                 sub_resource = None
-                
-                # Find segments index and check if there's a sub-resource after the ID
-                segments_index = -1
-                for i, part in enumerate(path_parts):
-                    if part == 'segments':
-                        segments_index = i
-                        break
                 
                 if segments_index >= 0 and len(path_parts) > segments_index + 2:
                     sub_resource = path_parts[segments_index + 2]
-                    is_sub_resource = True
                 
-                # Create modified event with proper pathParameters
-                modified_event = event.copy()
-                modified_event['pathParameters'] = {'id': segment_id}
+                # Ensure pathParameters exists for route handlers
+                if 'pathParameters' not in event or not event['pathParameters']:
+                    event['pathParameters'] = {'id': segment_id}
                 
                 # Handle sub-resources like /v1/segments/{id}/emails
-                if is_sub_resource and sub_resource in ['emails', 'contacts']:
+                if sub_resource in ['emails', 'contacts']:
                     if http_method == 'GET':
-                        return get_segment_contacts(modified_event)
+                        return get_segment_contacts(event)
                     elif http_method == 'POST':
-                        return add_emails_to_segment(modified_event)
+                        return add_emails_to_segment(event)
                     elif http_method == 'DELETE':
-                        return remove_emails_from_segment(modified_event)
+                        return remove_emails_from_segment(event)
                 
                 # Handle main segment operations
                 else:
                     if http_method == 'GET':
-                        return get_segment(modified_event)
+                        return get_segment(event)
                     elif http_method == 'PUT':
-                        return update_segment(modified_event)
+                        return update_segment(event)
                     elif http_method == 'DELETE':
-                        return delete_segment(modified_event)
+                        return delete_segment(event)
         
         elif path == '/segments/refresh-counts' or path == '/v1/segments/refresh-counts':
             if http_method == 'POST':
@@ -634,5 +698,5 @@ def lambda_handler(event, context):
         return _response(404, {"error": "Route not found"})
         
     except Exception as e:
-        print(f"Error in segments API handler: {e}")
+        print(f"Error in segments API handler: {str(e)}")
         return _response(500, {"error": "Internal server error"})

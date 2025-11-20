@@ -1,16 +1,138 @@
 import json
 import os
+import sys
+import uuid
+import time
 from datetime import datetime, timezone
 import boto3
-from common_db import create_campaign, CampaignType, CampaignState, CampaignDeliveryType
+from botocore.exceptions import ClientError
 
-def _get_segments_table():
-    """Get DynamoDB segments table"""
-    table_name = os.environ.get('DYNAMODB_SEGMENTS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_SEGMENTS_TABLE environment variable not set')
+# Campaign Type Enums
+class CampaignType:
+    IMMEDIATE = "I"  # Immediate execution
+    SCHEDULED = "S"  # Scheduled execution
+
+# Campaign Delivery Mechanism Enums
+class CampaignDeliveryType:
+    INDIVIDUAL = "IND"   # Single recipient
+    SEGMENT = "SEG"      # Segment-based (multiple recipients)
+
+# Campaign State Enums
+class CampaignState:
+    SCHEDULED = "SC"  # Scheduled for future execution
+    PENDING = "P"     # Pending immediate execution
+    SENDING = "SE"    # Currently sending
+    DONE = "D"        # Completed
+    FAILED = "F"      # Failed
+
+# Campaign Status Enums
+class CampaignStatus:
+    ACTIVE = "A"      # Active campaign
+    INACTIVE = "I"    # Inactive campaign
+
+# Authentication utilities (moved from common/auth_utils.py)
+def get_user_from_context(event):
+    """
+    Extract user information from API Gateway authorizer context
+    
+    When using Lambda authorizer, user info is available in:
+    event['requestContext']['authorizer']
+    """
+    try:
+        authorizer_context = event.get('requestContext', {}).get('authorizer', {})
+        
+        if not authorizer_context:
+            raise ValueError("No authorizer context found")
+        
+        # Extract user info from authorizer context
+        user = {
+            'id': authorizer_context.get('user_id'),
+            'email': authorizer_context.get('user_email'),
+            'status': authorizer_context.get('user_status', 'active')
+        }
+        
+        if not user['id'] or not user['email']:
+            raise ValueError("Invalid user context from authorizer")
+            
+        return user
+        
+    except Exception as e:
+        raise ValueError(f"Failed to extract user from context: {str(e)}")
+
+# Database utilities (moved from common_db.py)
+def _get_dynamo():
+    """
+    Get DynamoDB resource
+    """
     dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-    return dynamodb.Table(table_name)
+    return dynamodb
+
+def create_campaign(name, segment_id=None, campaign_type=None, delivery_type=None, recipient_email=None, 
+                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None):
+    """Create a campaign item and return its id (string UUID)."""
+    table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
+    if not table_name:
+        raise RuntimeError("DYNAMODB_CAMPAIGNS_TABLE env var not set")
+
+    table = _get_dynamo().Table(table_name)
+    campaign_id = str(uuid.uuid4())
+    current_timestamp = int(time.time())
+    
+    # Validate delivery_type and corresponding fields
+    if not delivery_type:
+        delivery_type = CampaignDeliveryType.SEGMENT  # Default to segment-based
+    
+    if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+        if not recipient_email:
+            raise ValueError("recipient_email is required for individual campaigns")
+        if segment_id:
+            raise ValueError("segment_id should not be provided for individual campaigns")
+    elif delivery_type == CampaignDeliveryType.SEGMENT:
+        if recipient_email:
+            raise ValueError("recipient_email should not be provided for segment campaigns")
+        if not segment_id:
+            raise ValueError("segment_id is required for segment campaigns")
+    else:
+        raise ValueError(f"Invalid delivery_type: {delivery_type}. Must be '{CampaignDeliveryType.INDIVIDUAL}' or '{CampaignDeliveryType.SEGMENT}'")
+    
+    # Validate campaign_type and schedule_at requirements
+    if campaign_type == CampaignType.SCHEDULED:
+        if not schedule_at:
+            raise ValueError("schedule_at is required for scheduled campaigns")
+    elif campaign_type == CampaignType.IMMEDIATE:
+        if schedule_at:
+            raise ValueError("schedule_at should not be provided for immediate campaigns")
+    else:
+        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE}' or '{CampaignType.SCHEDULED}'")
+    
+    # schedule_at is provided as epoch timestamp directly
+    
+    item = {
+        "id": campaign_id,
+        "name": name,
+        "created_at": current_timestamp,
+        "updated_at": current_timestamp,
+        "type": campaign_type,
+        "delivery_type": delivery_type,
+        "email_subject": subject or "",
+        "email_body": html_body or "",
+        "from_email": from_email or "noreply@thesentinel.site",
+        "from_name": from_name or "Sentinel",
+        "segment_id": segment_id,
+        "recipient_email": recipient_email,
+        "schedule_at": schedule_at,
+        "state": CampaignState.SCHEDULED if campaign_type == CampaignType.SCHEDULED else CampaignState.PENDING,
+        "status": CampaignStatus.ACTIVE,
+        "owner_id": owner_id,
+        "tags": [],  # For categorization and filtering
+        "metadata": {}  # For additional custom fields
+    }
+    
+    try:
+        table.put_item(Item=item)
+    except ClientError:
+        raise
+    return campaign_id
 
 def _parse_body(event):
     if isinstance(event, dict) and "body" in event:
@@ -111,6 +233,13 @@ def _trigger_immediate_campaign(campaign_id):
         return False
 
 def lambda_handler(event, _context):
+    # Authenticate user from API Gateway authorizer context
+    try:
+        user = get_user_from_context(event)
+        event['user'] = user
+    except Exception as e:
+        return _response(401, {"error": f"Authentication failed: {str(e)}"})
+    
     data = _parse_body(event)
     name = data.get("name")
     emails = data.get("emails")  # List of emails for segment campaigns
@@ -188,7 +317,8 @@ def lambda_handler(event, _context):
                     'contact_count': len(set(emails)),
                     'created_at': int(time.time()),
                     'updated_at': int(time.time()),
-                    'created_by': 'campaign_api',
+                    'created_by': user['id'],
+                    'owner_id': user['id'],
                     'status': 'active',
                     'temporary': True
                 }
@@ -205,7 +335,8 @@ def lambda_handler(event, _context):
             subject=subject,
             html_body=html_body,
             from_email=from_email,
-            from_name=from_name
+            from_name=from_name,
+            owner_id=user['id']
         )
     except ValueError as e:
         return _response(400, {"error": str(e)})

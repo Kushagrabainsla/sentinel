@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Comprehensive immediate campaign testing using both segments and email lists.
-This script creates segments via API and tests both targeting approaches for immediate campaigns.
-All operations use API calls only (no AWS CLI).
+This script creates a user, authenticates, then creates segments via API and tests 
+both targeting approaches for immediate campaigns.
+All operations use authenticated API calls only (no AWS CLI).
 """
 
 import json
@@ -15,9 +16,58 @@ from datetime import datetime, timezone
 API_BASE_URL = "https://api.thesentinel.site"
 CAMPAIGNS_ENDPOINT = f"{API_BASE_URL}/v1/campaigns"
 SEGMENTS_ENDPOINT = f"{API_BASE_URL}/v1/segments"
+AUTH_ENDPOINT = f"{API_BASE_URL}/v1/auth"
+
+# Global API key for authenticated requests
+API_KEY = None
+
+def create_test_user():
+    """Create a test user and get API key for authentication"""
+    global API_KEY
+    
+    # Generate unique test user email
+    test_email = f"test-{int(time.time())}-{uuid.uuid4().hex[:6]}@example.com"
+    
+    user_data = {
+        "email": test_email,
+        "password": "TestPassword123!",
+        "name": "Test User for Campaign Testing"
+    }
+    
+    print(f"👤 Creating test user: {test_email}")
+    
+    try:
+        response = requests.post(
+            f"{AUTH_ENDPOINT}/register",
+            headers={"Content-Type": "application/json"},
+            json=user_data,
+            timeout=30
+        )
+        
+        if response.status_code == 201:
+            result = response.json()
+            API_KEY = result.get('api_key')
+            print(f"✅ User created successfully! API Key: {API_KEY[:16]}...")
+            return API_KEY
+        else:
+            print(f"❌ Failed to create user: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error creating user: {str(e)}")
+        return None
+
+def get_auth_headers():
+    """Get headers with API key for authenticated requests"""
+    if not API_KEY:
+        raise ValueError("No API key available. Please create a user first.")
+    return {
+        "Content-Type": "application/json",
+        "X-API-Key": API_KEY
+    }
 
 def create_test_segment(name, emails):
-    """Create a test segment via API"""
+    """Create a test segment via authenticated API"""
     segment_data = {
         "name": name,
         "description": f"Test segment created for immediate campaign testing - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
@@ -30,7 +80,7 @@ def create_test_segment(name, emails):
         
         response = requests.post(
             SEGMENTS_ENDPOINT,
-            headers={"Content-Type": "application/json"},
+            headers=get_auth_headers(),
             json=segment_data,
             timeout=30
         )
@@ -187,7 +237,7 @@ def send_campaign_request(campaign_data, approach_name):
         
         response = requests.post(
             CAMPAIGNS_ENDPOINT,
-            headers={"Content-Type": "application/json"},
+            headers=get_auth_headers(),
             json=campaign_data,
             timeout=30
         )
@@ -273,7 +323,19 @@ def main():
     print("🚀 COMPREHENSIVE IMMEDIATE CAMPAIGN TESTS")
     print("=" * 80)
     print("Testing both segment-based and email list approaches for immediate campaigns")
-    print("All operations performed via API calls (no AWS CLI)")
+    print("All operations performed via authenticated API calls (no AWS CLI)")
+    print()
+    
+    # Step 0: Create test user and get API key
+    print("🔐 AUTHENTICATION SETUP")
+    print("-" * 30)
+    
+    api_key = create_test_user()
+    if not api_key:
+        print("❌ Failed to create test user. Cannot proceed with tests.")
+        return
+    
+    print(f"✅ Authentication ready. API Key: {api_key[:16]}...")
     print()
     
     # Test 1: Segment-based immediate campaign
@@ -295,7 +357,7 @@ def main():
         
         # Verify segment was created and is accessible
         try:
-            verify_response = requests.get(f"{SEGMENTS_ENDPOINT}/{segment_id}", timeout=30)
+            verify_response = requests.get(f"{SEGMENTS_ENDPOINT}/{segment_id}", headers=get_auth_headers(), timeout=30)
             if verify_response.status_code == 200:
                 print("✅ Segment verified and ready for campaign creation")
             else:

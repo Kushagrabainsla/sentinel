@@ -3,6 +3,7 @@ variable "region"            { type = string }
 variable "roles"             { type = any }
 variable "queues"            { type = any }
 
+variable "dynamodb_users_table"         { type = string }
 variable "dynamodb_campaigns_table"     { type = string }
 variable "dynamodb_segments_table"      { type = string }
 variable "dynamodb_events_table"        { type = string }
@@ -55,6 +56,20 @@ data "archive_file" "segments_api" {
     type        = "zip"
     source_dir  = "${path.module}/../../../services/segments_api"
     output_path = "${path.module}/.artifacts/segments_api.zip"
+    depends_on  = [null_resource.artifacts_dir]
+}
+
+data "archive_file" "authorizer" {
+    type        = "zip"
+    source_dir  = "${path.module}/../../../services/authorizer"
+    output_path = "${path.module}/.artifacts/authorizer.zip"
+    depends_on  = [null_resource.artifacts_dir]
+}
+
+data "archive_file" "auth_api" {
+    type        = "zip"
+    source_dir  = "${path.module}/../../../services/auth_api"
+    output_path = "${path.module}/.artifacts/auth_api.zip"
     depends_on  = [null_resource.artifacts_dir]
 }
 
@@ -164,8 +179,40 @@ resource "aws_lambda_function" "segments_api" {
     }
 }
 
+resource "aws_lambda_function" "authorizer" {
+    function_name    = "${var.name}-authorizer"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = data.archive_file.authorizer.output_path
+    source_code_hash = data.archive_file.authorizer.output_base64sha256
+    timeout          = 10
+    environment {
+        variables = {
+            DYNAMODB_USERS_TABLE = var.dynamodb_users_table
+        }
+    }
+}
+
+resource "aws_lambda_function" "auth_api" {
+    function_name    = "${var.name}-auth-api"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = data.archive_file.auth_api.output_path
+    source_code_hash = data.archive_file.auth_api.output_base64sha256
+    timeout          = 30
+    environment {
+        variables = {
+            DYNAMODB_USERS_TABLE = var.dynamodb_users_table
+        }
+    }
+}
+
 output "create_campaign_arn"  { value = aws_lambda_function.create_campaign.arn }
 output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
 
 output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }
 output "segments_api_arn"     { value = aws_lambda_function.segments_api.arn }
+output "authorizer_arn"       { value = aws_lambda_function.authorizer.arn }
+output "auth_api_arn"         { value = aws_lambda_function.auth_api.arn }

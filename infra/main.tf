@@ -56,6 +56,7 @@ module "lambdas" {
     queues            = module.queues
     
     # DynamoDB tables
+    dynamodb_users_table         = module.dynamodb.users_table
     dynamodb_campaigns_table     = module.dynamodb.campaigns_table
     dynamodb_segments_table      = module.dynamodb.segments_table
     dynamodb_events_table        = module.dynamodb.events_table
@@ -87,6 +88,8 @@ module "api" {
     create_campaign_arn = module.lambdas.create_campaign_arn
     tracking_api_arn    = module.lambdas.tracking_api_arn
     segments_api_arn    = module.lambdas.segments_api_arn
+    authorizer_arn      = module.lambdas.authorizer_arn
+    auth_api_arn        = module.lambdas.auth_api_arn
 }
 
 # Events (EventBridge Scheduler only - SES events not configured)
