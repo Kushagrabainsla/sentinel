@@ -5,15 +5,18 @@ from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
 
 
-# DynamoDB client
+# DynamoDB client - initialize once outside handler for better performance
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
+# Cache table connection outside handler to avoid repeated initialization
+table_name = os.environ.get('DYNAMODB_USERS_TABLE')
+if not table_name:
+    raise RuntimeError("DYNAMODB_USERS_TABLE environment variable not set")
+users_table = dynamodb.Table(table_name)
+
 def get_users_table():
-    """Get users table from environment variable"""
-    table_name = os.environ.get('DYNAMODB_USERS_TABLE')
-    if not table_name:
-        raise RuntimeError("DYNAMODB_USERS_TABLE environment variable not set")
-    return dynamodb.Table(table_name)
+    """Get users table (cached connection)"""
+    return users_table
 
 def generate_policy(effect, resource, principal_id=None, context=None):
     """Generate IAM policy for API Gateway"""

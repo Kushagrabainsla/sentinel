@@ -380,6 +380,10 @@ def main():
         return
     
     print(f"✅ Authentication ready. API Key: {api_key[:16]}...")
+    
+    # Brief wait to ensure authorizer cache consistency across endpoints  
+    print("⏳ Waiting 35 seconds for API Gateway authorizer cache...")
+    time.sleep(35)
     print()
     
     # Test 1: Segment-based scheduled campaign
