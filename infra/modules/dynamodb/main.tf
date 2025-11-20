@@ -30,49 +30,7 @@ resource "aws_dynamodb_table" "campaigns" {
   }
 }
 
-resource "aws_dynamodb_table" "contacts" {
-  name         = "${var.name}-contacts"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "id"
-  attribute {
-    name = "id"
-    type = "S"
-  }
-  attribute {
-    name = "email"
-    type = "S"
-  }
-  global_secondary_index {
-    name               = "email_index"
-    hash_key           = "email"
-    projection_type    = "ALL"
-  }
-}
 
-resource "aws_dynamodb_table" "recipients" {
-  name         = "${var.name}-recipients"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "campaign_id"
-  range_key    = "recipient_id"
-  attribute {
-    name = "campaign_id"
-    type = "S"
-  }
-  attribute {
-    name = "recipient_id"
-    type = "S"
-  }
-  attribute {
-    name = "email"
-    type = "S"
-  }
-  global_secondary_index {
-    name               = "campaign_email_index"
-    hash_key           = "campaign_id"
-    range_key          = "email"
-    projection_type    = "ALL"
-  }
-}
 
 resource "aws_dynamodb_table" "events" {
   name         = "${var.name}-events"
@@ -90,6 +48,16 @@ resource "aws_dynamodb_table" "events" {
     name            = "campaign_index"
     hash_key        = "campaign_id"
     projection_type = "ALL"
+  }
+}
+
+resource "aws_dynamodb_table" "segments" {
+  name         = "${var.name}-segments"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
+  attribute {
+    name = "id"
+    type = "S"
   }
 }
 
@@ -127,12 +95,10 @@ output "campaigns_table" {
   value = aws_dynamodb_table.campaigns.name
 }
 
-output "contacts_table" {
-  value = aws_dynamodb_table.contacts.name
-}
 
-output "recipients_table" {
-  value = aws_dynamodb_table.recipients.name
+
+output "segments_table" {
+  value = aws_dynamodb_table.segments.name
 }
 
 output "events_table" {

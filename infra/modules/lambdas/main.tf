@@ -3,10 +3,9 @@ variable "region"            { type = string }
 variable "roles"             { type = any }
 variable "queues"            { type = any }
 
-variable "dynamodb_campaigns_table"  { type = string }
-variable "dynamodb_contacts_table"   { type = string }
-variable "dynamodb_recipients_table" { type = string }
-variable "dynamodb_events_table"     { type = string }
+variable "dynamodb_campaigns_table"     { type = string }
+variable "dynamodb_segments_table"      { type = string }
+variable "dynamodb_events_table"        { type = string }
 variable "dynamodb_link_mappings_table" { type = string }
 
 variable "ses_from_address"  { type = string }
@@ -52,6 +51,13 @@ data "archive_file" "tracking_api" {
     depends_on  = [null_resource.artifacts_dir]
 }
 
+data "archive_file" "segments_api" {
+    type        = "zip"
+    source_dir  = "${path.module}/../../../services/segments_api"
+    output_path = "${path.module}/.artifacts/segments_api.zip"
+    depends_on  = [null_resource.artifacts_dir]
+}
+
 resource "aws_lambda_function" "create_campaign" {
     function_name    = "${var.name}-create-campaign"
     role             = var.roles.lambda_exec
@@ -64,8 +70,7 @@ resource "aws_lambda_function" "create_campaign" {
     environment {
         variables = {
             DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
-            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
-            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
+            DYNAMODB_SEGMENTS_TABLE   = var.dynamodb_segments_table
             DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             START_CAMPAIGN_QUEUE_URL  = var.queues.send_queue_url
             START_CAMPAIGN_LAMBDA_ARN = aws_lambda_function.start_campaign.arn
@@ -85,8 +90,7 @@ resource "aws_lambda_function" "start_campaign" {
     environment {
         variables = {
             DYNAMODB_CAMPAIGNS_TABLE  = var.dynamodb_campaigns_table
-            DYNAMODB_CONTACTS_TABLE   = var.dynamodb_contacts_table
-            DYNAMODB_RECIPIENTS_TABLE = var.dynamodb_recipients_table
+            DYNAMODB_SEGMENTS_TABLE   = var.dynamodb_segments_table
             DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             SEND_QUEUE_URL = var.queues.send_queue_url
         }
@@ -104,8 +108,7 @@ resource "aws_lambda_function" "send_worker" {
     environment {
         variables = {
             DYNAMODB_CAMPAIGNS_TABLE     = var.dynamodb_campaigns_table
-            DYNAMODB_CONTACTS_TABLE      = var.dynamodb_contacts_table
-            DYNAMODB_RECIPIENTS_TABLE    = var.dynamodb_recipients_table
+            DYNAMODB_SEGMENTS_TABLE      = var.dynamodb_segments_table
             DYNAMODB_EVENTS_TABLE        = var.dynamodb_events_table
             DYNAMODB_LINK_MAPPINGS_TABLE = var.dynamodb_link_mappings_table
             SES_FROM_ADDRESS             = var.ses_from_address
@@ -135,8 +138,7 @@ resource "aws_lambda_function" "tracking_api" {
     environment {
         variables = {
             DYNAMODB_CAMPAIGNS_TABLE     = var.dynamodb_campaigns_table
-            DYNAMODB_CONTACTS_TABLE      = var.dynamodb_contacts_table
-            DYNAMODB_RECIPIENTS_TABLE    = var.dynamodb_recipients_table
+            DYNAMODB_SEGMENTS_TABLE      = var.dynamodb_segments_table
             DYNAMODB_EVENTS_TABLE        = var.dynamodb_events_table
             DYNAMODB_LINK_MAPPINGS_TABLE = var.dynamodb_link_mappings_table
             S3_ASSETS_BUCKET             = var.assets_bucket_name
@@ -145,7 +147,25 @@ resource "aws_lambda_function" "tracking_api" {
     }
 }
 
+resource "aws_lambda_function" "segments_api" {
+    function_name    = "${var.name}-segments-api"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = data.archive_file.segments_api.output_path
+    source_code_hash = data.archive_file.segments_api.output_base64sha256
+    timeout          = 30
+    environment {
+        variables = {
+            DYNAMODB_CAMPAIGNS_TABLE = var.dynamodb_campaigns_table
+            DYNAMODB_SEGMENTS_TABLE  = var.dynamodb_segments_table
+            DYNAMODB_EVENTS_TABLE    = var.dynamodb_events_table
+        }
+    }
+}
+
 output "create_campaign_arn"  { value = aws_lambda_function.create_campaign.arn }
 output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
 
 output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }
+output "segments_api_arn"     { value = aws_lambda_function.segments_api.arn }

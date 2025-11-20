@@ -2,7 +2,8 @@ import json
 import os
 import math
 import boto3
-from common_db import fetch_all_active_contacts, write_recipients_batch, update_campaign_state, fetch_campaign_details, CampaignState
+from common_db import (fetch_all_active_contacts, record_segment_campaign, update_campaign_state, 
+                       fetch_campaign_details, CampaignState, CampaignDeliveryType, get_campaign_recipients)
 
 SQS_URL = os.environ.get("SEND_QUEUE_URL")  # set by Terraform (queues module)
 
@@ -35,17 +36,25 @@ def lambda_handler(event, _context):
     if not campaign:
         return {"statusCode": 404, "body": json.dumps({"error": "Campaign not found"})}
 
-    # Materialize recipients (example: all active contacts).
-    # In real life, resolve segment_id from campaigns table then select accordingly.
-    contacts = fetch_all_active_contacts()
+    # Materialize recipients based on campaign delivery type
+    try:
+        contacts = get_campaign_recipients(campaign)
+    except ValueError as e:
+        update_campaign_state(campaign_id, CampaignState.FAILED)
+        return {"statusCode": 400, "body": json.dumps({"error": str(e)})}
+    
     if not contacts:
         update_campaign_state(campaign_id, CampaignState.DONE)
-        return {"statusCode": 200, "body": json.dumps({"message": "no recipients"})}
+        delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
+        message = f"no recipients found for {'individual' if delivery_type == CampaignDeliveryType.INDIVIDUAL else 'segment'} campaign"
+        return {"statusCode": 200, "body": json.dumps({"message": message})}
 
-    # Write recipients table for tracking (idempotent upsert)
-    for chunk in _chunks(contacts, 500):
-        recipients = [{'id': c['id'], 'email': c.get('email')} for c in chunk]
-        write_recipients_batch(campaign_id, recipients)
+    # Record campaign execution in segments table for tracking
+    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
+    if delivery_type == CampaignDeliveryType.SEGMENT:
+        segment_id = campaign.get('segment_id')
+        recipient_emails = [c.get('email') for c in contacts if c.get('email')]
+        record_segment_campaign(campaign_id, segment_id, recipient_emails)
     
     # Fan out to SQS in batches of up to 10 messages
     for batch in _chunks(contacts, 10):
@@ -74,4 +83,17 @@ def lambda_handler(event, _context):
     # Mark campaign as "sending"
     update_campaign_state(campaign_id, CampaignState.SENDING)
 
-    return {"statusCode": 200, "body": json.dumps({"campaign_id": campaign_id, "enqueued": len(contacts)})}
+    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
+    response_data = {
+        "campaign_id": campaign_id, 
+        "enqueued": len(contacts),
+        "delivery_type": delivery_type,
+        "recipient_count": len(contacts)
+    }
+    
+    if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+        response_data["recipient_email"] = campaign.get('recipient_email')
+    else:
+        response_data["segment_id"] = campaign.get('segment_id')
+    
+    return {"statusCode": 200, "body": json.dumps(response_data)}

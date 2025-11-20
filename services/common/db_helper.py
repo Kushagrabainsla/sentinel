@@ -15,13 +15,11 @@ def get_campaigns_table():
     """Get campaigns table"""
     return get_table(os.environ['DYNAMODB_CAMPAIGNS_TABLE'])
 
-def get_contacts_table():
-    """Get contacts table"""
-    return get_table(os.environ['DYNAMODB_CONTACTS_TABLE'])
 
-def get_recipients_table():
-    """Get recipients table"""
-    return get_table(os.environ['DYNAMODB_RECIPIENTS_TABLE'])
+
+def get_segments_table():
+    """Get segments table"""
+    return get_table(os.environ['DYNAMODB_SEGMENTS_TABLE'])
 
 def get_events_table():
     """Get events table"""

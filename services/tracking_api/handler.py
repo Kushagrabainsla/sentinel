@@ -68,24 +68,15 @@ def get_link_mapping(tracking_id):
         print(f"❌ Failed to get link mapping: {e}")
         return None
 
-def update_recipient_status(campaign_id, recipient_id, status):
-    """Update recipient status in recipients table"""
+def record_tracking_status(campaign_id, email, status):
+    """Record tracking status in events table"""
     try:
-        recipients_table = get_table('DYNAMODB_RECIPIENTS_TABLE')
-        
-        recipients_table.update_item(
-            Key={
-                'campaign_id': str(campaign_id),
-                'recipient_id': str(recipient_id)
-            },
-            UpdateExpression='SET #s = :s, last_event_at = :t',
-            ExpressionAttributeNames={'#s': 'status'},
-            ExpressionAttributeValues={':s': status, ':t': int(time.time())}
-        )
+        # The tracking event is already recorded by record_tracking_event
+        # This function is kept for compatibility but doesn't need separate status tracking
         return True
         
     except Exception as e:
-        print(f"❌ Failed to update recipient status: {e}")
+        print(f"❌ Failed to record tracking status: {e}")
         return False
 
 def generate_1x1_pixel():
@@ -187,8 +178,8 @@ def handle_open_tracking(path, user_agent, ip_address, query_params):
             metadata=metadata
         )
         
-        # Update recipient status to 'opened'
-        update_recipient_status(campaign_id, recipient_id, 'opened')
+        # Record tracking status (already handled by record_tracking_event)
+        record_tracking_status(campaign_id, query_params.get('email', 'unknown'), 'opened')
     
     # Serve the S3 logo directly (fetch and return the image data)
     sentinel_logo_url = os.environ.get('SENTINEL_LOGO_URL')
@@ -273,8 +264,8 @@ def handle_click_tracking(path, user_agent, ip_address, query_params, tracking_i
                 metadata=metadata
             )
             
-            # Update recipient status to 'clicked'
-            update_recipient_status(campaign_id, recipient_id, 'clicked')
+            # Record tracking status (already handled by record_tracking_event)
+            record_tracking_status(campaign_id, link_mapping.get('email', 'unknown'), 'clicked')
             
             # Redirect to original URL
             return {

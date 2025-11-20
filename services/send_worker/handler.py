@@ -2,7 +2,7 @@ import json
 import os
 import re
 import boto3
-from common_db import update_recipient_status
+from common_db import update_email_status_in_events
 from tracking import generate_tracking_data
 
 ses = boto3.client("ses")
@@ -192,7 +192,7 @@ def lambda_handler(event, _context):
             status = "failed"
             print(f"❌ Failed to send email to {email}: {e}")
 
-        # Update recipient status
-        update_recipient_status(campaign_id, recipient_id, status)
+        # Record email send status in events table
+        update_email_status_in_events(campaign_id, email, status)
 
     return {"statusCode": 200, "body": json.dumps({"processed": len(event.get('Records', []))})}

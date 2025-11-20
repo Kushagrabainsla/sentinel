@@ -32,14 +32,11 @@ output "dynamodb_campaigns_table" {
     value       = module.dynamodb.campaigns_table
 }
 
-output "dynamodb_contacts_table" {
-    description = "DynamoDB contacts table name"  
-    value       = module.dynamodb.contacts_table
-}
 
-output "dynamodb_recipients_table" {
-    description = "DynamoDB recipients table name"
-    value       = module.dynamodb.recipients_table
+
+output "dynamodb_segments_table" {
+    description = "DynamoDB segments table name"
+    value       = module.dynamodb.segments_table
 }
 
 output "dynamodb_events_table" {

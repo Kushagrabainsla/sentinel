@@ -1,6 +1,7 @@
 variable "name" { type = string }
 variable "create_campaign_arn" { type = string }
 variable "tracking_api_arn" { type = string }
+variable "segments_api_arn" { type = string }
 
 # Custom domain configuration
 variable "domain_name" { 
@@ -68,6 +69,13 @@ resource "aws_apigatewayv2_integration" "tracking_api" {
     payload_format_version = "2.0"
 }
 
+resource "aws_apigatewayv2_integration" "segments_api" {
+    api_id                 = aws_apigatewayv2_api.http.id
+    integration_type       = "AWS_PROXY"
+    integration_uri        = var.segments_api_arn
+    payload_format_version = "2.0"
+}
+
 resource "aws_apigatewayv2_route" "post_campaigns" {
     api_id    = aws_apigatewayv2_api.http.id
     route_key = "POST /v1/campaigns"
@@ -99,6 +107,68 @@ resource "aws_apigatewayv2_route" "events" {
     target    = "integrations/${aws_apigatewayv2_integration.tracking_api.id}"
 }
 
+# Segments API routes
+resource "aws_apigatewayv2_route" "segments_get_list" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/segments"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_create" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/segments"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_get" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/segments/{id}"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_update" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "PUT /v1/segments/{id}"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_delete" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "DELETE /v1/segments/{id}"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_get_emails" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/segments/{id}/emails"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+# Support legacy /contacts endpoint for backward compatibility
+resource "aws_apigatewayv2_route" "segments_get_contacts" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/segments/{id}/contacts"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_add_emails" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/segments/{id}/emails"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_remove_emails" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "DELETE /v1/segments/{id}/emails"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "segments_refresh_counts" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/segments/refresh-counts"
+    target    = "integrations/${aws_apigatewayv2_integration.segments_api.id}"
+}
+
 resource "aws_lambda_permission" "api_invoke" {
     statement_id  = "AllowAPIGatewayInvokeCreate"
     action        = "lambda:InvokeFunction"
@@ -111,6 +181,14 @@ resource "aws_lambda_permission" "api_invoke_tracking" {
     statement_id  = "AllowAPIGatewayInvokeTracking"
     action        = "lambda:InvokeFunction"
     function_name = var.tracking_api_arn
+    principal     = "apigateway.amazonaws.com"
+    source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "api_invoke_segments" {
+    statement_id  = "AllowAPIGatewayInvokeSegments"
+    action        = "lambda:InvokeFunction"
+    function_name = var.segments_api_arn
     principal     = "apigateway.amazonaws.com"
     source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }

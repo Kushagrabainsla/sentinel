@@ -10,6 +10,11 @@ class CampaignType:
     IMMEDIATE = "I"  # Immediate execution
     SCHEDULED = "S"  # Scheduled execution
 
+# Campaign Delivery Mechanism Enums
+class CampaignDeliveryType:
+    INDIVIDUAL = "IND"   # Single recipient
+    SEGMENT = "SEG"      # Segment-based (multiple recipients)
+
 # Campaign State Enums
 class CampaignState:
     SCHEDULED = "SC"  # Scheduled for future execution
@@ -33,7 +38,8 @@ def _get_dynamo():
         _dynamo = session.resource("dynamodb", region_name=region)
     return _dynamo
 
-def create_campaign(name, segment_id, campaign_type, schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None):
+def create_campaign(name, segment_id=None, campaign_type=None, delivery_type=None, recipient_email=None, 
+                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None):
     """Create a campaign item and return its id (string UUID)."""
     table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
     if not table_name:
@@ -42,6 +48,23 @@ def create_campaign(name, segment_id, campaign_type, schedule_at=None, subject=N
     table = _get_dynamo().Table(table_name)
     campaign_id = str(uuid.uuid4())
     current_timestamp = int(time.time())
+    
+    # Validate delivery_type and corresponding fields
+    if not delivery_type:
+        delivery_type = CampaignDeliveryType.SEGMENT  # Default to segment-based
+    
+    if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+        if not recipient_email:
+            raise ValueError("recipient_email is required for individual campaigns")
+        if segment_id:
+            raise ValueError("segment_id should not be provided for individual campaigns")
+    elif delivery_type == CampaignDeliveryType.SEGMENT:
+        if recipient_email:
+            raise ValueError("recipient_email should not be provided for segment campaigns")
+        if not segment_id:
+            raise ValueError("segment_id is required for segment campaigns")
+    else:
+        raise ValueError(f"Invalid delivery_type: {delivery_type}. Must be '{CampaignDeliveryType.INDIVIDUAL}' or '{CampaignDeliveryType.SEGMENT}'")
     
     # Validate campaign_type and schedule_at requirements
     if campaign_type == CampaignType.SCHEDULED:
@@ -61,11 +84,13 @@ def create_campaign(name, segment_id, campaign_type, schedule_at=None, subject=N
         "created_at": current_timestamp,
         "updated_at": current_timestamp,
         "type": campaign_type,
+        "delivery_type": delivery_type,
         "email_subject": subject or "",
         "email_body": html_body or "",
         "from_email": from_email or "noreply@thesentinel.site",
         "from_name": from_name or "Sentinel",
         "segment_id": segment_id,
+        "recipient_email": recipient_email,
         "schedule_at": schedule_at,
         "state": CampaignState.SCHEDULED if campaign_type == CampaignType.SCHEDULED else CampaignState.PENDING,
         "status": CampaignStatus.ACTIVE,
