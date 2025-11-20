@@ -116,7 +116,7 @@ def _response(status_code, body, headers=None):
 def list_campaigns(event):
     """List user's campaigns with filtering and pagination"""
     try:
-        user = get_user_from_context(event)
+        user = event['user']  # User already authenticated in handler
         
         # Parse query parameters
         query_params = event.get('queryStringParameters') or {}
@@ -159,7 +159,7 @@ def list_campaigns(event):
 def get_campaign(event):
     """Get specific campaign by ID"""
     try:
-        user = get_user_from_context(event)
+        user = event['user']  # User already authenticated in handler
         campaign_id = event['pathParameters']['id']
         
         campaigns_table = get_campaigns_table()
@@ -348,7 +348,7 @@ def trigger_immediate_campaign(campaign_id):
 def create_campaign(event):
     """Create new campaign with full implementation"""
     try:
-        user = get_user_from_context(event)
+        user = event['user']  # User already authenticated in handler
         
         try:
             body = json.loads(event.get('body', '{}'))
@@ -528,7 +528,7 @@ def create_campaign(event):
 def update_campaign(event):
     """Update existing campaign"""
     try:
-        user = get_user_from_context(event)
+        user = event['user']  # User already authenticated in handler
         campaign_id = event['pathParameters']['id']
         
         try:
@@ -586,7 +586,7 @@ def update_campaign(event):
 def delete_campaign(event):
     """Delete campaign (soft delete by setting status to 'deleted')"""
     try:
-        user = get_user_from_context(event)
+        user = event['user']  # User already authenticated in handler
         campaign_id = event['pathParameters']['id']
         
         campaigns_table = get_campaigns_table()
@@ -626,7 +626,7 @@ def delete_campaign(event):
 def get_campaign_events(event):
     """Get analytics/events for a specific campaign"""
     try:
-        user = get_user_from_context(event)
+        user = event['user']  # User already authenticated in handler
         campaign_id = event['pathParameters']['id']
         
         campaigns_table = get_campaigns_table()
@@ -694,6 +694,14 @@ def lambda_handler(event, context):
     # Handle CORS preflight
     if http_method == 'OPTIONS':
         return _response(200, {})
+    
+    # Authenticate user from API Gateway authorizer context
+    try:
+        user = get_user_from_context(event)
+        # Add user to event for use in route handlers
+        event['user'] = user
+    except Exception as e:
+        return _response(401, {"error": f"Authentication failed: {str(e)}"})
     
     try:
         # Route requests based on path and method
