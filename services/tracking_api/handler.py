@@ -3,8 +3,10 @@ import os
 import time
 import uuid
 import base64
+import re
 from decimal import Decimal
 from urllib.parse import unquote
+from datetime import datetime, timezone
 import boto3
 from botocore.exceptions import ClientError
 
@@ -29,6 +31,153 @@ def get_table(table_env_var):
     if not table_name:
         raise RuntimeError(f"{table_env_var} environment variable not set")
     return dynamodb.Table(table_name)
+
+def parse_user_agent(user_agent):
+    """Parse user agent string to extract browser, OS, and device information"""
+    if not user_agent:
+        return {
+            'browser': 'Unknown',
+            'browser_version': 'Unknown',
+            'os': 'Unknown',
+            'os_version': 'Unknown',
+            'device_type': 'Unknown',
+            'is_mobile': False,
+            'is_tablet': False,
+            'is_desktop': True
+        }
+    
+    user_agent = user_agent.lower()
+    
+    # Browser detection
+    browser = 'Unknown'
+    browser_version = 'Unknown'
+    
+    if 'chrome' in user_agent and 'edge' not in user_agent:
+        browser = 'Chrome'
+        match = re.search(r'chrome/([\d\.]+)', user_agent)
+        if match:
+            browser_version = match.group(1)
+    elif 'firefox' in user_agent:
+        browser = 'Firefox'
+        match = re.search(r'firefox/([\d\.]+)', user_agent)
+        if match:
+            browser_version = match.group(1)
+    elif 'safari' in user_agent and 'chrome' not in user_agent:
+        browser = 'Safari'
+        match = re.search(r'version/([\d\.]+)', user_agent)
+        if match:
+            browser_version = match.group(1)
+    elif 'edge' in user_agent:
+        browser = 'Edge'
+        match = re.search(r'edge/([\d\.]+)', user_agent)
+        if match:
+            browser_version = match.group(1)
+    elif 'opera' in user_agent:
+        browser = 'Opera'
+        match = re.search(r'opera/([\d\.]+)', user_agent)
+        if match:
+            browser_version = match.group(1)
+    
+    # OS detection
+    os_name = 'Unknown'
+    os_version = 'Unknown'
+    
+    if 'windows nt' in user_agent:
+        os_name = 'Windows'
+        if 'windows nt 10.0' in user_agent:
+            os_version = '10/11'
+        elif 'windows nt 6.3' in user_agent:
+            os_version = '8.1'
+        elif 'windows nt 6.2' in user_agent:
+            os_version = '8'
+        elif 'windows nt 6.1' in user_agent:
+            os_version = '7'
+    elif 'mac os x' in user_agent or 'macos' in user_agent:
+        os_name = 'macOS'
+        match = re.search(r'mac os x ([\d_\.]+)', user_agent)
+        if match:
+            os_version = match.group(1).replace('_', '.')
+    elif 'linux' in user_agent:
+        os_name = 'Linux'
+        if 'ubuntu' in user_agent:
+            os_version = 'Ubuntu'
+    elif 'android' in user_agent:
+        os_name = 'Android'
+        match = re.search(r'android ([\d\.]+)', user_agent)
+        if match:
+            os_version = match.group(1)
+    elif 'iphone os' in user_agent or 'ios' in user_agent:
+        os_name = 'iOS'
+        match = re.search(r'os ([\d_]+)', user_agent)
+        if match:
+            os_version = match.group(1).replace('_', '.')
+    
+    # Device type detection
+    is_mobile = bool(re.search(r'mobile|android|iphone|ipod|blackberry|windows phone', user_agent))
+    is_tablet = bool(re.search(r'tablet|ipad|kindle|silk', user_agent))
+    is_desktop = not (is_mobile or is_tablet)
+    
+    device_type = 'Desktop'
+    if is_mobile:
+        device_type = 'Mobile'
+    elif is_tablet:
+        device_type = 'Tablet'
+    
+    return {
+        'browser': browser,
+        'browser_version': browser_version,
+        'os': os_name,
+        'os_version': os_version,
+        'device_type': device_type,
+        'is_mobile': is_mobile,
+        'is_tablet': is_tablet,
+        'is_desktop': is_desktop
+    }
+
+def get_analytics_metadata(headers, query_params=None):
+    """Extract comprehensive analytics metadata from request"""
+    user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
+    ip_address = headers.get('x-forwarded-for', headers.get('X-Forwarded-For', '')).split(',')[0].strip() or headers.get('x-real-ip', headers.get('X-Real-IP', 'unknown'))
+    
+    # Parse user agent for device info
+    device_info = parse_user_agent(user_agent)
+    
+    # Get timestamp and time analytics
+    now = datetime.now(timezone.utc)
+    
+    metadata = {
+        # Timing information
+        'timestamp': int(time.time()),
+        'iso_timestamp': now.isoformat(),
+        'date': now.strftime('%Y-%m-%d'),
+        'time_of_day': now.strftime('%H:%M:%S'),
+        'hour_of_day': now.hour,
+        'day_of_week': now.strftime('%A'),
+        'day_of_week_num': now.weekday(),  # 0=Monday, 6=Sunday
+        'month': now.strftime('%B'),
+        'year': now.year,
+        
+        # Network information
+        'ip_address': ip_address,
+        'user_agent': user_agent,
+        
+        # Device and browser information
+        'browser': device_info['browser'],
+        'browser_version': device_info['browser_version'],
+        'os': device_info['os'],
+        'os_version': device_info['os_version'],
+        'device_type': device_info['device_type'],
+        'is_mobile': device_info['is_mobile'],
+        'is_tablet': device_info['is_tablet'],
+        'is_desktop': device_info['is_desktop'],
+        
+        # Additional request info
+        'referer': headers.get('referer', headers.get('Referer', '')),
+        'accept_language': headers.get('accept-language', headers.get('Accept-Language', '')),
+        'query_params': query_params or {}
+    }
+    
+    return metadata
 
 def record_tracking_event(campaign_id, recipient_id, email, event_type, metadata=None):
     """Record a tracking event in the events table"""
@@ -127,14 +276,17 @@ def lambda_handler(event, context):
     user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
     ip_address = headers.get('x-forwarded-for', headers.get('X-Forwarded-For', '')).split(',')[0].strip() or headers.get('x-real-ip', headers.get('X-Real-IP', 'unknown'))
     
+    # Log enhanced request info for debugging
+    print(f"🌐 Request Info: IP={ip_address}, UA={user_agent[:50]}...")
+    
     try:
         # Route based on path
         if path.startswith('/track/open/'):
-            return handle_open_tracking(path, user_agent, ip_address, query_params)
+            return handle_open_tracking(path, headers, query_params)
         elif path.startswith('/track/click/'):
-            return handle_click_tracking(path, user_agent, ip_address, query_params, tracking_id)
+            return handle_click_tracking(path, headers, query_params, tracking_id)
         elif path.startswith('/unsubscribe/'):
-            return handle_unsubscribe(path, user_agent, ip_address, query_params)
+            return handle_unsubscribe(path, headers, query_params)
         elif path.startswith('/events/'):
             return handle_events_api(path, http_method, query_params)
         else:
@@ -151,7 +303,7 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': 'Internal server error'})
         }
 
-def handle_open_tracking(path, user_agent, ip_address, query_params):
+def handle_open_tracking(path, headers, query_params):
     """Handle email open tracking pixel requests - redirect to S3 asset"""
     
     # Parse path: /track/open/{campaign_id}/{recipient_id}.png
@@ -162,13 +314,15 @@ def handle_open_tracking(path, user_agent, ip_address, query_params):
         recipient_file = path_parts[3]  # "recipient_id.png"
         recipient_id = recipient_file.split('.')[0]  # Remove .png extension
         
-        # Record open event
-        metadata = {
-            'user_agent': user_agent,
-            'ip_address': ip_address,
-            'timestamp': int(time.time()),
-            'query_params': query_params
-        }
+        # Record open event with comprehensive analytics
+        metadata = get_analytics_metadata(headers, query_params)
+        
+        # Add open-specific metadata
+        metadata.update({
+            'event_type': 'open',
+            'campaign_id': campaign_id,
+            'recipient_id': recipient_id
+        })
         
         record_tracking_event(
             campaign_id=campaign_id,
@@ -221,7 +375,7 @@ def handle_open_tracking(path, user_agent, ip_address, query_params):
         'isBase64Encoded': True
     }
 
-def handle_click_tracking(path, user_agent, ip_address, query_params, tracking_id=None):
+def handle_click_tracking(path, headers, query_params, tracking_id=None):
     """Handle link click tracking and redirect"""
     
     # Use tracking_id from path parameters if available (API Gateway v2.0)
@@ -245,16 +399,18 @@ def handle_click_tracking(path, user_agent, ip_address, query_params, tracking_i
             
             print(f"✅ Found mapping: {original_url} for campaign {campaign_id}")
             
-            # Record click event
-            metadata = {
-                'user_agent': user_agent,
-                'ip_address': ip_address,
-                'timestamp': int(time.time()),
+            # Record click event with comprehensive analytics
+            metadata = get_analytics_metadata(headers, query_params)
+            
+            # Add click-specific metadata
+            metadata.update({
+                'event_type': 'click',
+                'campaign_id': campaign_id,
+                'recipient_id': recipient_id,
                 'link_id': link_id,
                 'original_url': original_url,
-                'tracking_id': tracking_id,
-                'query_params': query_params
-            }
+                'tracking_id': tracking_id
+            })
             
             record_tracking_event(
                 campaign_id=campaign_id,
@@ -295,7 +451,7 @@ def handle_click_tracking(path, user_agent, ip_address, query_params, tracking_i
         'body': ''
     }
 
-def handle_unsubscribe(path, user_agent, ip_address, query_params):
+def handle_unsubscribe(path, headers, query_params):
     """Handle unsubscribe tracking"""
     
     # Parse path: /unsubscribe/{token}
@@ -307,13 +463,14 @@ def handle_unsubscribe(path, user_agent, ip_address, query_params):
         # TODO: Implement token validation and unsubscribe logic
         # For now, return a simple unsubscribe page
         
-        # Record unsubscribe event (you'd decode token to get campaign/recipient info)
-        metadata = {
-            'user_agent': user_agent,
-            'ip_address': ip_address,
-            'timestamp': int(time.time()),
+        # Record unsubscribe event with comprehensive analytics
+        metadata = get_analytics_metadata(headers, query_params)
+        
+        # Add unsubscribe-specific metadata
+        metadata.update({
+            'event_type': 'unsubscribe',
             'token': token
-        }
+        })
         
         # Note: In production, decode token to get actual campaign_id and recipient_id
         print(f"📋 Unsubscribe request with token: {token}")
