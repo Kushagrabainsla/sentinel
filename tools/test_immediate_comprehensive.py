@@ -287,6 +287,7 @@ def cleanup_test_segment(segment_id):
         # First, verify the segment exists
         check_response = requests.get(
             f"{SEGMENTS_ENDPOINT}/{segment_id}",
+            headers=get_auth_headers(),
             timeout=30
         )
         
@@ -302,6 +303,7 @@ def cleanup_test_segment(segment_id):
         # Attempt to delete the segment
         response = requests.delete(
             f"{SEGMENTS_ENDPOINT}/{segment_id}",
+            headers=get_auth_headers(),
             timeout=30
         )
         
