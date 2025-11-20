@@ -46,9 +46,14 @@ def create_test_user():
         
         if response.status_code == 201:
             result = response.json()
-            API_KEY = result.get('api_key')
-            print(f"✅ User created successfully! API Key: {API_KEY[:16]}...")
-            return API_KEY
+            user_data = result.get('user', {})
+            API_KEY = user_data.get('api_key')
+            if API_KEY:
+                print(f"✅ User created successfully! API Key: {API_KEY[:16]}...")
+                return API_KEY
+            else:
+                print(f"❌ No API key found in response: {json.dumps(result, indent=2)}")
+                return None
         else:
             print(f"❌ Failed to create user: {response.status_code} - {response.text}")
             return None

@@ -1,5 +1,4 @@
 variable "name" { type = string }
-variable "create_campaign_arn" { type = string }
 variable "tracking_api_arn" { type = string }
 variable "segments_api_arn" { type = string }
 variable "authorizer_arn" { 
@@ -7,6 +6,7 @@ variable "authorizer_arn" {
     description = "Lambda authorizer invoke ARN for API Gateway v2"
 }
 variable "auth_api_arn" { type = string }
+variable "campaigns_api_arn" { type = string }
 
 # Custom domain configuration
 variable "domain_name" { 
@@ -80,12 +80,6 @@ resource "aws_acm_certificate_validation" "api_cert" {
     }
 }
 
-resource "aws_apigatewayv2_integration" "create_campaign" {
-    api_id                 = aws_apigatewayv2_api.http.id
-    integration_type       = "AWS_PROXY"
-    integration_uri        = var.create_campaign_arn
-    payload_format_version = "2.0"
-}
 
 resource "aws_apigatewayv2_integration" "tracking_api" {
     api_id                 = aws_apigatewayv2_api.http.id
@@ -108,10 +102,58 @@ resource "aws_apigatewayv2_integration" "auth_api" {
     payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_route" "post_campaigns" {
+resource "aws_apigatewayv2_integration" "campaigns_api" {
+    api_id                 = aws_apigatewayv2_api.http.id
+    integration_type       = "AWS_PROXY"
+    integration_uri        = var.campaigns_api_arn
+    payload_format_version = "2.0"
+}
+
+# Campaigns API routes - full CRUD operations
+resource "aws_apigatewayv2_route" "campaigns_list" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/campaigns"
+    target    = "integrations/${aws_apigatewayv2_integration.campaigns_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "campaigns_create" {
     api_id    = aws_apigatewayv2_api.http.id
     route_key = "POST /v1/campaigns"
-    target    = "integrations/${aws_apigatewayv2_integration.create_campaign.id}"
+    target    = "integrations/${aws_apigatewayv2_integration.campaigns_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "campaigns_get" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/campaigns/{id}"
+    target    = "integrations/${aws_apigatewayv2_integration.campaigns_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "campaigns_update" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "PUT /v1/campaigns/{id}"
+    target    = "integrations/${aws_apigatewayv2_integration.campaigns_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "campaigns_delete" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "DELETE /v1/campaigns/{id}"
+    target    = "integrations/${aws_apigatewayv2_integration.campaigns_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "campaigns_events" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/campaigns/{id}/events"
+    target    = "integrations/${aws_apigatewayv2_integration.campaigns_api.id}"
     authorization_type = "CUSTOM"
     authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
 }
@@ -252,13 +294,6 @@ resource "aws_apigatewayv2_route" "auth_regenerate_key" {
     authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
 }
 
-resource "aws_lambda_permission" "api_invoke" {
-    statement_id  = "AllowAPIGatewayInvokeCreate"
-    action        = "lambda:InvokeFunction"
-    function_name = var.create_campaign_arn
-    principal     = "apigateway.amazonaws.com"
-    source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
-}
 
 resource "aws_lambda_permission" "api_invoke_tracking" {
     statement_id  = "AllowAPIGatewayInvokeTracking"
@@ -280,6 +315,14 @@ resource "aws_lambda_permission" "api_invoke_auth" {
     statement_id  = "AllowAPIGatewayInvokeAuth"
     action        = "lambda:InvokeFunction"
     function_name = var.auth_api_arn
+    principal     = "apigateway.amazonaws.com"
+    source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "api_invoke_campaigns" {
+    statement_id  = "AllowAPIGatewayInvokeCampaigns"
+    action        = "lambda:InvokeFunction"
+    function_name = var.campaigns_api_arn
     principal     = "apigateway.amazonaws.com"
     source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }

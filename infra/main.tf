@@ -85,11 +85,11 @@ module "s3_assets" {
 module "api" {
     source              = "./modules/api"
     name                = local.name
-    create_campaign_arn = module.lambdas.create_campaign_arn
     tracking_api_arn    = module.lambdas.tracking_api_arn
     segments_api_arn    = module.lambdas.segments_api_arn
     authorizer_arn      = module.lambdas.authorizer_arn
     auth_api_arn        = module.lambdas.auth_api_arn
+    campaigns_api_arn   = module.lambdas.campaigns_api_arn
 }
 
 # Events (EventBridge Scheduler only - SES events not configured)
