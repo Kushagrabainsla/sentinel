@@ -24,7 +24,4 @@ variable "ses_from_address" {
     type = string
 }
 
-variable "ses_template_name" {
-    type    = string
-    default = "sentinelWrapperTemplate"
-}
+

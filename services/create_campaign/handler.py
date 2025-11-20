@@ -96,11 +96,10 @@ def _trigger_immediate_campaign(campaign_id):
 def lambda_handler(event, _context):
     data = _parse_body(event)
     name = data.get("name")
-    template_id = data.get("template_id")
     segment_id = data.get("segment_id")
     schedule_at = data.get("schedule_at")  # ISO8601 or None
     
-    # Support direct email content (for testing and simple campaigns)
+    # Direct email content is required
     subject = data.get("subject")
     html_body = data.get("html_body")
     text_body = data.get("text_body")
@@ -109,12 +108,12 @@ def lambda_handler(event, _context):
     
     # Inline tracking is used by default for optimal deliverability
 
-    # Either template_id OR direct content is required
+    # Validate required fields
     if not name:
         return _response(400, {"error": "name is required"})
     
-    if not template_id and not (subject and html_body):
-        return _response(400, {"error": "Either template_id or (subject + html_body) are required"})
+    if not (subject and html_body):
+        return _response(400, {"error": "subject and html_body are required"})
     
     if not segment_id:
         segment_id = "all_active"  # Default segment
@@ -125,7 +124,6 @@ def lambda_handler(event, _context):
 
     campaign_id = create_campaign(
         name=name, 
-        template_id=template_id, 
         segment_id=segment_id, 
         schedule_at=schedule_at,
         subject=subject,

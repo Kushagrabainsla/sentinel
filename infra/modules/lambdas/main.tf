@@ -10,7 +10,7 @@ variable "dynamodb_events_table"     { type = string }
 variable "dynamodb_link_mappings_table" { type = string }
 
 variable "ses_from_address"  { type = string }
-variable "ses_template_name" { type = string }
+
 variable "scheduler_invoke_role_arn" { type = string }
 variable "tracking_base_url" { type = string }
 variable "assets_bucket_name" { type = string }
@@ -109,7 +109,6 @@ resource "aws_lambda_function" "send_worker" {
             DYNAMODB_EVENTS_TABLE        = var.dynamodb_events_table
             DYNAMODB_LINK_MAPPINGS_TABLE = var.dynamodb_link_mappings_table
             SES_FROM_ADDRESS             = var.ses_from_address
-            SES_TEMPLATE_ARN             = var.ses_template_name
             TRACKING_BASE_URL            = var.tracking_base_url
             S3_ASSETS_BUCKET             = var.assets_bucket_name
             SENTINEL_LOGO_URL            = var.sentinel_logo_url

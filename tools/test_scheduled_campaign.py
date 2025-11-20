@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 # Configuration
 API_BASE_URL = "https://api.thesentinel.site"
 CREATE_CAMPAIGN_ENDPOINT = f"{API_BASE_URL}/v1/campaigns"
-SCHEDULE_DELAY_MINUTES = 3
+SCHEDULE_DELAY_MINUTES = 2
 
 def create_scheduled_campaign():
     """Create a scheduled email campaign to be sent in 3 minutes via API."""

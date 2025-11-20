@@ -30,7 +30,7 @@ def lambda_handler(event, _context):
     if not campaign_id:
         return {"statusCode": 400, "body": json.dumps({"error": "campaign_id required"})}
 
-    # Fetch campaign details including template data
+    # Fetch campaign details including direct email content
     campaign = fetch_campaign_details(campaign_id)
     if not campaign:
         return {"statusCode": 404, "body": json.dumps({"error": "Campaign not found"})}

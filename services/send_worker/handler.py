@@ -7,7 +7,6 @@ from tracking import generate_tracking_data
 
 ses = boto3.client("ses")
 FROM = os.environ.get("SES_FROM_ADDRESS")       # set in Terraform
-TEMPLATE = os.environ.get("SES_TEMPLATE_ARN")   # set in Terraform (name is fine)
 
 
 def extract_cta_links(html_content):

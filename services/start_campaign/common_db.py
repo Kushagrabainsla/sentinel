@@ -56,7 +56,7 @@ def update_campaign_state(campaign_id, state):
     )
 
 def fetch_campaign_details(campaign_id):
-    """Fetch campaign details including template data"""
+    """Fetch campaign details including direct email content"""
     table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
     if not table_name:
         raise RuntimeError("DYNAMODB_CAMPAIGNS_TABLE env var not set")
