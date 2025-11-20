@@ -27,13 +27,8 @@ resource "aws_apigatewayv2_authorizer" "api_key_auth" {
     authorizer_uri                    = var.authorizer_arn
     name                              = "${var.name}-api-key-authorizer"
     authorizer_payload_format_version = "2.0"
-    authorizer_result_ttl_in_seconds  = 300
-    identity_sources                  = [
-        "$request.header.X-API-Key",
-        "$request.header.User-ID",        # If you have user context
-        "$context.path",                  # If permissions are path-specific
-        "$context.httpMethod"  
-    ]
+    authorizer_result_ttl_in_seconds  = 0
+    identity_sources                  = ["$request.header.X-API-Key"
 }
 
 # Lambda permission for API Gateway to invoke authorizer
