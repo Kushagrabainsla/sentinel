@@ -380,10 +380,6 @@ def main():
         return
     
     print(f"✅ Authentication ready. API Key: {api_key[:16]}...")
-    
-    # Brief wait to ensure authorizer cache consistency across endpoints  
-    print("⏳ Waiting 35 seconds for API Gateway authorizer cache...")
-    time.sleep(35)
     print()
     
     # Test 1: Segment-based scheduled campaign
@@ -399,10 +395,6 @@ def main():
     segment_id = create_test_segment("Scheduled-Test-Segment", test_segment_emails)
     
     if segment_id:
-        # Wait a moment for segment to be ready
-        print("⏳ Waiting 2 seconds for segment to be ready...")
-        time.sleep(2)
-        
         # Verify segment was created and is accessible
         try:
             verify_response = requests.get(f"{SEGMENTS_ENDPOINT}/{segment_id}", headers=get_auth_headers(), timeout=30)
