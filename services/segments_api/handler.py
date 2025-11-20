@@ -93,7 +93,7 @@ def _response(status_code, body, headers=None):
     default_headers = {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type,Authorization",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,X-API-Key",
         "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
     }
     
