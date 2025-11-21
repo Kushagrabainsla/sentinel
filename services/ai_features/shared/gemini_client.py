@@ -1,27 +1,16 @@
 import json
 import os
 import logging
-
-# Disable SSL certificate verification by setting env var before importing requests
-os.environ['REQUESTS_CA_BUNDLE'] = ''
-os.environ['CURL_CA_BUNDLE'] = ''
-
-import requests
+import urllib3
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Try to find certifi bundle, fallback to system certs or disable verification
-try:
-    import certifi
-    CA_BUNDLE = certifi.where()
-    logger.info(f"Using CA bundle at: {CA_BUNDLE}")
-except Exception as e:
-    logger.warning(f"Could not load certifi: {str(e)}. Disabling SSL verification.")
-    CA_BUNDLE = False  # Disable SSL verification as workaround
+# Disable SSL warnings when verification is disabled
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class GeminiClient:
-    """Simple HTTP-based Gemini client without gRPC dependencies."""
+    """Simple HTTP-based Gemini client using urllib3."""
     
     def __init__(self):
         self.api_key = os.environ.get("GEMINI_API_KEY")
@@ -30,6 +19,7 @@ class GeminiClient:
             raise ValueError("GEMINI_API_KEY is required")
         
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
+        self.http = urllib3.PoolManager(cert_reqs='CERT_NONE')  # Disable SSL verification
     
     def generate_content(self, model_name, prompt, temperature=0.7):
         """
@@ -57,10 +47,18 @@ class GeminiClient:
                 }
             }
             
-            response = requests.post(url, json=payload, timeout=30, verify=CA_BUNDLE)
-            response.raise_for_status()
+            response = self.http.request(
+                'POST',
+                url,
+                body=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'},
+                timeout=30.0
+            )
             
-            result = response.json()
+            if response.status != 200:
+                raise Exception(f"API returned status {response.status}: {response.data.decode('utf-8')}")
+            
+            result = json.loads(response.data.decode('utf-8'))
             text = result['candidates'][0]['content']['parts'][0]['text']
             return text
             
