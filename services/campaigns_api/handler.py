@@ -22,6 +22,22 @@ import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
 
+# Import additional enums from common
+from common import (
+    CampaignType, CampaignDeliveryType, CampaignState, CampaignStatus,
+    EventType, EngagementLevel
+)
+
+# ================================
+# CONSTANTS
+# ================================
+
+# Default values
+DEFAULT_FROM_EMAIL = "no-reply@thesentinel.site"
+DEFAULT_FROM_NAME = "Sentinel"
+
+
+
 class DecimalEncoder(json.JSONEncoder):
     """Custom JSON encoder to handle Decimal objects from DynamoDB"""
     def default(self, obj):
@@ -32,86 +48,224 @@ class DecimalEncoder(json.JSONEncoder):
                 return float(obj)
         return super(DecimalEncoder, self).default(obj)
 
-def convert_decimals(obj):
-    """Recursively convert Decimal objects to int/float in DynamoDB items"""
-    if isinstance(obj, list):
-        return [convert_decimals(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: convert_decimals(value) for key, value in obj.items()}
-    elif isinstance(obj, Decimal):
-        if obj % 1 == 0:
-            return int(obj)
-        else:
-            return float(obj)
-    else:
-        return obj
 
-# DynamoDB clients
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
-def get_campaigns_table():
-    """Get campaigns table"""
-    table_name = os.environ.get('DYNAMODB_CAMPAIGNS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_CAMPAIGNS_TABLE environment variable not set')
-    return dynamodb.Table(table_name)
-
-def get_events_table():
-    """Get events table"""
-    table_name = os.environ.get('DYNAMODB_EVENTS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_EVENTS_TABLE environment variable not set')
-    return dynamodb.Table(table_name)
-
-def get_user_from_context(event):
-    """Extract user information from API Gateway v2 authorizer context"""
-    try:
-        print(f"DEBUG: Full event context: {json.dumps(event.get('requestContext', {}), default=str)}")
-        
-        request_context = event.get('requestContext', {})
-        authorizer_data = request_context.get('authorizer', {})
-        lambda_context = authorizer_data.get('lambda', {})
-        context = lambda_context if lambda_context else authorizer_data
-        
-        print(f"DEBUG: Authorizer context: {json.dumps(context, default=str)}")
-        
-        if not context:
-            raise ValueError("No authorizer context found")
-        
-        user = {
-            'id': context.get('user_id'),
-            'email': context.get('user_email'),
-            'status': context.get('user_status', 'active')
+def calculate_temporal_analytics(events):
+    """Calculate time-based engagement analytics"""
+    if not events:
+        return {
+            "hourly_engagement": {"peak_hours": [], "engagement_by_hour": []},
+            "daily_patterns": {"best_day": None, "engagement_by_day": []},
+            "response_times": {"avg_time_to_open": 0, "avg_time_to_click": 0}
         }
-        
-        if not user['id'] or not user['email']:
-            raise ValueError(f"Invalid user context from authorizer. Context keys: {list(context.keys())}")
-            
-        print(f"DEBUG: Extracted user: {user}")
-        return user
-        
-    except Exception as e:
-        print(f"ERROR: Context extraction failed: {str(e)}")
-        raise ValueError(f"Failed to extract user from context: {str(e)}")
-
-def _response(status_code, body, headers=None):
-    """Helper function to create API Gateway response"""
-    default_headers = {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type,Authorization,X-API-Key",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
-    }
     
-    if headers:
-        default_headers.update(headers)
+    from collections import defaultdict
+    import calendar
+    
+    # Hourly engagement analysis
+    hourly_stats = defaultdict(lambda: {"opens": 0, "clicks": 0, "total": 0})
+    daily_stats = defaultdict(lambda: {"opens": 0, "clicks": 0, "total": 0})
+    
+    for event in events:
+        timestamp = event.get('timestamp')
+        event_type = event.get('event_type', EventType.UNKNOWN.value)
+        
+        if timestamp:
+            dt = datetime.fromtimestamp(timestamp, timezone.utc)
+            hour = dt.hour
+            day_name = calendar.day_name[dt.weekday()]
+            
+            hourly_stats[hour]["total"] += 1
+            daily_stats[day_name]["total"] += 1
+            
+            if event_type == EventType.OPEN.value:
+                hourly_stats[hour]["opens"] += 1
+                daily_stats[day_name]["opens"] += 1
+            elif event_type == EventType.CLICK.value:
+                hourly_stats[hour]["clicks"] += 1 
+                daily_stats[day_name]["clicks"] += 1
+    
+    # Format hourly data
+    engagement_by_hour = []
+    for hour in range(24):
+        stats = hourly_stats[hour]
+        engagement_score = (stats["opens"] + stats["clicks"] * 2)  # Clicks weighted higher
+        engagement_by_hour.append({
+            "hour": hour,
+            "opens": stats["opens"],
+            "clicks": stats["clicks"],
+            "engagement_score": engagement_score
+        })
+    
+    # Find peak hours (top 3)
+    peak_hours = sorted(engagement_by_hour, key=lambda x: x["engagement_score"], reverse=True)[:3]
+    peak_hour_numbers = [h["hour"] for h in peak_hours if h["engagement_score"] > 0]
+    
+    # Format daily data
+    engagement_by_day = []
+    day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    for day in day_order:
+        stats = daily_stats[day]
+        engagement_score = (stats["opens"] + stats["clicks"] * 2)
+        engagement_by_day.append({
+            "day": day,
+            "opens": stats["opens"],
+            "clicks": stats["clicks"], 
+            "engagement_score": engagement_score
+        })
+    
+    # Find best day
+    best_day_data = max(engagement_by_day, key=lambda x: x["engagement_score"]) if engagement_by_day else None
+    best_day = best_day_data["day"] if best_day_data and best_day_data["engagement_score"] > 0 else None
     
     return {
-        "statusCode": status_code,
-        "headers": default_headers,
-        "body": json.dumps(body, cls=DecimalEncoder)
+        "hourly_engagement": {
+            "peak_hours": peak_hour_numbers,
+            "engagement_by_hour": engagement_by_hour,
+            "optimal_send_time": f"{peak_hour_numbers[0]:02d}:00" if peak_hour_numbers else None
+        },
+        "daily_patterns": {
+            "best_day": best_day,
+            "engagement_by_day": engagement_by_day
+        },
+        "response_times": {
+            "avg_time_to_open": None,  # Would need send timestamp to calculate
+            "avg_time_to_click": None,  # Would need open timestamp to calculate 
+            "total_analysis_period": len(events)
+        }
     }
+
+def calculate_engagement_metrics(events, event_counts):
+    """Calculate advanced engagement metrics"""
+    if not events or not event_counts:
+        return {
+            "click_to_open_rate": 0,
+            "unique_engagement_rate": 0,
+            "engagement_quality_score": 0,
+            "bounce_rate": 0
+        }
+    
+    opens = event_counts.get(EventType.OPEN.value, 0)
+    clicks = event_counts.get(EventType.CLICK.value, 0)  
+    bounces = event_counts.get(EventType.BOUNCE.value, 0)
+    total_events = len(events)
+    
+    # Click-to-Open Rate (CTOR) - industry standard metric
+    click_to_open_rate = round((clicks / opens * 100), 2) if opens > 0 else 0
+    
+    # Unique engagement rate (opens + clicks / total events)
+    unique_engagement_rate = round(((opens + clicks) / total_events * 100), 2) if total_events > 0 else 0
+    
+    # Engagement quality score (weighted metric)
+    engagement_quality_score = round((opens * 1 + clicks * 3 - bounces * 2) / max(total_events, 1) * 10, 1)
+    engagement_quality_score = max(0, min(10, engagement_quality_score))  # Clamp between 0-10
+    
+    # Bounce rate
+    bounce_rate = round((bounces / total_events * 100), 2) if total_events > 0 else 0
+    
+    return {
+        "click_to_open_rate": click_to_open_rate,
+        "unique_engagement_rate": unique_engagement_rate, 
+        "engagement_quality_score": engagement_quality_score,
+        "bounce_rate": bounce_rate,
+        "advanced_metrics": {
+            "total_interactions": opens + clicks,
+            "interaction_diversity": len([k for k, v in event_counts.items() if v > 0]),
+            "engagement_intensity": round((clicks + opens) / max(len(set(e.get('recipient_email', '') for e in events if e.get('recipient_email'))), 1), 2)
+        }
+    }
+
+def calculate_recipient_insights(events):
+    """Calculate recipient behavior insights"""
+    if not events:
+        return {
+            "unique_recipients": 0,
+            "engagement_segments": {
+                "highly_engaged": {"count": 0, "percentage": 0},
+                "moderately_engaged": {"count": 0, "percentage": 0}, 
+                "low_engaged": {"count": 0, "percentage": 0}
+            },
+            "top_recipients": []
+        }
+    
+    from collections import defaultdict, Counter
+    
+    # Track recipient activity
+    recipient_activity = defaultdict(lambda: {"opens": 0, "clicks": 0, "events": 0, "last_activity": 0})
+    
+    for event in events:
+        recipient = event.get('recipient_email', EventType.UNKNOWN.value)
+        event_type = event.get('event_type', EventType.UNKNOWN.value)
+        timestamp = event.get('timestamp', 0)
+        
+        recipient_activity[recipient]["events"] += 1
+        recipient_activity[recipient]["last_activity"] = max(recipient_activity[recipient]["last_activity"], timestamp)
+        
+        if event_type == EventType.OPEN.value:
+            recipient_activity[recipient]["opens"] += 1
+        elif event_type == EventType.CLICK.value:
+            recipient_activity[recipient]["clicks"] += 1
+    
+    # Calculate engagement scores for each recipient
+    recipient_scores = []
+    for recipient, activity in recipient_activity.items():
+        if recipient != EventType.UNKNOWN.value:
+            # Engagement score: opens * 1 + clicks * 3
+            score = activity["opens"] * 1 + activity["clicks"] * 3
+            recipient_scores.append({
+                "recipient": recipient[:50] + "..." if len(recipient) > 50 else recipient,  # Truncate for privacy
+                "engagement_score": score,
+                "opens": activity["opens"],
+                "clicks": activity["clicks"],
+                "total_events": activity["events"],
+                "last_activity": activity["last_activity"]
+            })
+    
+    # Sort by engagement score
+    recipient_scores.sort(key=lambda x: x["engagement_score"], reverse=True)
+    
+    # Segment recipients by engagement level
+    total_recipients = len(recipient_scores)
+    if total_recipients > 0:
+        # Define thresholds (can be customized)
+        high_threshold = 5  # 5+ engagement points
+        medium_threshold = 2  # 2-4 engagement points
+        
+        highly_engaged = [r for r in recipient_scores if r["engagement_score"] >= high_threshold]
+        moderately_engaged = [r for r in recipient_scores if medium_threshold <= r["engagement_score"] < high_threshold]
+        low_engaged = [r for r in recipient_scores if r["engagement_score"] < medium_threshold]
+    else:
+        highly_engaged = moderately_engaged = low_engaged = []
+    
+    return {
+        "unique_recipients": total_recipients,
+        "engagement_segments": {
+            "highly_engaged": {
+                "count": len(highly_engaged),
+                "percentage": round(len(highly_engaged) / max(total_recipients, 1) * 100, 1)
+            },
+            "moderately_engaged": {
+                "count": len(moderately_engaged),
+                "percentage": round(len(moderately_engaged) / max(total_recipients, 1) * 100, 1)
+            },
+            "low_engaged": {
+                "count": len(low_engaged), 
+                "percentage": round(len(low_engaged) / max(total_recipients, 1) * 100, 1)
+            }
+        },
+        "top_recipients": recipient_scores[:10],  # Top 10 most engaged
+        "recipient_stats": {
+            "avg_opens_per_recipient": round(sum(r["opens"] for r in recipient_scores) / max(total_recipients, 1), 2),
+            "avg_clicks_per_recipient": round(sum(r["clicks"] for r in recipient_scores) / max(total_recipients, 1), 2),
+            "multi_event_recipients": len([r for r in recipient_scores if r["total_events"] > 1])
+        }
+    }
+
+# Import common utilities
+from common import _response, convert_decimals, get_user_from_context, get_campaigns_table, get_events_table, get_segments_table, parse_user_agent
+
+# DynamoDB clients
+lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 def list_campaigns(event):
     """List user's campaigns with filtering and pagination"""
@@ -189,59 +343,36 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
                    schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None):
     """Create a campaign item and return its id (string UUID)."""
     
-    # Campaign Type Enums
-    class CampaignType:
-        IMMEDIATE = "I"  # Immediate execution
-        SCHEDULED = "S"  # Scheduled execution
-
-    # Campaign Delivery Mechanism Enums
-    class CampaignDeliveryType:
-        INDIVIDUAL = "IND"   # Single recipient
-        SEGMENT = "SEG"      # Segment-based (multiple recipients)
-
-    # Campaign State Enums
-    class CampaignState:
-        SCHEDULED = "SC"  # Scheduled for future execution
-        PENDING = "P"     # Pending immediate execution
-        SENDING = "SE"    # Currently sending
-        DONE = "D"        # Completed
-        FAILED = "F"      # Failed
-
-    # Campaign Status Enums
-    class CampaignStatus:
-        ACTIVE = "A"      # Active campaign
-        INACTIVE = "I"    # Inactive campaign
-    
     campaigns_table = get_campaigns_table()
     campaign_id = str(uuid.uuid4())
     current_timestamp = int(time.time())
     
     # Validate delivery_type and corresponding fields
     if not delivery_type:
-        delivery_type = CampaignDeliveryType.SEGMENT  # Default to segment-based
+        delivery_type = CampaignDeliveryType.SEGMENT.value  # Default to segment-based
     
-    if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+    if delivery_type == CampaignDeliveryType.INDIVIDUAL.value:
         if not recipient_email:
             raise ValueError("recipient_email is required for individual campaigns")
         if segment_id:
             raise ValueError("segment_id should not be provided for individual campaigns")
-    elif delivery_type == CampaignDeliveryType.SEGMENT:
+    elif delivery_type == CampaignDeliveryType.SEGMENT.value:
         if recipient_email:
             raise ValueError("recipient_email should not be provided for segment campaigns")
         if not segment_id:
             raise ValueError("segment_id is required for segment campaigns")
     else:
-        raise ValueError(f"Invalid delivery_type: {delivery_type}. Must be '{CampaignDeliveryType.INDIVIDUAL}' or '{CampaignDeliveryType.SEGMENT}'")
+        raise ValueError(f"Invalid delivery_type: {delivery_type}. Must be '{CampaignDeliveryType.INDIVIDUAL.value}' or '{CampaignDeliveryType.SEGMENT.value}'")
     
     # Validate campaign_type and schedule_at requirements
-    if campaign_type == CampaignType.SCHEDULED:
+    if campaign_type == CampaignType.SCHEDULED.value:
         if not schedule_at:
             raise ValueError("schedule_at is required for scheduled campaigns")
-    elif campaign_type == CampaignType.IMMEDIATE:
+    elif campaign_type == CampaignType.IMMEDIATE.value:
         if schedule_at:
             raise ValueError("schedule_at should not be provided for immediate campaigns")
     else:
-        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE}' or '{CampaignType.SCHEDULED}'")
+        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE.value}' or '{CampaignType.SCHEDULED.value}'")
     
     item = {
         "id": campaign_id,
@@ -252,13 +383,13 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
         "delivery_type": delivery_type,
         "email_subject": subject or "",
         "email_body": html_body or "",
-        "from_email": from_email or "noreply@thesentinel.site",
-        "from_name": from_name or "Sentinel",
+        "from_email": from_email or DEFAULT_FROM_EMAIL,
+        "from_name": from_name or DEFAULT_FROM_NAME,
         "segment_id": segment_id,
         "recipient_email": recipient_email,
         "schedule_at": schedule_at,
-        "state": CampaignState.SCHEDULED if campaign_type == CampaignType.SCHEDULED else CampaignState.PENDING,
-        "status": CampaignStatus.ACTIVE,
+        "state": CampaignState.SCHEDULED.value if campaign_type == CampaignType.SCHEDULED.value else CampaignState.PENDING.value,
+        "status": CampaignStatus.ACTIVE.value,
         "owner_id": owner_id,
         "tags": [],  # For categorization and filtering
         "metadata": {}  # For additional custom fields
@@ -270,12 +401,7 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
         raise
     return campaign_id
 
-def get_segments_table():
-    """Get segments table"""
-    table_name = os.environ.get('DYNAMODB_SEGMENTS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_SEGMENTS_TABLE environment variable not set')
-    return dynamodb.Table(table_name)
+
 
 def create_scheduler_rule(campaign_id, schedule_at):
     """Create EventBridge Scheduler rule to automatically start campaign"""
@@ -355,23 +481,7 @@ def create_campaign(event):
         except json.JSONDecodeError:
             return _response(400, {"error": "Invalid JSON in request body"})
         
-        # Campaign Type Enums
-        class CampaignType:
-            IMMEDIATE = "I"  # Immediate execution
-            SCHEDULED = "S"  # Scheduled execution
-
-        # Campaign Delivery Mechanism Enums
-        class CampaignDeliveryType:
-            INDIVIDUAL = "IND"   # Single recipient
-            SEGMENT = "SEG"      # Segment-based (multiple recipients)
-
-        # Campaign State Enums
-        class CampaignState:
-            SCHEDULED = "SC"  # Scheduled for future execution
-            PENDING = "P"     # Pending immediate execution
-            SENDING = "SE"    # Currently sending
-            DONE = "D"        # Completed
-            FAILED = "F"      # Failed
+        # Using global enums defined at module level
         
         # Extract data from request
         name = body.get("name")
@@ -393,21 +503,21 @@ def create_campaign(event):
             return _response(400, {"error": "name is required"})
         
         if not campaign_type:
-            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE} for immediate, {CampaignType.SCHEDULED} for scheduled)"})
+            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE.value} for immediate, {CampaignType.SCHEDULED.value} for scheduled)"})
         
         if not (subject and html_body):
             return _response(400, {"error": "subject and html_body are required"})
         
         # Validate delivery type and corresponding fields
         if not delivery_type:
-            delivery_type = CampaignDeliveryType.SEGMENT  # Default to segment-based
+            delivery_type = CampaignDeliveryType.SEGMENT.value  # Default to segment-based
         
-        if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+        if delivery_type == CampaignDeliveryType.INDIVIDUAL.value:
             if not recipient_email:
                 return _response(400, {"error": "recipient_email is required for individual campaigns"})
             if emails or segment_id:
                 return _response(400, {"error": "emails or segment_id should not be provided for individual campaigns"})
-        elif delivery_type == CampaignDeliveryType.SEGMENT:
+        elif delivery_type == CampaignDeliveryType.SEGMENT.value:
             if recipient_email:
                 return _response(400, {"error": "recipient_email should not be provided for segment campaigns"})
             if not emails and not segment_id:
@@ -426,11 +536,11 @@ def create_campaign(event):
                 if invalid_emails:
                     return _response(400, {"error": f"Invalid email addresses: {', '.join(invalid_emails[:5])}"})
         else:
-            return _response(400, {"error": f"delivery_type must be '{CampaignDeliveryType.INDIVIDUAL}' for individual or '{CampaignDeliveryType.SEGMENT}' for segment campaigns"})
+            return _response(400, {"error": f"delivery_type must be '{CampaignDeliveryType.INDIVIDUAL.value}' for individual or '{CampaignDeliveryType.SEGMENT.value}' for segment campaigns"})
 
         # If emails provided, create a temporary segment
         final_segment_id = segment_id
-        if emails and delivery_type == CampaignDeliveryType.SEGMENT:
+        if emails and delivery_type == CampaignDeliveryType.SEGMENT.value:
             # Create a temporary segment for this campaign
             final_segment_id = str(uuid.uuid4())
             
@@ -468,47 +578,47 @@ def create_campaign(event):
         )
         
         # Dual-path approach based on campaign type:
-        if campaign_type == CampaignType.IMMEDIATE:  # Immediate campaigns
+        if campaign_type == CampaignType.IMMEDIATE.value:  # Immediate campaigns
             print(f"⚡ Immediate execution path for campaign {campaign_id}")
             immediate_triggered = trigger_immediate_campaign(campaign_id)
             
             response_data = {
                 "campaign_id": campaign_id,
-                "state": CampaignState.PENDING,
+                "state": CampaignState.PENDING.value,
                 "type": campaign_type,
                 "delivery_type": delivery_type,
-                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL else None,
-                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT else None,
+                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else None,
+                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT.value else None,
                 "schedule_at": schedule_at,
                 "execution_path": "immediate",
                 "triggered": immediate_triggered
             }
             
             # Add segment info for segment campaigns
-            if delivery_type == CampaignDeliveryType.SEGMENT:
+            if delivery_type == CampaignDeliveryType.SEGMENT.value:
                 if emails:
                     response_data["recipient_count"] = len(set(emails))
                     response_data["temporary_segment"] = True
                 else:
                     response_data["temporary_segment"] = False
-        elif campaign_type == CampaignType.SCHEDULED:  # Scheduled campaigns
+        elif campaign_type == CampaignType.SCHEDULED.value:  # Scheduled campaigns
             print(f"📅 Scheduled execution path for campaign {campaign_id}")
             scheduler_created = create_scheduler_rule(campaign_id, schedule_at)
             
             response_data = {
                 "campaign_id": campaign_id,
-                "state": CampaignState.SCHEDULED,
+                "state": CampaignState.SCHEDULED.value,
                 "type": campaign_type,
                 "delivery_type": delivery_type,
-                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL else None,
-                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT else None,
+                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else None,
+                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT.value else None,
                 "schedule_at": schedule_at,
-                "execution_path": "scheduled",
+                "execution_path": CampaignDeliveryType.SCHEDULED.value,
                 "auto_scheduler": scheduler_created
             }
             
             # Add segment info for segment campaigns
-            if delivery_type == CampaignDeliveryType.SEGMENT:
+            if delivery_type == CampaignDeliveryType.SEGMENT.value:
                 if emails:
                     response_data["recipient_count"] = len(set(emails))
                     response_data["temporary_segment"] = True
@@ -610,7 +720,7 @@ def delete_campaign(event):
             UpdateExpression="SET #status = :status, updated_at = :updated_at",
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
-                ':status': 'deleted',
+                ':status': CampaignStatus.DELETED.value,
                 ':updated_at': int(time.time())
             }
         )
@@ -624,7 +734,7 @@ def delete_campaign(event):
         return _response(500, {"error": f"Failed to delete campaign: {str(e)}"})
 
 def get_campaign_events(event):
-    """Get analytics/events for a specific campaign"""
+    """Get analytics/events for a specific campaign with time range filtering and distribution data"""
     try:
         user = event['user']  # User already authenticated in handler
         campaign_id = event['pathParameters']['id']
@@ -641,34 +751,137 @@ def get_campaign_events(event):
         if campaign.get('owner_id') != user['id']:
             return _response(403, {"error": "Access denied"})
         
-        # Get events for this campaign
+        # Get query parameters
         query_params = event.get('queryStringParameters') or {}
-        limit = int(query_params.get('limit', 100))
+        limit = int(query_params.get('limit', 1000))
         limit = min(limit, 1000)  # Max 1000 events per request
+        from_epoch = query_params.get('from_epoch')
+        to_epoch = query_params.get('to_epoch')
         
-        events_response = events_table.query(
-            IndexName='campaign_index',
-            KeyConditionExpression=Key('campaign_id').eq(campaign_id),
-            Limit=limit,
-            ScanIndexForward=False  # Most recent first
-        )
+        # Build query parameters for DynamoDB
+        query_kwargs = {
+            'IndexName': 'campaign_index',
+            'KeyConditionExpression': Key('campaign_id').eq(campaign_id),
+            'Limit': limit,
+            'ScanIndexForward': False  # Most recent first
+        }
         
+        # Add time range filtering if provided
+        filter_conditions = []
+        
+        if from_epoch:
+            try:
+                from_timestamp = int(from_epoch)
+                filter_conditions.append(Attr('timestamp').gte(from_timestamp))
+            except ValueError:
+                return _response(400, {"error": "Invalid from_epoch format. Must be Unix timestamp"})
+        
+        if to_epoch:
+            try:
+                to_timestamp = int(to_epoch)
+                filter_conditions.append(Attr('timestamp').lte(to_timestamp))
+            except ValueError:
+                return _response(400, {"error": "Invalid to_epoch format. Must be Unix timestamp"})
+        
+        # Combine filter conditions if any exist
+        if filter_conditions:
+            if len(filter_conditions) == 1:
+                query_kwargs['FilterExpression'] = filter_conditions[0]
+            else:
+                # Combine multiple conditions with AND
+                combined_filter = filter_conditions[0]
+                for condition in filter_conditions[1:]:
+                    combined_filter = combined_filter & condition
+                query_kwargs['FilterExpression'] = combined_filter
+        
+        events_response = events_table.query(**query_kwargs)
         events = convert_decimals(events_response.get('Items', []))
         
         # Calculate summary statistics
         event_counts = {}
-        for event in events:
-            event_type = event.get('event_type', 'unknown')
-            event_counts[event_type] = event_counts.get(event_type, 0) + 1
+        os_distribution = {}
+        device_distribution = {}
+        browser_distribution = {}
+        ip_distribution = {}
         
+        for event in events:
+            # Event type counts
+            event_type = event.get('event_type', EventType.UNKNOWN.value)
+            event_counts[event_type] = event_counts.get(event_type, 0) + 1
+            
+            # Extract user agent and IP data for distributions
+            user_agent = event.get('user_agent', '')
+            ip_address = event.get('ip_address', 'unknown')
+            
+            # Parse user agent for OS, device, and browser info
+            user_agent_info = parse_user_agent(user_agent)
+            os_info = user_agent_info['os']
+            device_info = user_agent_info['device_type']
+            browser_info = user_agent_info['browser']
+            
+            # Update distributions
+            os_distribution[os_info] = os_distribution.get(os_info, 0) + 1
+            device_distribution[device_info] = device_distribution.get(device_info, 0) + 1
+            browser_distribution[browser_info] = browser_distribution.get(browser_info, 0) + 1
+            ip_distribution[ip_address] = ip_distribution.get(ip_address, 0) + 1
+        
+        # Format distributions for frontend charts
+        def format_distribution(distribution_dict, max_items=10):
+            """Format distribution data for frontend charts with 'Other' category for long tail"""
+            sorted_items = sorted(distribution_dict.items(), key=lambda x: x[1], reverse=True)
+            
+            if len(sorted_items) <= max_items:
+                return [{"name": name, "value": count} for name, count in sorted_items]
+            
+            top_items = sorted_items[:max_items-1]
+            other_count = sum(count for _, count in sorted_items[max_items-1:])
+            
+            result = [{"name": name, "value": count} for name, count in top_items]
+            if other_count > 0:
+                result.append({"name": "Other", "value": other_count})
+            
+            return result
+        
+        # Format event counts for better visualization
+        event_types_summary = []
+        for event_type, count in sorted(event_counts.items(), key=lambda x: x[1], reverse=True):
+            event_types_summary.append({
+                "event_type": event_type,
+                "count": count,
+                "percentage": round((count / len(events) * 100), 2) if events else 0
+            })
+        
+        # Calculate temporal analytics (Phase 1 enhancement)
+        temporal_analytics = calculate_temporal_analytics(events)
+        
+        # Calculate advanced engagement metrics
+        engagement_metrics = calculate_engagement_metrics(events, event_counts)
+        
+        # Calculate recipient insights
+        recipient_insights = calculate_recipient_insights(events)
+
         return _response(200, {
             "events": events,
             "summary": {
                 "total_events": len(events),
                 "event_counts": event_counts,
+                "event_types_breakdown": event_types_summary,
                 "campaign_id": campaign_id,
-                "campaign_name": campaign.get('name')
+                "campaign_name": campaign.get('name'),
+                "time_range": {
+                    "from_epoch": from_epoch,
+                    "to_epoch": to_epoch
+                }
             },
+            "distributions": {
+                "os_distribution": format_distribution(os_distribution),
+                "device_distribution": format_distribution(device_distribution),
+                "browser_distribution": format_distribution(browser_distribution),
+                "ip_distribution": format_distribution(ip_distribution, max_items=15)
+            },
+            "temporal_analytics": temporal_analytics,
+            "engagement_metrics": engagement_metrics,
+            "recipient_insights": recipient_insights,
             "has_more": 'LastEvaluatedKey' in events_response
         })
         

@@ -9,102 +9,8 @@ import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
 
-# Authentication utilities (moved from common/auth_utils.py)
-def get_user_from_context(event):
-    """
-    Extract user information from API Gateway v2 authorizer context
-    
-    For API Gateway v2 with Lambda authorizer, the context is available in:
-    event['requestContext']['authorizer']['lambda']['key']
-    """
-    try:
-        print(f"DEBUG: Full event context: {json.dumps(event.get('requestContext', {}), default=str)}")
-        
-        request_context = event.get('requestContext', {})
-        
-        # API Gateway v2 stores authorizer context in lambda key
-        authorizer_data = request_context.get('authorizer', {})
-        
-        # The authorizer context might be directly in authorizer or in lambda sub-key
-        lambda_context = authorizer_data.get('lambda', {})
-        
-        # Try lambda context first, then fall back to direct authorizer context
-        context = lambda_context if lambda_context else authorizer_data
-        
-        print(f"DEBUG: Authorizer context: {json.dumps(context, default=str)}")
-        
-        if not context:
-            raise ValueError("No authorizer context found")
-        
-        # Extract user info from authorizer context
-        user = {
-            'id': context.get('user_id'),
-            'email': context.get('user_email'),
-            'status': context.get('user_status', 'active')
-        }
-        
-        if not user['id'] or not user['email']:
-            raise ValueError(f"Invalid user context from authorizer. Context keys: {list(context.keys())}")
-            
-        print(f"DEBUG: Extracted user: {user}")
-        return user
-        
-    except Exception as e:
-        print(f"ERROR: Context extraction failed: {str(e)}")
-        raise ValueError(f"Failed to extract user from context: {str(e)}")
-
-class DecimalEncoder(json.JSONEncoder):
-    """Custom JSON encoder to handle Decimal objects from DynamoDB"""
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            # Convert Decimal to int if it's a whole number, otherwise to float
-            if obj % 1 == 0:
-                return int(obj)
-            else:
-                return float(obj)
-        return super(DecimalEncoder, self).default(obj)
-
-def convert_decimals(obj):
-    """Recursively convert Decimal objects to int/float in DynamoDB items"""
-    if isinstance(obj, list):
-        return [convert_decimals(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: convert_decimals(value) for key, value in obj.items()}
-    elif isinstance(obj, Decimal):
-        if obj % 1 == 0:
-            return int(obj)
-        else:
-            return float(obj)
-    else:
-        return obj
-
-# DynamoDB client
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-
-def get_table(table_env_var):
-    """Get DynamoDB table from environment variable"""
-    table_name = os.environ.get(table_env_var)
-    if not table_name:
-        raise RuntimeError(f"{table_env_var} environment variable not set")
-    return dynamodb.Table(table_name)
-
-def _response(status_code, body, headers=None):
-    """Helper function to create API Gateway response"""
-    default_headers = {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type,Authorization,X-API-Key",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
-    }
-    
-    if headers:
-        default_headers.update(headers)
-    
-    return {
-        "statusCode": status_code,
-        "headers": default_headers,
-        "body": json.dumps(body, cls=DecimalEncoder)
-    }
+# Import common utilities and enums
+from common import _response, convert_decimals, get_user_from_context, get_table, UserStatus, SegmentStatus
 
 def validate_segment_data(data, required_fields=None):
     """Validate segment data"""
@@ -159,7 +65,7 @@ def get_all_emails_from_segments(active_only=False):
         # Collect all emails from all segments
         all_emails = set()
         for segment in segments:
-            if active_only and segment.get('status') != 'active':
+            if active_only and segment.get('status') != SegmentStatus.ACTIVE.value:
                 continue
             emails = segment.get('emails', [])
             all_emails.update(emails)
@@ -234,7 +140,7 @@ def create_segment(event):
         'description': body.get('description', ''),
         'emails': unique_emails,
         'criteria': body.get('criteria', {}),
-        'status': body.get('status', 'active'),
+        'status': body.get('status', SegmentStatus.ACTIVE.value),
         'contact_count': len(unique_emails),
         'created_at': current_time,
         'updated_at': current_time,

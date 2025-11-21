@@ -6,23 +6,8 @@ import hashlib
 import boto3
 from botocore.exceptions import ClientError
 
-# Campaign State Enums
-class CampaignState:
-    SCHEDULED = "SC"  # Scheduled for future execution
-    PENDING = "P"     # Pending immediate execution
-    SENDING = "SE"    # Currently sending
-    DONE = "D"        # Completed
-    FAILED = "F"      # Failed
-
-# Campaign Status Enums
-class CampaignStatus:
-    ACTIVE = "A"      # Active campaign
-    INACTIVE = "I"    # Inactive campaign
-
-# Campaign Delivery Mechanism Enums
-class CampaignDeliveryType:
-    INDIVIDUAL = "IND"   # Single recipient
-    SEGMENT = "SEG"      # Segment-based (multiple recipients)
+# Import common utilities and enums
+from common import CampaignState, CampaignStatus, CampaignDeliveryType, SegmentStatus
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -49,7 +34,7 @@ def fetch_all_emails_from_segments(active_only=True):
         
         all_emails = set()
         for segment in segments:
-            if active_only and segment.get('status') != 'active':
+            if active_only and segment.get('status') != SegmentStatus.ACTIVE.value:
                 continue
                 
             emails = segment.get('emails', [])
