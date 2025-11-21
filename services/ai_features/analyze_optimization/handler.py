@@ -4,7 +4,7 @@ import boto3
 import logging
 from datetime import datetime, timedelta
 from boto3.dynamodb.conditions import Key, Attr
-from shared.gemini_client import GeminiClient
+# from shared.gemini_client import GeminiClient
 
 # Configure logging
 logger = logging.getLogger()
@@ -12,7 +12,7 @@ logger.setLevel(logging.INFO)
 
 # Initialize clients
 dynamodb = boto3.resource('dynamodb')
-gemini_client = GeminiClient()
+# gemini_client = GeminiClient()  # Moved inside handler
 
 # Environment variables
 CAMPAIGNS_TABLE = os.environ.get('CAMPAIGNS_TABLE')

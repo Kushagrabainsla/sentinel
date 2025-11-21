@@ -7,6 +7,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Initialize client
+def generate_subject_lines(event, context):
     """Lambda handler for generating subject lines."""
     logger.info("Starting subject line generation")
     
