@@ -5,11 +5,11 @@ import { useEffect, useRef } from 'react';
 import { useSpring } from 'react-spring';
 
 interface GlobeProps {
-    selectedCountry: string;
-    onSelectCountry: (country: string) => void;
+    selectedCountry?: string;
+    onSelectCountry?: (country: string) => void;
 }
 
-export function Globe({ selectedCountry, onSelectCountry }: GlobeProps) {
+export function Globe({ selectedCountry = 'all', onSelectCountry }: GlobeProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const pointerInteracting = useRef<number | null>(null);
     const pointerInteractionMovement = useRef(0);
@@ -107,29 +107,31 @@ export function Globe({ selectedCountry, onSelectCountry }: GlobeProps) {
             />
 
             {/* Overlay Controls for Country Selection */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-2 w-full px-4">
-                <button
-                    onClick={() => onSelectCountry('all')}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCountry === 'all'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-background/80 backdrop-blur-sm border border-border hover:bg-accent'
-                        }`}
-                >
-                    All
-                </button>
-                {locations.map((loc) => (
+            {onSelectCountry && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-2 w-full px-4">
                     <button
-                        key={loc.name}
-                        onClick={() => onSelectCountry(loc.name)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCountry === loc.name
+                        onClick={() => onSelectCountry('all')}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCountry === 'all'
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-background/80 backdrop-blur-sm border border-border hover:bg-accent'
                             }`}
                     >
-                        {loc.name}
+                        All
                     </button>
-                ))}
-            </div>
+                    {locations.map((loc) => (
+                        <button
+                            key={loc.name}
+                            onClick={() => onSelectCountry(loc.name)}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCountry === loc.name
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background/80 backdrop-blur-sm border border-border hover:bg-accent'
+                                }`}
+                        >
+                            {loc.name}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
