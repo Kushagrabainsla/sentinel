@@ -363,3 +363,11 @@ output "api_domain_target" {
     description = "DNS target for CNAME record"
     value       = aws_apigatewayv2_domain_name.api_domain.domain_name_configuration[0].target_domain_name
 }
+
+output "http_api_id" {
+    value = aws_apigatewayv2_api.http.id
+}
+
+output "http_api_execution_arn" {
+    value = aws_apigatewayv2_api.http.execution_arn
+}
