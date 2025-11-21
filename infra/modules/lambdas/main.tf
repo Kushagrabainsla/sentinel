@@ -1,6 +1,9 @@
 resource "null_resource" "generate_email_dependencies" {
   provisioner "local-exec" {
-    command = "pip install -r ${path.module}/../../../services/generate_email/requirements.txt -t ${path.module}/../../../services/generate_email/"
+    command = <<EOT
+      docker run --rm -v ${path.module}/../../../services/generate_email:/var/task lambci/lambda:build-python3.11 \
+      pip install -r requirements.txt -t /var/task
+    EOT
   }
 }
 
