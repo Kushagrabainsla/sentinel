@@ -99,9 +99,10 @@ def aggregate_metrics(campaigns):
     data_summary = []
     
     for camp in campaigns:
-        # Convert timestamp to readable format
+        # Convert timestamp to readable format (DynamoDB returns Decimal, convert to int)
         created_at = camp.get('created_at', 0)
-        send_time = datetime.fromtimestamp(created_at).isoformat() if created_at else 'N/A'
+        created_at_int = int(created_at) if created_at else 0
+        send_time = datetime.fromtimestamp(created_at_int).isoformat() if created_at_int else 'N/A'
         
         data_summary.append({
             "subject": camp.get('email_subject', 'N/A'),
