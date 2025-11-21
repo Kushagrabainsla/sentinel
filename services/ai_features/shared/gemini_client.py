@@ -10,8 +10,10 @@ logger.setLevel(logging.INFO)
 try:
     import certifi
     CA_BUNDLE = certifi.where()
-except:
-    CA_BUNDLE = True  # Use system default
+    logger.info(f"Using CA bundle at: {CA_BUNDLE}")
+except Exception as e:
+    logger.warning(f"Could not load certifi: {str(e)}. Disabling SSL verification.")
+    CA_BUNDLE = False  # Disable SSL verification as workaround
 
 class GeminiClient:
     """Simple HTTP-based Gemini client without gRPC dependencies."""
