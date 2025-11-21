@@ -26,6 +26,7 @@ def get_campaign_data(days=30):
     
     # Calculate the cutoff timestamp
     cutoff_timestamp = int((datetime.utcnow() - timedelta(days=days)).timestamp())
+    logger.info(f"Fetching campaigns created after timestamp: {cutoff_timestamp}")
     
     try:
         # Scan for campaigns created in the last N days
@@ -33,6 +34,7 @@ def get_campaign_data(days=30):
             FilterExpression=Attr('created_at').gte(cutoff_timestamp)
         )
         campaigns = response.get('Items', [])
+        logger.info(f"Found {len(campaigns)} campaigns in initial scan")
         
         # Handle pagination
         while 'LastEvaluatedKey' in response:
@@ -42,10 +44,13 @@ def get_campaign_data(days=30):
             )
             campaigns.extend(response.get('Items', []))
         
+        logger.info(f"Total campaigns after pagination: {len(campaigns)}")
+        
         # For each campaign, fetch events and calculate metrics
         enriched_campaigns = []
         for campaign in campaigns:
             campaign_id = campaign.get('id')
+            logger.info(f"Processing campaign {campaign_id}")
             
             # Fetch events for this campaign
             events_response = events_table.query(
@@ -53,6 +58,7 @@ def get_campaign_data(days=30):
                 KeyConditionExpression=Key('campaign_id').eq(campaign_id)
             )
             events = events_response.get('Items', [])
+            logger.info(f"Found {len(events)} events for campaign {campaign_id}")
             
             # Calculate metrics
             total_sent = sum(1 for e in events if e.get('type') == 'send_status')
@@ -65,6 +71,8 @@ def get_campaign_data(days=30):
             click_rate = (total_clicks / total_sent) if total_sent > 0 else 0
             bounce_rate = (total_bounces / total_sent) if total_sent > 0 else 0
             
+            logger.info(f"Campaign {campaign_id} metrics: sent={total_sent}, opens={total_opens}, clicks={total_clicks}, open_rate={open_rate}")
+            
             # Add calculated metrics to campaign
             campaign['calculated_open_rate'] = open_rate
             campaign['calculated_click_rate'] = click_rate
@@ -75,7 +83,7 @@ def get_campaign_data(days=30):
             
         return enriched_campaigns
     except Exception as e:
-        logger.error(f"Error fetching campaigns: {str(e)}")
+        logger.error(f"Error fetching campaigns: {str(e)}", exc_info=True)
         return []
 
 def aggregate_metrics(campaigns):
