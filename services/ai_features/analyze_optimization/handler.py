@@ -20,32 +20,60 @@ EVENTS_TABLE = os.environ.get('EVENTS_TABLE')
 INSIGHTS_TABLE = os.environ.get('INSIGHTS_TABLE')
 
 def get_campaign_data(days=30):
-    """Fetch campaigns from the last N days."""
-    table = dynamodb.Table(CAMPAIGNS_TABLE)
+    """Fetch campaigns from the last N days with calculated metrics."""
+    campaigns_table = dynamodb.Table(CAMPAIGNS_TABLE)
+    events_table = dynamodb.Table(EVENTS_TABLE)
     
-    # Calculate the cutoff date
-    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
-    
-    # Scan for campaigns (assuming small scale for now, otherwise use GSI with date)
-    # In a real production app, we should use a GSI on 'created_at' or similar.
-    # For this task, we'll scan and filter in memory or use FilterExpression if possible.
-    # Assuming 'send_time' is the key date field.
+    # Calculate the cutoff timestamp
+    cutoff_timestamp = int((datetime.utcnow() - timedelta(days=days)).timestamp())
     
     try:
-        response = table.scan(
-            FilterExpression=Attr('send_time').gte(cutoff_date)
+        # Scan for campaigns created in the last N days
+        response = campaigns_table.scan(
+            FilterExpression=Attr('created_at').gte(cutoff_timestamp)
         )
-        items = response.get('Items', [])
+        campaigns = response.get('Items', [])
         
-        # Handle pagination if needed
+        # Handle pagination
         while 'LastEvaluatedKey' in response:
-            response = table.scan(
-                FilterExpression=Attr('send_time').gte(cutoff_date),
+            response = campaigns_table.scan(
+                FilterExpression=Attr('created_at').gte(cutoff_timestamp),
                 ExclusiveStartKey=response['LastEvaluatedKey']
             )
-            items.extend(response.get('Items', []))
+            campaigns.extend(response.get('Items', []))
+        
+        # For each campaign, fetch events and calculate metrics
+        enriched_campaigns = []
+        for campaign in campaigns:
+            campaign_id = campaign.get('id')
             
-        return items
+            # Fetch events for this campaign
+            events_response = events_table.query(
+                IndexName='campaign_index',
+                KeyConditionExpression=Key('campaign_id').eq(campaign_id)
+            )
+            events = events_response.get('Items', [])
+            
+            # Calculate metrics
+            total_sent = sum(1 for e in events if e.get('type') == 'send_status')
+            total_opens = len(set(e.get('recipient_id') for e in events if e.get('type') == 'open'))
+            total_clicks = len(set(e.get('recipient_id') for e in events if e.get('type') == 'click'))
+            total_bounces = sum(1 for e in events if e.get('type') == 'bounce')
+            
+            # Calculate rates
+            open_rate = (total_opens / total_sent) if total_sent > 0 else 0
+            click_rate = (total_clicks / total_sent) if total_sent > 0 else 0
+            bounce_rate = (total_bounces / total_sent) if total_sent > 0 else 0
+            
+            # Add calculated metrics to campaign
+            campaign['calculated_open_rate'] = open_rate
+            campaign['calculated_click_rate'] = click_rate
+            campaign['calculated_bounce_rate'] = bounce_rate
+            campaign['total_sent'] = total_sent
+            
+            enriched_campaigns.append(campaign)
+            
+        return enriched_campaigns
     except Exception as e:
         logger.error(f"Error fetching campaigns: {str(e)}")
         return []
@@ -55,13 +83,18 @@ def aggregate_metrics(campaigns):
     data_summary = []
     
     for camp in campaigns:
+        # Convert timestamp to readable format
+        created_at = camp.get('created_at', 0)
+        send_time = datetime.fromtimestamp(created_at).isoformat() if created_at else 'N/A'
+        
         data_summary.append({
-            "subject": camp.get('subject_line', 'N/A'),
-            "segment": camp.get('audience_segment', 'Unknown'),
-            "send_time": camp.get('send_time', 'N/A'),
-            "open_rate": float(camp.get('open_rate', 0)),
-            "click_rate": float(camp.get('click_rate', 0)),
-            "bounce_rate": float(camp.get('bounce_rate', 0))
+            "subject": camp.get('email_subject', 'N/A'),
+            "segment_id": camp.get('segment_id', 'Unknown'),
+            "send_time": send_time,
+            "open_rate": round(camp.get('calculated_open_rate', 0), 2),
+            "click_rate": round(camp.get('calculated_click_rate', 0), 2),
+            "bounce_rate": round(camp.get('calculated_bounce_rate', 0), 2),
+            "total_sent": camp.get('total_sent', 0)
         })
         
     return data_summary
