@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Sparkles, X, Loader2, Plus, Trash2 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface AiGeneratorModalProps {
     onGenerate: (subject: string, content: string) => void;
@@ -79,25 +80,14 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
         setIsGenerating(true);
 
         try {
-            const response = await fetch('/api/generate-email', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    tone,
-                    finalGoal,
-                    audiences: finalAudiences.join(', '),
-                    keyPoints,
-                    links
-                }),
+            const response = await api.post('/generate-email', {
+                tone,
+                finalGoal,
+                audiences: finalAudiences.join(', '),
+                keyPoints,
+                links
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to generate content');
-            }
-
-            const data = await response.json();
+            const data = response.data;
             onGenerate(data.subject, data.content);
             setIsOpen(false);
         } catch (error) {
