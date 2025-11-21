@@ -212,11 +212,11 @@ def lambda_handler(event, _context):
     try:
         contacts = get_campaign_recipients(campaign)
     except ValueError as e:
-        update_campaign_state(campaign_id, CampaignState.FAILED)
+        update_campaign_state(campaign_id, CampaignState.FAILED.value)
         return {"statusCode": 400, "body": json.dumps({"error": str(e)})}
     
     if not contacts:
-        update_campaign_state(campaign_id, CampaignState.DONE)
+        update_campaign_state(campaign_id, CampaignState.DONE.value)
         delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
         message = f"no recipients found for {'individual' if delivery_type == CampaignDeliveryType.INDIVIDUAL else 'segment'} campaign"
         return {"statusCode": 200, "body": json.dumps({"message": message})}
@@ -253,7 +253,7 @@ def lambda_handler(event, _context):
         sqs.send_message_batch(QueueUrl=SQS_URL, Entries=entries)
 
     # Mark campaign as "sending"
-    update_campaign_state(campaign_id, CampaignState.SENDING)
+    update_campaign_state(campaign_id, CampaignState.SENDING.value)
 
     delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
     response_data = {
