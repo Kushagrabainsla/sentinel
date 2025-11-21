@@ -4,6 +4,9 @@ import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key
 
+# Import common utilities and enums
+from common import UserStatus
+
 
 # DynamoDB client - initialize once outside handler for better performance
 dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -84,7 +87,7 @@ def lambda_handler(event, context):
             user = users[0]
             
             # Check if user is active
-            if user.get('status') != 'active':
+            if user.get('status') != UserStatus.ACTIVE.value:
                 print(f"❌ Inactive user: {user.get('email')}")
                 raise Exception('Unauthorized')
                 
@@ -99,7 +102,7 @@ def lambda_handler(event, context):
                 context={
                     'user_id': str(user['id']),
                     'user_email': str(user['email']),
-                    'user_status': str(user.get('status', 'active'))
+                    'user_status': str(user.get('status', UserStatus.ACTIVE.value))
                 }
             )
             

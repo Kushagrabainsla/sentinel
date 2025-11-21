@@ -22,6 +22,22 @@ import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
 
+# Import additional enums from common
+from common import (
+    CampaignType, CampaignDeliveryType, CampaignState, CampaignStatus,
+    EventType, EngagementLevel
+)
+
+# ================================
+# CONSTANTS
+# ================================
+
+# Default values
+DEFAULT_FROM_EMAIL = "no-reply@thesentinel.site"
+DEFAULT_FROM_NAME = "Sentinel"
+
+
+
 class DecimalEncoder(json.JSONEncoder):
     """Custom JSON encoder to handle Decimal objects from DynamoDB"""
     def default(self, obj):
@@ -32,84 +48,7 @@ class DecimalEncoder(json.JSONEncoder):
                 return float(obj)
         return super(DecimalEncoder, self).default(obj)
 
-def extract_os_from_user_agent(user_agent):
-    """Extract operating system from user agent string"""
-    if not user_agent:
-        return 'Unknown'
-    
-    user_agent_lower = user_agent.lower()
-    
-    # Mobile OS first (more specific)
-    if 'iphone os' in user_agent_lower or 'ios' in user_agent_lower:
-        return 'iOS'
-    elif 'android' in user_agent_lower:
-        return 'Android'
-    
-    # Desktop OS
-    elif 'windows nt 10' in user_agent_lower or 'windows 10' in user_agent_lower:
-        return 'Windows 10'
-    elif 'windows nt 6.3' in user_agent_lower:
-        return 'Windows 8.1'
-    elif 'windows nt 6.2' in user_agent_lower:
-        return 'Windows 8'
-    elif 'windows nt 6.1' in user_agent_lower:
-        return 'Windows 7'
-    elif 'windows' in user_agent_lower:
-        return 'Windows'
-    elif 'mac os x' in user_agent_lower or 'macos' in user_agent_lower:
-        return 'macOS'
-    elif 'linux' in user_agent_lower:
-        return 'Linux'
-    elif 'ubuntu' in user_agent_lower:
-        return 'Ubuntu'
-    
-    return 'Unknown'
 
-def extract_device_from_user_agent(user_agent):
-    """Extract device type from user agent string"""
-    if not user_agent:
-        return 'Unknown'
-    
-    user_agent_lower = user_agent.lower()
-    
-    # Mobile devices
-    if 'iphone' in user_agent_lower:
-        return 'iPhone'
-    elif 'ipad' in user_agent_lower:
-        return 'iPad'
-    elif 'android' in user_agent_lower and 'mobile' in user_agent_lower:
-        return 'Android Phone'
-    elif 'android' in user_agent_lower:
-        return 'Android Tablet'
-    
-    # Desktop/Laptop
-    elif 'windows' in user_agent_lower or 'mac os' in user_agent_lower or 'linux' in user_agent_lower:
-        return 'Desktop'
-    
-    return 'Unknown'
-
-def extract_browser_from_user_agent(user_agent):
-    """Extract browser from user agent string"""
-    if not user_agent:
-        return 'Unknown'
-    
-    user_agent_lower = user_agent.lower()
-    
-    # Check for specific browsers (order matters for accuracy)
-    if 'edg/' in user_agent_lower or 'edge/' in user_agent_lower:
-        return 'Microsoft Edge'
-    elif 'opr/' in user_agent_lower or 'opera' in user_agent_lower:
-        return 'Opera'
-    elif 'firefox' in user_agent_lower:
-        return 'Firefox'
-    elif 'safari' in user_agent_lower and 'chrome' not in user_agent_lower:
-        return 'Safari'
-    elif 'chrome' in user_agent_lower:
-        return 'Chrome'
-    elif 'trident' in user_agent_lower or 'msie' in user_agent_lower:
-        return 'Internet Explorer'
-    
-    return 'Unknown'
 
 def calculate_temporal_analytics(events):
     """Calculate time-based engagement analytics"""
@@ -129,7 +68,7 @@ def calculate_temporal_analytics(events):
     
     for event in events:
         timestamp = event.get('timestamp')
-        event_type = event.get('event_type', 'unknown')
+        event_type = event.get('event_type', EventType.UNKNOWN.value)
         
         if timestamp:
             dt = datetime.fromtimestamp(timestamp, timezone.utc)
@@ -139,10 +78,10 @@ def calculate_temporal_analytics(events):
             hourly_stats[hour]["total"] += 1
             daily_stats[day_name]["total"] += 1
             
-            if event_type == 'open':
+            if event_type == EventType.OPEN.value:
                 hourly_stats[hour]["opens"] += 1
                 daily_stats[day_name]["opens"] += 1
-            elif event_type == 'click':
+            elif event_type == EventType.CLICK.value:
                 hourly_stats[hour]["clicks"] += 1 
                 daily_stats[day_name]["clicks"] += 1
     
@@ -183,15 +122,15 @@ def calculate_temporal_analytics(events):
         "hourly_engagement": {
             "peak_hours": peak_hour_numbers,
             "engagement_by_hour": engagement_by_hour,
-            "optimal_send_time": f"{peak_hour_numbers[0]:02d}:00" if peak_hour_numbers else "14:00"
+            "optimal_send_time": f"{peak_hour_numbers[0]:02d}:00" if peak_hour_numbers else None
         },
         "daily_patterns": {
             "best_day": best_day,
             "engagement_by_day": engagement_by_day
         },
         "response_times": {
-            "avg_time_to_open": 0,  # Would need send timestamp to calculate
-            "avg_time_to_click": 0,  # Would need open timestamp to calculate 
+            "avg_time_to_open": None,  # Would need send timestamp to calculate
+            "avg_time_to_click": None,  # Would need open timestamp to calculate 
             "total_analysis_period": len(events)
         }
     }
@@ -206,9 +145,9 @@ def calculate_engagement_metrics(events, event_counts):
             "bounce_rate": 0
         }
     
-    opens = event_counts.get('open', 0)
-    clicks = event_counts.get('click', 0)  
-    bounces = event_counts.get('bounce', 0)
+    opens = event_counts.get(EventType.OPEN.value, 0)
+    clicks = event_counts.get(EventType.CLICK.value, 0)  
+    bounces = event_counts.get(EventType.BOUNCE.value, 0)
     total_events = len(events)
     
     # Click-to-Open Rate (CTOR) - industry standard metric
@@ -255,22 +194,22 @@ def calculate_recipient_insights(events):
     recipient_activity = defaultdict(lambda: {"opens": 0, "clicks": 0, "events": 0, "last_activity": 0})
     
     for event in events:
-        recipient = event.get('recipient_email', 'unknown')
-        event_type = event.get('event_type', 'unknown')
+        recipient = event.get('recipient_email', EventType.UNKNOWN.value)
+        event_type = event.get('event_type', EventType.UNKNOWN.value)
         timestamp = event.get('timestamp', 0)
         
         recipient_activity[recipient]["events"] += 1
         recipient_activity[recipient]["last_activity"] = max(recipient_activity[recipient]["last_activity"], timestamp)
         
-        if event_type == 'open':
+        if event_type == EventType.OPEN.value:
             recipient_activity[recipient]["opens"] += 1
-        elif event_type == 'click':
+        elif event_type == EventType.CLICK.value:
             recipient_activity[recipient]["clicks"] += 1
     
     # Calculate engagement scores for each recipient
     recipient_scores = []
     for recipient, activity in recipient_activity.items():
-        if recipient != 'unknown':
+        if recipient != EventType.UNKNOWN.value:
             # Engagement score: opens * 1 + clicks * 3
             score = activity["opens"] * 1 + activity["clicks"] * 3
             recipient_scores.append({
@@ -322,86 +261,11 @@ def calculate_recipient_insights(events):
         }
     }
 
-def convert_decimals(obj):
-    """Recursively convert Decimal objects to int/float in DynamoDB items"""
-    if isinstance(obj, list):
-        return [convert_decimals(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: convert_decimals(value) for key, value in obj.items()}
-    elif isinstance(obj, Decimal):
-        if obj % 1 == 0:
-            return int(obj)
-        else:
-            return float(obj)
-    else:
-        return obj
+# Import common utilities
+from common import _response, convert_decimals, get_user_from_context, get_campaigns_table, get_events_table, get_segments_table, parse_user_agent
 
 # DynamoDB clients
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-
-def get_campaigns_table():
-    """Get campaigns table"""
-    table_name = os.environ.get('DYNAMODB_CAMPAIGNS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_CAMPAIGNS_TABLE environment variable not set')
-    return dynamodb.Table(table_name)
-
-def get_events_table():
-    """Get events table"""
-    table_name = os.environ.get('DYNAMODB_EVENTS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_EVENTS_TABLE environment variable not set')
-    return dynamodb.Table(table_name)
-
-def get_user_from_context(event):
-    """Extract user information from API Gateway v2 authorizer context"""
-    try:
-        print(f"DEBUG: Full event context: {json.dumps(event.get('requestContext', {}), default=str)}")
-        
-        request_context = event.get('requestContext', {})
-        authorizer_data = request_context.get('authorizer', {})
-        lambda_context = authorizer_data.get('lambda', {})
-        context = lambda_context if lambda_context else authorizer_data
-        
-        print(f"DEBUG: Authorizer context: {json.dumps(context, default=str)}")
-        
-        if not context:
-            raise ValueError("No authorizer context found")
-        
-        user = {
-            'id': context.get('user_id'),
-            'email': context.get('user_email'),
-            'status': context.get('user_status', 'active')
-        }
-        
-        if not user['id'] or not user['email']:
-            raise ValueError(f"Invalid user context from authorizer. Context keys: {list(context.keys())}")
-            
-        print(f"DEBUG: Extracted user: {user}")
-        return user
-        
-    except Exception as e:
-        print(f"ERROR: Context extraction failed: {str(e)}")
-        raise ValueError(f"Failed to extract user from context: {str(e)}")
-
-def _response(status_code, body, headers=None):
-    """Helper function to create API Gateway response"""
-    default_headers = {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type,Authorization,X-API-Key",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
-    }
-    
-    if headers:
-        default_headers.update(headers)
-    
-    return {
-        "statusCode": status_code,
-        "headers": default_headers,
-        "body": json.dumps(body, cls=DecimalEncoder)
-    }
 
 def list_campaigns(event):
     """List user's campaigns with filtering and pagination"""
@@ -479,59 +343,36 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
                    schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None):
     """Create a campaign item and return its id (string UUID)."""
     
-    # Campaign Type Enums
-    class CampaignType:
-        IMMEDIATE = "I"  # Immediate execution
-        SCHEDULED = "S"  # Scheduled execution
-
-    # Campaign Delivery Mechanism Enums
-    class CampaignDeliveryType:
-        INDIVIDUAL = "IND"   # Single recipient
-        SEGMENT = "SEG"      # Segment-based (multiple recipients)
-
-    # Campaign State Enums
-    class CampaignState:
-        SCHEDULED = "SC"  # Scheduled for future execution
-        PENDING = "P"     # Pending immediate execution
-        SENDING = "SE"    # Currently sending
-        DONE = "D"        # Completed
-        FAILED = "F"      # Failed
-
-    # Campaign Status Enums
-    class CampaignStatus:
-        ACTIVE = "A"      # Active campaign
-        INACTIVE = "I"    # Inactive campaign
-    
     campaigns_table = get_campaigns_table()
     campaign_id = str(uuid.uuid4())
     current_timestamp = int(time.time())
     
     # Validate delivery_type and corresponding fields
     if not delivery_type:
-        delivery_type = CampaignDeliveryType.SEGMENT  # Default to segment-based
+        delivery_type = CampaignDeliveryType.SEGMENT.value  # Default to segment-based
     
-    if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+    if delivery_type == CampaignDeliveryType.INDIVIDUAL.value:
         if not recipient_email:
             raise ValueError("recipient_email is required for individual campaigns")
         if segment_id:
             raise ValueError("segment_id should not be provided for individual campaigns")
-    elif delivery_type == CampaignDeliveryType.SEGMENT:
+    elif delivery_type == CampaignDeliveryType.SEGMENT.value:
         if recipient_email:
             raise ValueError("recipient_email should not be provided for segment campaigns")
         if not segment_id:
             raise ValueError("segment_id is required for segment campaigns")
     else:
-        raise ValueError(f"Invalid delivery_type: {delivery_type}. Must be '{CampaignDeliveryType.INDIVIDUAL}' or '{CampaignDeliveryType.SEGMENT}'")
+        raise ValueError(f"Invalid delivery_type: {delivery_type}. Must be '{CampaignDeliveryType.INDIVIDUAL.value}' or '{CampaignDeliveryType.SEGMENT.value}'")
     
     # Validate campaign_type and schedule_at requirements
-    if campaign_type == CampaignType.SCHEDULED:
+    if campaign_type == CampaignType.SCHEDULED.value:
         if not schedule_at:
             raise ValueError("schedule_at is required for scheduled campaigns")
-    elif campaign_type == CampaignType.IMMEDIATE:
+    elif campaign_type == CampaignType.IMMEDIATE.value:
         if schedule_at:
             raise ValueError("schedule_at should not be provided for immediate campaigns")
     else:
-        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE}' or '{CampaignType.SCHEDULED}'")
+        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE.value}' or '{CampaignType.SCHEDULED.value}'")
     
     item = {
         "id": campaign_id,
@@ -542,13 +383,13 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
         "delivery_type": delivery_type,
         "email_subject": subject or "",
         "email_body": html_body or "",
-        "from_email": from_email or "noreply@thesentinel.site",
-        "from_name": from_name or "Sentinel",
+        "from_email": from_email or DEFAULT_FROM_EMAIL,
+        "from_name": from_name or DEFAULT_FROM_NAME,
         "segment_id": segment_id,
         "recipient_email": recipient_email,
         "schedule_at": schedule_at,
-        "state": CampaignState.SCHEDULED if campaign_type == CampaignType.SCHEDULED else CampaignState.PENDING,
-        "status": CampaignStatus.ACTIVE,
+        "state": CampaignState.SCHEDULED.value if campaign_type == CampaignType.SCHEDULED.value else CampaignState.PENDING.value,
+        "status": CampaignStatus.ACTIVE.value,
         "owner_id": owner_id,
         "tags": [],  # For categorization and filtering
         "metadata": {}  # For additional custom fields
@@ -560,12 +401,7 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
         raise
     return campaign_id
 
-def get_segments_table():
-    """Get segments table"""
-    table_name = os.environ.get('DYNAMODB_SEGMENTS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_SEGMENTS_TABLE environment variable not set')
-    return dynamodb.Table(table_name)
+
 
 def create_scheduler_rule(campaign_id, schedule_at):
     """Create EventBridge Scheduler rule to automatically start campaign"""
@@ -645,23 +481,7 @@ def create_campaign(event):
         except json.JSONDecodeError:
             return _response(400, {"error": "Invalid JSON in request body"})
         
-        # Campaign Type Enums
-        class CampaignType:
-            IMMEDIATE = "I"  # Immediate execution
-            SCHEDULED = "S"  # Scheduled execution
-
-        # Campaign Delivery Mechanism Enums
-        class CampaignDeliveryType:
-            INDIVIDUAL = "IND"   # Single recipient
-            SEGMENT = "SEG"      # Segment-based (multiple recipients)
-
-        # Campaign State Enums
-        class CampaignState:
-            SCHEDULED = "SC"  # Scheduled for future execution
-            PENDING = "P"     # Pending immediate execution
-            SENDING = "SE"    # Currently sending
-            DONE = "D"        # Completed
-            FAILED = "F"      # Failed
+        # Using global enums defined at module level
         
         # Extract data from request
         name = body.get("name")
@@ -683,21 +503,21 @@ def create_campaign(event):
             return _response(400, {"error": "name is required"})
         
         if not campaign_type:
-            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE} for immediate, {CampaignType.SCHEDULED} for scheduled)"})
+            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE.value} for immediate, {CampaignType.SCHEDULED.value} for scheduled)"})
         
         if not (subject and html_body):
             return _response(400, {"error": "subject and html_body are required"})
         
         # Validate delivery type and corresponding fields
         if not delivery_type:
-            delivery_type = CampaignDeliveryType.SEGMENT  # Default to segment-based
+            delivery_type = CampaignDeliveryType.SEGMENT.value  # Default to segment-based
         
-        if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+        if delivery_type == CampaignDeliveryType.INDIVIDUAL.value:
             if not recipient_email:
                 return _response(400, {"error": "recipient_email is required for individual campaigns"})
             if emails or segment_id:
                 return _response(400, {"error": "emails or segment_id should not be provided for individual campaigns"})
-        elif delivery_type == CampaignDeliveryType.SEGMENT:
+        elif delivery_type == CampaignDeliveryType.SEGMENT.value:
             if recipient_email:
                 return _response(400, {"error": "recipient_email should not be provided for segment campaigns"})
             if not emails and not segment_id:
@@ -716,11 +536,11 @@ def create_campaign(event):
                 if invalid_emails:
                     return _response(400, {"error": f"Invalid email addresses: {', '.join(invalid_emails[:5])}"})
         else:
-            return _response(400, {"error": f"delivery_type must be '{CampaignDeliveryType.INDIVIDUAL}' for individual or '{CampaignDeliveryType.SEGMENT}' for segment campaigns"})
+            return _response(400, {"error": f"delivery_type must be '{CampaignDeliveryType.INDIVIDUAL.value}' for individual or '{CampaignDeliveryType.SEGMENT.value}' for segment campaigns"})
 
         # If emails provided, create a temporary segment
         final_segment_id = segment_id
-        if emails and delivery_type == CampaignDeliveryType.SEGMENT:
+        if emails and delivery_type == CampaignDeliveryType.SEGMENT.value:
             # Create a temporary segment for this campaign
             final_segment_id = str(uuid.uuid4())
             
@@ -758,47 +578,47 @@ def create_campaign(event):
         )
         
         # Dual-path approach based on campaign type:
-        if campaign_type == CampaignType.IMMEDIATE:  # Immediate campaigns
+        if campaign_type == CampaignType.IMMEDIATE.value:  # Immediate campaigns
             print(f"⚡ Immediate execution path for campaign {campaign_id}")
             immediate_triggered = trigger_immediate_campaign(campaign_id)
             
             response_data = {
                 "campaign_id": campaign_id,
-                "state": CampaignState.PENDING,
+                "state": CampaignState.PENDING.value,
                 "type": campaign_type,
                 "delivery_type": delivery_type,
-                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL else None,
-                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT else None,
+                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else None,
+                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT.value else None,
                 "schedule_at": schedule_at,
                 "execution_path": "immediate",
                 "triggered": immediate_triggered
             }
             
             # Add segment info for segment campaigns
-            if delivery_type == CampaignDeliveryType.SEGMENT:
+            if delivery_type == CampaignDeliveryType.SEGMENT.value:
                 if emails:
                     response_data["recipient_count"] = len(set(emails))
                     response_data["temporary_segment"] = True
                 else:
                     response_data["temporary_segment"] = False
-        elif campaign_type == CampaignType.SCHEDULED:  # Scheduled campaigns
+        elif campaign_type == CampaignType.SCHEDULED.value:  # Scheduled campaigns
             print(f"📅 Scheduled execution path for campaign {campaign_id}")
             scheduler_created = create_scheduler_rule(campaign_id, schedule_at)
             
             response_data = {
                 "campaign_id": campaign_id,
-                "state": CampaignState.SCHEDULED,
+                "state": CampaignState.SCHEDULED.value,
                 "type": campaign_type,
                 "delivery_type": delivery_type,
-                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL else None,
-                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT else None,
+                "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else None,
+                "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT.value else None,
                 "schedule_at": schedule_at,
-                "execution_path": "scheduled",
+                "execution_path": CampaignDeliveryType.SCHEDULED.value,
                 "auto_scheduler": scheduler_created
             }
             
             # Add segment info for segment campaigns
-            if delivery_type == CampaignDeliveryType.SEGMENT:
+            if delivery_type == CampaignDeliveryType.SEGMENT.value:
                 if emails:
                     response_data["recipient_count"] = len(set(emails))
                     response_data["temporary_segment"] = True
@@ -900,7 +720,7 @@ def delete_campaign(event):
             UpdateExpression="SET #status = :status, updated_at = :updated_at",
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
-                ':status': 'deleted',
+                ':status': CampaignStatus.DELETED.value,
                 ':updated_at': int(time.time())
             }
         )
@@ -986,7 +806,7 @@ def get_campaign_events(event):
         
         for event in events:
             # Event type counts
-            event_type = event.get('event_type', 'unknown')
+            event_type = event.get('event_type', EventType.UNKNOWN.value)
             event_counts[event_type] = event_counts.get(event_type, 0) + 1
             
             # Extract user agent and IP data for distributions
@@ -994,9 +814,10 @@ def get_campaign_events(event):
             ip_address = event.get('ip_address', 'unknown')
             
             # Parse user agent for OS, device, and browser info
-            os_info = extract_os_from_user_agent(user_agent)
-            device_info = extract_device_from_user_agent(user_agent)
-            browser_info = extract_browser_from_user_agent(user_agent)
+            user_agent_info = parse_user_agent(user_agent)
+            os_info = user_agent_info['os']
+            device_info = user_agent_info['device_type']
+            browser_info = user_agent_info['browser']
             
             # Update distributions
             os_distribution[os_info] = os_distribution.get(os_info, 0) + 1

@@ -15,57 +15,8 @@ import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
 
-class DecimalEncoder(json.JSONEncoder):
-    """Custom JSON encoder to handle Decimal objects from DynamoDB"""
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            if obj % 1 == 0:
-                return int(obj)
-            else:
-                return float(obj)
-        return super(DecimalEncoder, self).default(obj)
-
-def convert_decimals(obj):
-    """Recursively convert Decimal objects to int/float in DynamoDB items"""
-    if isinstance(obj, list):
-        return [convert_decimals(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: convert_decimals(value) for key, value in obj.items()}
-    elif isinstance(obj, Decimal):
-        if obj % 1 == 0:
-            return int(obj)
-        else:
-            return float(obj)
-    else:
-        return obj
-
-# DynamoDB client
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
-
-def get_users_table():
-    """Get users table"""
-    table_name = os.environ.get('DYNAMODB_USERS_TABLE')
-    if not table_name:
-        raise RuntimeError('DYNAMODB_USERS_TABLE environment variable not set')
-    return dynamodb.Table(table_name)
-
-def _response(status_code, body, headers=None):
-    """Helper function to create API Gateway response"""
-    default_headers = {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type,Authorization,X-API-Key",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
-    }
-    
-    if headers:
-        default_headers.update(headers)
-    
-    return {
-        "statusCode": status_code,
-        "headers": default_headers,
-        "body": json.dumps(body, cls=DecimalEncoder)
-    }
+# Import common utilities and enums
+from common import _response, convert_decimals, get_users_table, UserStatus
 
 def generate_api_key():
     """Generate a secure API key"""
@@ -134,7 +85,7 @@ def create_user(event):
         'name': name,
         'password_hash': password_hash,
         'api_key': api_key,
-        'status': 'active',
+        'status': UserStatus.ACTIVE.value,
         'created_at': current_time,
         'updated_at': current_time,
         'last_login': None
@@ -149,7 +100,7 @@ def create_user(event):
             'email': email,
             'name': name,
             'api_key': api_key,  # Only return API key on registration
-            'status': 'active',
+            'status': UserStatus.ACTIVE.value,
             'created_at': current_time
         })
         
@@ -192,7 +143,7 @@ def authenticate_user(event):
         if not verify_password(password, user['password_hash']):
             return _response(401, {"error": "Invalid email or password"})
         
-        if user.get('status') != 'active':
+        if user.get('status') != UserStatus.ACTIVE.value:
             return _response(401, {"error": "User account is not active"})
         
         # Update last login
@@ -236,7 +187,7 @@ def get_user_by_api_key(api_key):
         
         user = convert_decimals(response['Items'][0])
         
-        if user.get('status') != 'active':
+        if user.get('status') != UserStatus.ACTIVE.value:
             return None
         
         # Remove sensitive data

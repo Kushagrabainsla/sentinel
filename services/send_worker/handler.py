@@ -8,6 +8,9 @@ import boto3
 from botocore.exceptions import ClientError
 from tracking import generate_tracking_data
 
+# Import common utilities and enums
+from common import DeliveryStatus
+
 # Database utilities (moved from common_db.py)
 _dynamo = None
 
@@ -221,14 +224,14 @@ def lambda_handler(event, _context):
             )
             
             message_id = ses_response.get("MessageId", "unknown")
-            status = "sent"
+            status = DeliveryStatus.SENT.value
             
             print(f"✅ Email sent successfully to {email}")
             print(f"📨 SES Message ID: {message_id}")
             print(f"📊 Tracking method: {tracking_data.get('tracking_method', 'None')}")
             
         except Exception as e:
-            status = "failed"
+            status = DeliveryStatus.FAILED.value
             print(f"❌ Failed to send email to {email}: {e}")
 
         # Record email send status in events table

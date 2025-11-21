@@ -10,129 +10,10 @@ from datetime import datetime, timezone
 import boto3
 from botocore.exceptions import ClientError
 
-# DynamoDB client
-dynamodb = boto3.resource('dynamodb', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+# Import common utilities and enums
+from common import decimal_to_int, get_table, parse_user_agent, EventType, Browser, OperatingSystem, DeviceType
 
-def decimal_to_int(obj):
-    """Convert DynamoDB Decimal objects to regular Python types for JSON serialization"""
-    if isinstance(obj, dict):
-        return {key: decimal_to_int(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
-        return [decimal_to_int(item) for item in obj]
-    elif isinstance(obj, Decimal):
-        # Convert Decimal to int if it's a whole number, otherwise float
-        return int(obj) if obj % 1 == 0 else float(obj)
-    else:
-        return obj
 
-def get_table(table_env_var):
-    """Get DynamoDB table from environment variable"""
-    table_name = os.environ.get(table_env_var)
-    if not table_name:
-        raise RuntimeError(f"{table_env_var} environment variable not set")
-    return dynamodb.Table(table_name)
-
-def parse_user_agent(user_agent):
-    """Parse user agent string to extract browser, OS, and device information"""
-    if not user_agent:
-        return {
-            'browser': 'Unknown',
-            'browser_version': 'Unknown',
-            'os': 'Unknown',
-            'os_version': 'Unknown',
-            'device_type': 'Unknown',
-            'is_mobile': False,
-            'is_tablet': False,
-            'is_desktop': True
-        }
-    
-    user_agent = user_agent.lower()
-    
-    # Browser detection
-    browser = 'Unknown'
-    browser_version = 'Unknown'
-    
-    if 'chrome' in user_agent and 'edge' not in user_agent:
-        browser = 'Chrome'
-        match = re.search(r'chrome/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'firefox' in user_agent:
-        browser = 'Firefox'
-        match = re.search(r'firefox/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'safari' in user_agent and 'chrome' not in user_agent:
-        browser = 'Safari'
-        match = re.search(r'version/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'edge' in user_agent:
-        browser = 'Edge'
-        match = re.search(r'edge/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'opera' in user_agent:
-        browser = 'Opera'
-        match = re.search(r'opera/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    
-    # OS detection
-    os_name = 'Unknown'
-    os_version = 'Unknown'
-    
-    if 'windows nt' in user_agent:
-        os_name = 'Windows'
-        if 'windows nt 10.0' in user_agent:
-            os_version = '10/11'
-        elif 'windows nt 6.3' in user_agent:
-            os_version = '8.1'
-        elif 'windows nt 6.2' in user_agent:
-            os_version = '8'
-        elif 'windows nt 6.1' in user_agent:
-            os_version = '7'
-    elif 'mac os x' in user_agent or 'macos' in user_agent:
-        os_name = 'macOS'
-        match = re.search(r'mac os x ([\d_\.]+)', user_agent)
-        if match:
-            os_version = match.group(1).replace('_', '.')
-    elif 'linux' in user_agent:
-        os_name = 'Linux'
-        if 'ubuntu' in user_agent:
-            os_version = 'Ubuntu'
-    elif 'android' in user_agent:
-        os_name = 'Android'
-        match = re.search(r'android ([\d\.]+)', user_agent)
-        if match:
-            os_version = match.group(1)
-    elif 'iphone os' in user_agent or 'ios' in user_agent:
-        os_name = 'iOS'
-        match = re.search(r'os ([\d_]+)', user_agent)
-        if match:
-            os_version = match.group(1).replace('_', '.')
-    
-    # Device type detection
-    is_mobile = bool(re.search(r'mobile|android|iphone|ipod|blackberry|windows phone', user_agent))
-    is_tablet = bool(re.search(r'tablet|ipad|kindle|silk', user_agent))
-    is_desktop = not (is_mobile or is_tablet)
-    
-    device_type = 'Desktop'
-    if is_mobile:
-        device_type = 'Mobile'
-    elif is_tablet:
-        device_type = 'Tablet'
-    
-    return {
-        'browser': browser,
-        'browser_version': browser_version,
-        'os': os_name,
-        'os_version': os_version,
-        'device_type': device_type,
-        'is_mobile': is_mobile,
-        'is_tablet': is_tablet,
-        'is_desktop': is_desktop
-    }
 
 def get_analytics_metadata(headers, query_params=None):
     """Extract comprehensive analytics metadata from request"""
@@ -319,7 +200,7 @@ def handle_open_tracking(path, headers, query_params):
         
         # Add open-specific metadata
         metadata.update({
-            'event_type': 'open',
+            'event_type': EventType.OPEN.value,
             'campaign_id': campaign_id,
             'recipient_id': recipient_id
         })
@@ -328,7 +209,7 @@ def handle_open_tracking(path, headers, query_params):
             campaign_id=campaign_id,
             recipient_id=recipient_id,
             email=query_params.get('email', 'unknown'),
-            event_type='open',
+            event_type=EventType.OPEN.value,
             metadata=metadata
         )
         
@@ -404,7 +285,7 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
             
             # Add click-specific metadata
             metadata.update({
-                'event_type': 'click',
+                'event_type': EventType.CLICK.value,
                 'campaign_id': campaign_id,
                 'recipient_id': recipient_id,
                 'link_id': link_id,
@@ -416,7 +297,7 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
                 campaign_id=campaign_id,
                 recipient_id=recipient_id,
                 email=link_mapping.get('email', 'unknown'),
-                event_type='click',
+                event_type=EventType.CLICK.value,
                 metadata=metadata
             )
             
