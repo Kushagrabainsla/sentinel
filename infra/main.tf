@@ -83,13 +83,14 @@ module "s3_assets" {
 
 # API Gateway
 module "api" {
-    source              = "./modules/api"
-    name                = local.name
-    tracking_api_arn    = module.lambdas.tracking_api_arn
-    segments_api_arn    = module.lambdas.segments_api_arn
-    authorizer_arn      = module.lambdas.authorizer_arn
-    auth_api_arn        = module.lambdas.auth_api_arn
-    campaigns_api_arn   = module.lambdas.campaigns_api_arn
+    source                          = "./modules/api"
+    name                            = local.name
+    tracking_api_arn                = module.lambdas.tracking_api_arn
+    segments_api_arn                = module.lambdas.segments_api_arn
+    authorizer_arn                  = module.lambdas.authorizer_arn
+    auth_api_arn                    = module.lambdas.auth_api_arn
+    campaigns_api_arn               = module.lambdas.campaigns_api_arn
+    generate_email_lambda_arn       = module.lambdas.generate_email_arn
 }
 
 # Events (EventBridge Scheduler only - SES events not configured)
