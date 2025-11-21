@@ -2,28 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, AreaChart, Area, CartesianGrid } from 'recharts';
-import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights } from '@/lib/api';
+import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem } from '@/lib/api';
 import { Loader2, Clock, Users, MousePointerClick, Zap } from 'lucide-react';
 
 interface AnalyticsChartsProps {
     campaignId: string;
     timeRange?: '24h' | '7d' | '30d' | 'all';
+    country?: string;
 }
 
-interface ChartData {
-    name: string;
-    value: number;
-    [key: string]: string | number;
-}
 
-const COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#6366f1'];
+const COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a'];
 
-export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChartsProps) {
+import { dummyCampaignEvents } from './dummy_data';
+
+// ... (existing imports)
+
+export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all' }: AnalyticsChartsProps) {
     const [data, setData] = useState<{
-        os: ChartData[];
-        device: ChartData[];
-        browser: ChartData[];
-        geo: ChartData[];
+        os: DistributionItem[];
+        device: DistributionItem[];
+        browser: DistributionItem[];
+        geo: DistributionItem[];
         temporal: TemporalAnalytics;
         engagement: EngagementMetrics;
         insights: RecipientInsights;
@@ -34,8 +34,84 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChar
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const response = await api.get(`/campaigns/${campaignId}/events`);
+                // Simulate network delay
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                /* 
+                // Real API Call Logic (Commented out for development)
+                const now = Math.floor(Date.now() / 1000);
+                let from_epoch = 0;
+ 
+                switch (timeRange) {
+                    case '24h':
+                        from_epoch = now - 86400;
+                        break;
+                    case '7d':
+                        from_epoch = now - 604800;
+                        break;
+                    case '30d':
+                        from_epoch = now - 2592000;
+                        break;
+                    case 'all':
+                    default:
+                        from_epoch = 0;
+                        break;
+                }
+ 
+                const params: any = {
+                    from_epoch,
+                    to_epoch: now,
+                    limit: 1000
+                };
+ 
+                if (country && country !== 'all') {
+                    params.country = country;
+                }
+ 
+                const response = await api.get(`/campaigns/${campaignId}/events`, { params });
                 const { distributions, temporal_analytics, engagement_metrics, recipient_insights } = response.data;
+                */
+
+                // Use Dummy Data
+                let { distributions, temporal_analytics, engagement_metrics, recipient_insights } = dummyCampaignEvents;
+
+                // Simulate filtering by country
+                if (country && country !== 'all') {
+                    // Filter Geo Distribution
+                    const countryName = {
+                        'US': 'United States',
+                        'UK': 'United Kingdom',
+                        'CA': 'Canada',
+                        'DE': 'Germany',
+                        'FR': 'France',
+                        'AU': 'Australia',
+                        'IN': 'India'
+                    }[country] || country;
+
+                    distributions = {
+                        ...distributions,
+                        ip_distribution: distributions.ip_distribution.filter(d => d.name === countryName)
+                    };
+
+                    // Simulate reduced metrics for specific country
+                    const reductionFactor = 0.2; // Assume ~20% of traffic is from this country
+
+                    engagement_metrics = {
+                        ...engagement_metrics,
+                        click_to_open_rate: engagement_metrics.click_to_open_rate * (0.8 + Math.random() * 0.4), // Vary slightly
+                        unique_engagement_rate: engagement_metrics.unique_engagement_rate * (0.8 + Math.random() * 0.4),
+                    };
+
+                    recipient_insights = {
+                        ...recipient_insights,
+                        unique_recipients: Math.floor(recipient_insights.unique_recipients * reductionFactor),
+                        engagement_segments: {
+                            highly_engaged: { ...recipient_insights.engagement_segments.highly_engaged, count: Math.floor(recipient_insights.engagement_segments.highly_engaged.count * reductionFactor) },
+                            moderately_engaged: { ...recipient_insights.engagement_segments.moderately_engaged, count: Math.floor(recipient_insights.engagement_segments.moderately_engaged.count * reductionFactor) },
+                            low_engaged: { ...recipient_insights.engagement_segments.low_engaged, count: Math.floor(recipient_insights.engagement_segments.low_engaged.count * reductionFactor) },
+                        }
+                    };
+                }
 
                 if (distributions) {
                     setData({
@@ -58,7 +134,7 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChar
         if (campaignId) {
             fetchData();
         }
-    }, [campaignId, timeRange]);
+    }, [campaignId, timeRange, country]);
 
     if (isLoading) {
         return (
@@ -128,10 +204,12 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChar
     return (
         <div className="space-y-6">
             {/* Key Insights Grid */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
                 <InsightCard
                     title="Optimal Send Time"
-                    value={data.temporal.hourly_engagement.optimal_send_time || 'N/A'}
+                    value={data.temporal.hourly_engagement.peak_hours.length > 0
+                        ? `${data.temporal.hourly_engagement.peak_hours[0]}:00 - ${data.temporal.hourly_engagement.peak_hours[0] + 1}:00`
+                        : 'N/A'}
                     icon={Clock}
                     subtext="Based on open rates"
                 />
@@ -143,7 +221,7 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChar
                 />
                 <InsightCard
                     title="Click-to-Open Rate"
-                    value={`${data.engagement.click_to_open_rate}%`}
+                    value={`${Number(data.engagement.click_to_open_rate).toFixed(3)}%`}
                     icon={MousePointerClick}
                     subtext="Effectiveness of content"
                 />
@@ -156,26 +234,28 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChar
             </div>
 
             {/* Advanced Charts Row 1 */}
-            <div className="grid gap-6 md:grid-cols-3">
-                <div className="md:col-span-2">
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+                <div className="lg:col-span-2">
                     <ChartCard title="Hourly Engagement Pattern">
                         <AreaChart data={data.temporal.hourly_engagement.engagement_by_hour}>
                             <defs>
                                 <linearGradient id="colorOpens" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
                             <XAxis dataKey="hour" tickFormatter={(val) => `${val}:00`} stroke="#9ca3af" />
                             <YAxis stroke="#9ca3af" />
                             <Tooltip content={<CustomTooltip />} />
-                            <Area type="monotone" dataKey="opens" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorOpens)" name="Opens" />
+                            <Area type="monotone" dataKey="opens" stroke="#2563eb" fillOpacity={1} fill="url(#colorOpens)" name="Opens" />
                         </AreaChart>
                     </ChartCard>
                 </div>
                 <div>
                     <ChartCard title="User Segmentation">
+
+
                         <PieChart>
                             <Pie
                                 data={segmentsData}
@@ -198,7 +278,7 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChar
             </div>
 
             {/* Distribution Charts Row 2 */}
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
                 <ChartCard title="Device Distribution">
                     <PieChart>
                         <Pie
@@ -218,18 +298,24 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all' }: AnalyticsChar
                         <Legend />
                     </PieChart>
                 </ChartCard>
-                <ChartCard title="Geographic Distribution">
-                    <BarChart data={data.geo} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#374151" />
-                        <XAxis type="number" hide />
-                        <YAxis dataKey="name" type="category" width={100} tick={{ fill: '#9ca3af' }} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]}>
-                            {data.geo.map((entry, index) => (
+                <ChartCard title="Browser Distribution">
+                    <PieChart>
+                        <Pie
+                            data={data.browser}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                        >
+                            {data.browser.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
-                        </Bar>
-                    </BarChart>
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend />
+                    </PieChart>
                 </ChartCard>
             </div>
         </div>
