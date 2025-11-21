@@ -26,6 +26,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Prepare Lambda Services
+        run: |
+          echo "📋 Copying common utilities to all Lambda service directories..."
+          find services -name "handler.py" -exec dirname {} \; | while read dir; do
+            cp services/common.py "$dir/"
+            echo "✅ Copied common.py to $dir"
+          done
+          echo "🎉 All Lambda services prepared for deployment"
+
       - name: Terraform Init
         working-directory: infra
         run: terraform init

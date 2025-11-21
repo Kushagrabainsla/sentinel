@@ -124,48 +124,82 @@ curl -X POST https://api.thesentinel.site/v1/segments \
 
 ### Step 2: Create an Email Campaign
 
-#### Immediate Campaign
+#### Immediate Campaign with Segment
 ```bash
 curl -X POST https://api.thesentinel.site/v1/campaigns \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY_HERE" \
   -d '{
     "name": "My First Email Test",
+    "type": "I",
+    "delivery_type": "SEG",
     "subject": "Hello from Sentinel! 👋",
-    "content": "<h1>Welcome!</h1><p>This is a test email from Sentinel.</p><p>Click <a href=\"https://example.com\">here</a> to visit our website.</p>",
+    "html_body": "<h1>Welcome!</h1><p>This is a test email from Sentinel.</p><p>Click <a href=\"https://example.com\">here</a> to visit our website.</p>",
     "segment_id": "YOUR_SEGMENT_ID_HERE",
-    "schedule_type": "immediate"
+    "from_email": "hello@yourcompany.com",
+    "from_name": "Your Company"
   }'
 ```
 
-#### Scheduled Campaign
+#### Scheduled Campaign with Segment
 ```bash
 curl -X POST https://api.thesentinel.site/v1/campaigns \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY_HERE" \
   -d '{
     "name": "Scheduled Newsletter",
+    "type": "S",
+    "delivery_type": "SEG", 
     "subject": "Weekly Newsletter 📰",
-    "content": "<h1>This Week'\''s Updates</h1><p>Here are the latest updates...</p>",
+    "html_body": "<h1>This Week'\''s Updates</h1><p>Here are the latest updates...</p>",
     "segment_id": "YOUR_SEGMENT_ID_HERE",
-    "schedule_type": "scheduled",
-    "scheduled_time": "2024-12-25T10:00:00Z"
+    "schedule_at": 1735128000,
+    "from_email": "newsletter@yourcompany.com",
+    "from_name": "Your Company Newsletter"
   }'
 ```
 
-#### Campaign with Email List (instead of segment)
+#### Individual Email Campaign
+```bash
+curl -X POST https://api.thesentinel.site/v1/campaigns \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "Personal Email",
+    "type": "I",
+    "delivery_type": "IND",
+    "subject": "Personal Message 💌",
+    "html_body": "<h1>Hello!</h1><p>This is a personal message just for you.</p>",
+    "recipient_email": "friend@example.com",
+    "from_email": "you@yourcompany.com",
+    "from_name": "Your Name"
+  }'
+```
+
+#### Campaign with Direct Email List
 ```bash
 curl -X POST https://api.thesentinel.site/v1/campaigns \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_API_KEY_HERE" \
   -d '{
     "name": "Direct Email Campaign",
+    "type": "I",
+    "delivery_type": "SEG",
     "subject": "Special Announcement 🎉",
-    "content": "<h1>Special Offer!</h1><p>Limited time offer just for you.</p>",
+    "html_body": "<h1>Special Offer!</h1><p>Limited time offer just for you.</p>",
     "emails": ["friend1@example.com", "friend2@example.com"],
-    "schedule_type": "immediate"
+    "from_email": "offers@yourcompany.com",
+    "from_name": "Special Offers Team"
   }'
 ```
+
+**Campaign Types:**
+- `"I"` - Immediate execution
+- `"S"` - Scheduled execution (requires `schedule_at` as Unix timestamp)
+
+**Delivery Types:**
+- `"IND"` - Individual email (requires `recipient_email`)
+- `"SEG"` - Segment-based (requires `segment_id` or `emails` array)
 
 **Response:**
 ```json
@@ -222,13 +256,203 @@ curl -X DELETE https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID \
   -H "X-API-Key: YOUR_API_KEY_HERE"
 ```
 
-### View Campaign Events (Opens, Clicks, etc.) - Private Access Only
+### View Campaign Analytics & Events - Private Access Only
+
+#### Get All Campaign Events
 ```bash
 curl -H "X-API-Key: YOUR_API_KEY_HERE" \
   "https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events"
 ```
 
+#### Get Events with Time Range Filtering
+```bash
+curl -H "X-API-Key: YOUR_API_KEY_HERE" \
+  "https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events?from_epoch=1700000000&to_epoch=1700086400&limit=1000"
+```
+
+**Enhanced Response Example:**
+```json
+{
+  "events": [
+    {
+      "event_type": "open",
+      "timestamp": 1700050000,
+      "ip_address": "192.168.1.1",
+      "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)...",
+      "recipient_email": "user@example.com"
+    }
+  ],
+  "summary": {
+    "total_events": 240,
+    "event_counts": {
+      "open": 150,
+      "click": 75,
+      "bounce": 12,
+      "unsubscribe": 3
+    },
+    "event_types_breakdown": [
+      {
+        "event_type": "open",
+        "count": 150,
+        "percentage": 62.5
+      },
+      {
+        "event_type": "click",
+        "count": 75,
+        "percentage": 31.25
+      }
+    ],
+    "campaign_id": "campaign-id-here",
+    "campaign_name": "My Campaign",
+    "time_range": {
+      "from_epoch": "1700000000",
+      "to_epoch": "1700086400"
+    }
+  },
+  "distributions": {
+    "os_distribution": [
+      {"name": "iOS", "value": 45},
+      {"name": "Android", "value": 30},
+      {"name": "Windows 10", "value": 25}
+    ],
+    "device_distribution": [
+      {"name": "iPhone", "value": 40},
+      {"name": "Desktop", "value": 35},
+      {"name": "Android Phone", "value": 25}
+    ],
+    "browser_distribution": [
+      {"name": "Chrome", "value": 60},
+      {"name": "Safari", "value": 30},
+      {"name": "Firefox", "value": 10}
+    ],
+    "ip_distribution": [
+      {"name": "192.168.1.1", "value": 15},
+      {"name": "10.0.0.1", "value": 12},
+      {"name": "Other", "value": 73}
+    ]
+  },
+  "has_more": false
+}
+```
+
+**Query Parameters:**
+- `from_epoch` - Unix timestamp to filter events from (optional)
+- `to_epoch` - Unix timestamp to filter events until (optional)
+- `limit` - Maximum number of events to return (default: 1000, max: 1000)
+
+**Distribution Data:**
+The API now provides ready-to-use analytics data for dashboard charts:
+- **OS Distribution** - Operating system breakdown (iOS, Android, Windows, etc.)
+- **Device Distribution** - Device type analysis (iPhone, Desktop, Android Phone, etc.)
+- **Browser Distribution** - Browser usage statistics (Chrome, Safari, Firefox, etc.)
+- **IP Distribution** - Geographic/network analysis by IP address
+
 **Note:** Campaign events are only accessible to the campaign owner through this authenticated endpoint for privacy and security.
+
+---
+
+## 📊 Advanced Analytics Features
+
+The Campaign Events API provides comprehensive analytics data perfect for building dashboards and understanding campaign performance.
+
+### Event Types Tracked
+- **open** - Email opened by recipient
+- **click** - Link clicked within email
+- **bounce** - Email delivery failed
+- **unsubscribe** - Recipient unsubscribed
+- **spam** - Email marked as spam
+- **delivered** - Email successfully delivered
+
+### Distribution Analytics
+
+#### 1. Operating System Distribution
+See which operating systems your audience uses:
+```json
+"os_distribution": [
+  {"name": "iOS", "value": 45},
+  {"name": "Android", "value": 30},
+  {"name": "Windows 10", "value": 25},
+  {"name": "macOS", "value": 20},
+  {"name": "Other", "value": 10}
+]
+```
+
+#### 2. Device Type Distribution
+Understand device preferences:
+```json
+"device_distribution": [
+  {"name": "iPhone", "value": 40},
+  {"name": "Desktop", "value": 35},
+  {"name": "Android Phone", "value": 25},
+  {"name": "iPad", "value": 15},
+  {"name": "Android Tablet", "value": 5}
+]
+```
+
+#### 3. Browser Distribution
+Track browser usage patterns:
+```json
+"browser_distribution": [
+  {"name": "Chrome", "value": 60},
+  {"name": "Safari", "value": 30},
+  {"name": "Firefox", "value": 10},
+  {"name": "Microsoft Edge", "value": 8},
+  {"name": "Other", "value": 2}
+]
+```
+
+#### 4. Geographic Analysis (IP Distribution)
+Monitor engagement by location/network:
+```json
+"ip_distribution": [
+  {"name": "192.168.1.1", "value": 15},
+  {"name": "10.0.0.1", "value": 12},
+  {"name": "203.0.113.1", "value": 8},
+  {"name": "Other", "value": 65}
+]
+```
+
+### Time-Based Filtering
+
+#### Filter by Date Range
+```bash
+# Get events from the last 7 days
+FROM_DATE=$(date -d '7 days ago' +%s)
+TO_DATE=$(date +%s)
+
+curl -H "X-API-Key: YOUR_API_KEY_HERE" \
+  "https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events?from_epoch=${FROM_DATE}&to_epoch=${TO_DATE}"
+```
+
+#### Filter by Specific Time Period
+```bash
+# Get events from December 1-31, 2024
+curl -H "X-API-Key: YOUR_API_KEY_HERE" \
+  "https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events?from_epoch=1701388800&to_epoch=1704067199"
+```
+
+### Event Summary Statistics
+
+The API provides detailed breakdowns:
+```json
+"event_types_breakdown": [
+  {
+    "event_type": "open",
+    "count": 150,
+    "percentage": 62.5
+  },
+  {
+    "event_type": "click", 
+    "count": 75,
+    "percentage": 31.25
+  },
+  {
+    "event_type": "bounce",
+    "count": 12, 
+    "percentage": 5.0
+  }
+]
+```
 
 ---
 
@@ -332,7 +556,7 @@ These URLs don't require authentication and are used for email tracking:
 - `GET /v1/campaigns/{id}` - Get campaign
 - `PUT /v1/campaigns/{id}` - Update campaign
 - `DELETE /v1/campaigns/{id}` - Delete campaign
-- `GET /v1/campaigns/{id}/events` - Get campaign events
+- `GET /v1/campaigns/{id}/events` - Get campaign analytics & events
 
 ### Segment Endpoints
 - `GET /v1/segments` - List segments
