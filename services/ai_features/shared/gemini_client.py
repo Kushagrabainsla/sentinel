@@ -1,6 +1,11 @@
 import json
 import os
 import logging
+
+# Disable SSL certificate verification by setting env var before importing requests
+os.environ['REQUESTS_CA_BUNDLE'] = ''
+os.environ['CURL_CA_BUNDLE'] = ''
+
 import requests
 
 logger = logging.getLogger()
