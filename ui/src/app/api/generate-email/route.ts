@@ -1,6 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
+<<<<<<< Updated upstream
+=======
+// Initialize Gemini API
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+>>>>>>> Stashed changes
 export async function POST(request: Request) {
     try {
         const { tone, finalGoal, audiences, keyPoints, links } = await request.json();
@@ -77,7 +83,11 @@ links: ${JSON.stringify(links)}
     } catch (error: any) {
         console.error('Gemini API error:', error);
         return NextResponse.json(
+<<<<<<< Updated upstream
             { error: error.message  },
+=======
+            { error: error},
+>>>>>>> Stashed changes
             { status: 500 }
         );
     }
