@@ -34,6 +34,7 @@ jobs:
         env:
           TF_VAR_region: ${{ env.AWS_REGION }}
           TF_VAR_ses_from_address: ${{ secrets.SES_FROM_ADDRESS }}
+          TF_VAR_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
@@ -41,6 +42,7 @@ jobs:
         env:
           TF_VAR_region: ${{ env.AWS_REGION }}
           TF_VAR_ses_from_address: ${{ secrets.SES_FROM_ADDRESS }}
+          TF_VAR_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: terraform apply -auto-approve tfplan
 
       - name: Deployment Summary
