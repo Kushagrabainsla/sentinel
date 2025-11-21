@@ -1,6 +1,5 @@
 import json
 import os
-import math
 import time
 import hashlib
 import boto3
@@ -162,14 +161,14 @@ def fetch_campaign_details(campaign_id):
 
 def get_campaign_recipients(campaign):
     """Get recipients based on campaign delivery type"""
-    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
-    
-    if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT.value)
+
+    if delivery_type == CampaignDeliveryType.INDIVIDUAL.value:
         recipient_email = campaign.get('recipient_email')
         if not recipient_email:
             raise ValueError("No recipient_email found for individual campaign")
         return create_individual_recipient(recipient_email)
-    elif delivery_type == CampaignDeliveryType.SEGMENT:
+    elif delivery_type == CampaignDeliveryType.SEGMENT.value:
         segment_id = campaign.get('segment_id')
         if not segment_id:
             raise ValueError("No segment_id found for segment campaign")
@@ -217,13 +216,13 @@ def lambda_handler(event, _context):
     
     if not contacts:
         update_campaign_state(campaign_id, CampaignState.DONE.value)
-        delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
-        message = f"no recipients found for {'individual' if delivery_type == CampaignDeliveryType.INDIVIDUAL else 'segment'} campaign"
+        delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT.value)
+        message = f"no recipients found for {'individual' if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else 'segment'} campaign"
         return {"statusCode": 200, "body": json.dumps({"message": message})}
 
     # Record campaign execution in segments table for tracking
-    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
-    if delivery_type == CampaignDeliveryType.SEGMENT:
+    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT.value)
+    if delivery_type == CampaignDeliveryType.SEGMENT.value:
         segment_id = campaign.get('segment_id')
         recipient_emails = [c.get('email') for c in contacts if c.get('email')]
         record_segment_campaign(campaign_id, segment_id, recipient_emails)
@@ -255,7 +254,7 @@ def lambda_handler(event, _context):
     # Mark campaign as "sending"
     update_campaign_state(campaign_id, CampaignState.SENDING.value)
 
-    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT)
+    delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT.value)
     response_data = {
         "campaign_id": campaign_id, 
         "enqueued": len(contacts),
@@ -263,7 +262,7 @@ def lambda_handler(event, _context):
         "recipient_count": len(contacts)
     }
     
-    if delivery_type == CampaignDeliveryType.INDIVIDUAL:
+    if delivery_type == CampaignDeliveryType.INDIVIDUAL.value:
         response_data["recipient_email"] = campaign.get('recipient_email')
     else:
         response_data["segment_id"] = campaign.get('segment_id')
