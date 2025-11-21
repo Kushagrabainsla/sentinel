@@ -5,8 +5,16 @@ export async function POST(request: Request) {
     try {
         const { tone, finalGoal, audiences, keyPoints, links } = await request.json();
 
-        // Initialize Gemini API
-        const genAI = new GoogleGenerativeAI('AIzaSyDrAY-XcKq2HqwKHprj1kE-N3rv_CQU1Y8');
+        // Initialize Gemini API with key from environment variables
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return NextResponse.json(
+                { error: 'GEMINI_API_KEY environment variable not set' },
+                { key: apiKey },
+                { status: 500 }
+            );
+        }
+        const genAI = new GoogleGenerativeAI(apiKey);
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
