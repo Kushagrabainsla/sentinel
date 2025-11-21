@@ -1,19 +1,20 @@
 import json
 import logging
-from shared.gemini_client import GeminiClient
+# from shared.gemini_client import GeminiClient
 
 # Configure logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Initialize client
-gemini_client = GeminiClient()
-
-def generate_subject_lines(event, context):
     """Lambda handler for generating subject lines."""
     logger.info("Starting subject line generation")
     
     try:
+        # Lazy import and init to catch deployment errors
+        from shared.gemini_client import GeminiClient
+        gemini_client = GeminiClient()
+
         # 1. Parse Input
         body = json.loads(event.get('body', '{}'))
         content = body.get('content')

@@ -71,6 +71,10 @@ def analyze_optimization_agent(event, context):
     logger.info("Starting optimization analysis")
     
     try:
+        # Lazy import and init to catch deployment errors
+        from shared.gemini_client import GeminiClient
+        gemini_client = GeminiClient()
+
         # 1. Fetch Data
         campaigns = get_campaign_data(days=30)
         if not campaigns:
