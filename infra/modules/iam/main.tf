@@ -1,3 +1,4 @@
+data "aws_caller_identity" "current" {}
 resource "aws_iam_policy" "lambda_gemini_secrets_access" {
     name        = "lambda-gemini-secrets-access"
     description = "Allow Lambda to read Gemini API key from Secrets Manager"
@@ -9,7 +10,7 @@ resource "aws_iam_policy" "lambda_gemini_secrets_access" {
                 Action = [
                     "secretsmanager:GetSecretValue"
                 ]
-                Resource = "arn:aws:secretsmanager:us-east-1:${data.aws_caller_identity_current.account_id}:secret:sentinel_gemini_api_key*"
+                Resource = "arn:aws:secretsmanager:us-east-1:${data.aws_caller_identity.current.account_id}:secret:sentinel_gemini_api_key*"
             }
         ]
     })
