@@ -7,6 +7,10 @@ variable "authorizer_arn" {
 }
 variable "auth_api_arn" { type = string }
 variable "campaigns_api_arn" { type = string }
+variable "generate_email_lambda_arn" {
+    type = string
+    description = "ARN for the generate_email Lambda"
+}
 
 # Custom domain configuration
 variable "domain_name" { 
@@ -338,6 +342,29 @@ resource "aws_apigatewayv2_api_mapping" "api_mapping" {
     api_id      = aws_apigatewayv2_api.http.id
     domain_name = aws_apigatewayv2_domain_name.api_domain.id
     stage       = aws_apigatewayv2_stage.default.id
+}
+
+resource "aws_apigatewayv2_integration" "generate_email" {
+    api_id                 = aws_apigatewayv2_api.http.id
+    integration_type       = "AWS_PROXY"
+    integration_uri        = var.generate_email_lambda_arn
+    payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "generate_email" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/generate-email"
+    target    = "integrations/${aws_apigatewayv2_integration.generate_email.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_lambda_permission" "api_invoke_generate_email" {
+    statement_id  = "AllowAPIGatewayInvokeGenerateEmail"
+    action        = "lambda:InvokeFunction"
+    function_name = var.generate_email_lambda_arn
+    principal     = "apigateway.amazonaws.com"
+    source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }
 
 output "invoke_url" {

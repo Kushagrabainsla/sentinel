@@ -88,7 +88,36 @@ curl -X POST https://api.thesentinel.site/v1/auth/regenerate-key \
 
 ---
 
-## 📧 2. Test Email Sending
+
+## 🤖 Generate Email Content with AI (Gemini Lambda)
+
+### Endpoint
+`POST https://api.thesentinel.site/v1/generate-email`
+
+### Headers
+- `Content-Type: application/json`
+- `X-API-Key: YOUR_API_KEY_HERE`
+
+### Request Body
+```
+{
+  "tone": "Formal",
+  "finalGoal": "Announce new feature",
+  "audiences": ["Developers", "Managers"],
+  "keyPoints": "Feature X is live\nImproves performance\nEasy to use",
+  "links": [{"url": "https://docs.example.com", "text": "Documentation"}]
+}
+```
+
+### Response
+```
+{
+  "subject": "Announce new feature for Developers, Managers",
+  "content": "<h2>Announce new feature</h2>..." // HTML string
+}
+```
+
+**Note:** This endpoint is powered by a Python Lambda using Google Gemini AI. The API key is securely managed via AWS Secrets Manager.
 
 ### Step 1: Create an Email Segment
 

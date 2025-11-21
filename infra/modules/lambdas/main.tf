@@ -1,3 +1,26 @@
+data "archive_file" "generate_email" {
+    type        = "zip"
+    source_dir  = "${path.module}/../../../services/generate_email"
+    output_path = "${path.module}/.artifacts/generate_email.zip"
+    depends_on  = [null_resource.artifacts_dir]
+}
+
+resource "aws_lambda_function" "generate_email" {
+    function_name    = "${var.name}-generate-email"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = data.archive_file.generate_email.output_path
+    source_code_hash = data.archive_file.generate_email.output_base64sha256
+    timeout          = 30
+    environment {
+        variables = {}
+    }
+}
+
+output "generate_email_arn" {
+    value = aws_lambda_function.generate_email.arn
+}
 variable "name"              { type = string }
 variable "region"            { type = string }
 variable "roles"             { type = any }

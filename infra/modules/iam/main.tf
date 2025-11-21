@@ -1,3 +1,24 @@
+resource "aws_iam_policy" "lambda_gemini_secrets_access" {
+    name        = "lambda-gemini-secrets-access"
+    description = "Allow Lambda to read Gemini API key from Secrets Manager"
+    policy      = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+            {
+                Effect = "Allow"
+                Action = [
+                    "secretsmanager:GetSecretValue"
+                ]
+                Resource = "arn:aws:secretsmanager:us-east-1:${data.aws_caller_identity_current.account_id}:secret:sentinel_gemini_api_key*"
+            }
+        ]
+    })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_gemini_secrets_attach" {
+    role       = aws_iam_role.lambda_exec.name
+    policy_arn = aws_iam_policy.lambda_gemini_secrets_access.arn
+}
 variable "name" {
     type        = string
     description = "Base name/prefix for IAM resources"
