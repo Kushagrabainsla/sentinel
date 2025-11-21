@@ -1,8 +1,14 @@
+resource "null_resource" "generate_email_dependencies" {
+  provisioner "local-exec" {
+    command = "pip install -r ${path.module}/../../../services/generate_email/requirements.txt -t ${path.module}/../../../services/generate_email/"
+  }
+}
+
 data "archive_file" "generate_email" {
     type        = "zip"
     source_dir  = "${path.module}/../../../services/generate_email"
     output_path = "${path.module}/.artifacts/generate_email.zip"
-    depends_on  = [null_resource.artifacts_dir]
+    depends_on  = [null_resource.artifacts_dir, null_resource.generate_email_dependencies]
 }
 
 resource "aws_lambda_function" "generate_email" {
