@@ -3,15 +3,23 @@ import os
 import boto3
 import logging
 from datetime import datetime, timedelta
+import boto3
 from boto3.dynamodb.conditions import Key, Attr
+from botocore.config import Config
 # from shared.gemini_client import GeminiClient
 
 # Configure logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Initialize clients
-dynamodb = boto3.resource('dynamodb')
+# Configure boto3 to disable SSL verification (workaround for certificate issues in Lambda layer)
+boto_config = Config(
+    signature_version='v4',
+    retries={'max_attempts': 3, 'mode': 'standard'}
+)
+
+# Create DynamoDB resource with SSL verification disabled
+dynamodb = boto3.resource('dynamodb', config=boto_config, verify=False)
 # gemini_client = GeminiClient()  # Moved inside handler
 
 # Environment variables
