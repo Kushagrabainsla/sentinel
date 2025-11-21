@@ -291,6 +291,163 @@ curl -X DELETE https://api.thesentinel.site/v1/segments/YOUR_SEGMENT_ID \
 
 ---
 
+## 🤖 AI-Powered Features
+
+### Generate AI Subject Lines
+
+Generate 5 AI-powered subject lines for your email campaign:
+
+```bash
+curl -X POST https://api.thesentinel.site/api/generate-subject-lines \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Exclusive holiday sale - 50% off all winter gear",
+    "audience": "Outdoor enthusiasts and adventure seekers",
+    "goal": "Drive sales and increase revenue"
+  }'
+```
+
+**Response:**
+```json
+[
+  {
+    "subject_line": "⚠️ 50% OFF Everything: This is NOT a drill.",
+    "style": "Urgency",
+    "explanation": "Uses warning emoji to create immediate visual urgency..."
+  },
+  {
+    "subject_line": "Your wallet will thank you (50% OFF Holiday Sale)",
+    "style": "Emotional",
+    "explanation": "Focuses on the positive emotional result..."
+  },
+  {
+    "subject_line": "The biggest discount we've ever offered (See inside)",
+    "style": "Curiosity",
+    "explanation": "Implies exclusivity and massive value..."
+  },
+  {
+    "subject_line": "50% Off EVERYTHING. Holiday Sale starts NOW.",
+    "style": "Direct",
+    "explanation": "Clear, direct communication of the massive benefit..."
+  },
+  {
+    "subject_line": "STOP paying full price. Holiday 50% drop.",
+    "style": "Benefit-focused",
+    "explanation": "Directly addresses the pain point..."
+  }
+]
+```
+
+**Note:** This endpoint does NOT require authentication - it's publicly accessible.
+
+### Analyze All Campaigns (Optimization Insights)
+
+Get AI-powered insights across all your campaigns from the last 30 days:
+
+```bash
+curl https://api.thesentinel.site/api/analyze-optimization
+```
+
+**Response:**
+```json
+{
+  "insight_id": "1763697000.862286",
+  "timestamp": "2025-11-21T03:50:00.862303",
+  "analysis": {
+    "optimal_send_times": [
+      "The highest concentration of successful opens occurred between 01:00 UTC and 07:00 UTC...",
+      "The only successful click events were recorded around 00:00 UTC..."
+    ],
+    "subject_line_best_practices": [
+      "**Use of Emojis:** Subjects heavily utilizing relevant emojis correlate strongly with high open rates.",
+      "**Value/Urgency Keywords:** Subjects explicitly mentioning sales, discounts drive opens effectively..."
+    ],
+    "audience_segment_insights": [
+      "The most frequently used segment showed extremely high open engagement (75% to 100% OR)...",
+      "Despite high open rates, the universal 0.0% click rate indicates a critical failure in email content..."
+    ],
+    "recommendations": [
+      {
+        "title": "Immediate Focus on Click-Through Rate (CR) Optimization",
+        "description": "Given that 92% of analyzed campaigns resulted in a 0.0% CR, the primary optimization effort must shift...",
+        "impact_prediction": "High. Solving the content-to-click gap is essential for generating ROI..."
+      }
+    ]
+  },
+  "campaign_count": 92
+}
+```
+
+**Note:** This endpoint does NOT require authentication - it's publicly accessible.
+
+### Analyze Single Campaign
+
+Get detailed AI-powered analysis for a specific campaign:
+
+```bash
+curl "https://api.thesentinel.site/api/analyze-campaign?campaign_id=YOUR_CAMPAIGN_ID"
+```
+
+**Response:**
+```json
+{
+  "campaign_id": "8fcd349a-5849-4a54-9911-b003784ae8e2",
+  "campaign_name": "Holiday Winter Gear Sale",
+  "campaign_subject": "⚠️ 50% OFF Everything: This is NOT a drill.",
+  "sent_at": "2025-11-21T03:24:44",
+  "metrics": {
+    "total_sent": 2,
+    "total_opens": 2,
+    "total_clicks": 0,
+    "total_bounces": 0,
+    "open_rate": 1.0,
+    "click_rate": 0.0,
+    "bounce_rate": 0.0,
+    "click_to_open_rate": 0.0
+  },
+  "performance_breakdown": {
+    "by_time": {
+      "3": {"opens": 4, "clicks": 0}
+    },
+    "by_device": {
+      "Desktop": {"opens": 4, "clicks": 0}
+    },
+    "by_browser": {
+      "Edge": {"opens": 2, "clicks": 0},
+      "Firefox": {"opens": 2, "clicks": 0}
+    }
+  },
+  "ai_insights": {
+    "strengths": [
+      "Perfect 100% open rate indicates excellent subject line and sender reputation",
+      "All opens occurred on desktop, showing professional audience engagement"
+    ],
+    "weaknesses": [
+      "Zero click-through rate indicates weak call-to-action or content relevance",
+      "Limited sample size (only 2 recipients) makes insights less statistically significant"
+    ],
+    "recommendations": [
+      {
+        "title": "Strengthen Call-to-Action",
+        "description": "Add a clear, prominent CTA button with action-oriented text...",
+        "impact_prediction": "High - Could increase CTR by 15-25%"
+      }
+    ],
+    "timing_insights": [
+      "All engagement occurred at 3 AM UTC - consider A/B testing different send times"
+    ],
+    "device_insights": [
+      "100% desktop engagement suggests B2B audience - optimize for desktop viewing"
+    ]
+  },
+  "total_events": 6
+}
+```
+
+**Note:** This endpoint does NOT require authentication - it's publicly accessible.
+
+---
+
 ## 🔧 Common Issues & Solutions
 
 ### Issue: "Authentication failed"
@@ -344,4 +501,10 @@ These URLs don't require authentication and are used for email tracking:
 - `POST /v1/segments/{id}/emails` - Add emails
 - `DELETE /v1/segments/{id}/emails` - Remove emails
 
+### AI-Powered Endpoints (No Authentication Required)
+- `POST /api/generate-subject-lines` - Generate AI subject lines
+- `GET /api/analyze-optimization` - Analyze all campaigns (30 days)
+- `GET /api/analyze-campaign?campaign_id={id}` - Analyze single campaign
+
 Replace `YOUR_API_KEY_HERE`, `YOUR_SEGMENT_ID_HERE`, and `YOUR_CAMPAIGN_ID` with your actual values from the API responses.
+```
