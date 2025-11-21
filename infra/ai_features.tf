@@ -150,3 +150,45 @@ resource "aws_lambda_permission" "api_invoke_generate" {
     principal     = "apigateway.amazonaws.com"
     source_arn    = "${module.api.http_api_execution_arn}/*/*"
 }
+
+# 7. Single Campaign Analyzer
+
+resource "aws_lambda_function" "analyze_campaign" {
+    function_name    = "${local.name}-analyze-campaign"
+    role             = module.iam.roles.lambda_exec
+    handler          = "analyze_campaign.handler.analyze_campaign"
+    runtime          = "python3.11"
+    filename         = data.archive_file.analyze_optimization.output_path # Reusing the same zip
+    source_code_hash = data.archive_file.analyze_optimization.output_base64sha256
+    timeout          = 60
+    layers           = [aws_lambda_layer_version.ai_dependencies.arn]
+    
+    environment {
+        variables = {
+            CAMPAIGNS_TABLE = module.dynamodb.campaigns_table
+            EVENTS_TABLE    = module.dynamodb.events_table
+            GEMINI_API_KEY  = var.GEMINI_API_KEY
+        }
+    }
+}
+
+resource "aws_apigatewayv2_integration" "analyze_campaign" {
+    api_id                 = module.api.http_api_id
+    integration_type       = "AWS_PROXY"
+    integration_uri        = aws_lambda_function.analyze_campaign.arn
+    payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "analyze_campaign" {
+    api_id    = module.api.http_api_id
+    route_key = "GET /api/analyze-campaign"
+    target    = "integrations/${aws_apigatewayv2_integration.analyze_campaign.id}"
+}
+
+resource "aws_lambda_permission" "api_invoke_analyze_campaign" {
+    statement_id  = "AllowAPIGatewayInvokeAnalyzeCampaign"
+    action        = "lambda:InvokeFunction"
+    function_name = aws_lambda_function.analyze_campaign.arn
+    principal     = "apigateway.amazonaws.com"
+    source_arn    = "${module.api.http_api_execution_arn}/*/*"
+}
