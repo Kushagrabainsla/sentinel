@@ -67,10 +67,10 @@ links: ${JSON.stringify(links)}
                 { status: 500 }
             );
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Gemini API error:', error);
         return NextResponse.json(
-            { error: 'Failed to generate content' },
+            { error: error.message  },
             { status: 500 }
         );
     }
