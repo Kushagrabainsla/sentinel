@@ -32,6 +32,85 @@ class DecimalEncoder(json.JSONEncoder):
                 return float(obj)
         return super(DecimalEncoder, self).default(obj)
 
+def extract_os_from_user_agent(user_agent):
+    """Extract operating system from user agent string"""
+    if not user_agent:
+        return 'Unknown'
+    
+    user_agent_lower = user_agent.lower()
+    
+    # Mobile OS first (more specific)
+    if 'iphone os' in user_agent_lower or 'ios' in user_agent_lower:
+        return 'iOS'
+    elif 'android' in user_agent_lower:
+        return 'Android'
+    
+    # Desktop OS
+    elif 'windows nt 10' in user_agent_lower or 'windows 10' in user_agent_lower:
+        return 'Windows 10'
+    elif 'windows nt 6.3' in user_agent_lower:
+        return 'Windows 8.1'
+    elif 'windows nt 6.2' in user_agent_lower:
+        return 'Windows 8'
+    elif 'windows nt 6.1' in user_agent_lower:
+        return 'Windows 7'
+    elif 'windows' in user_agent_lower:
+        return 'Windows'
+    elif 'mac os x' in user_agent_lower or 'macos' in user_agent_lower:
+        return 'macOS'
+    elif 'linux' in user_agent_lower:
+        return 'Linux'
+    elif 'ubuntu' in user_agent_lower:
+        return 'Ubuntu'
+    
+    return 'Unknown'
+
+def extract_device_from_user_agent(user_agent):
+    """Extract device type from user agent string"""
+    if not user_agent:
+        return 'Unknown'
+    
+    user_agent_lower = user_agent.lower()
+    
+    # Mobile devices
+    if 'iphone' in user_agent_lower:
+        return 'iPhone'
+    elif 'ipad' in user_agent_lower:
+        return 'iPad'
+    elif 'android' in user_agent_lower and 'mobile' in user_agent_lower:
+        return 'Android Phone'
+    elif 'android' in user_agent_lower:
+        return 'Android Tablet'
+    
+    # Desktop/Laptop
+    elif 'windows' in user_agent_lower or 'mac os' in user_agent_lower or 'linux' in user_agent_lower:
+        return 'Desktop'
+    
+    return 'Unknown'
+
+def extract_browser_from_user_agent(user_agent):
+    """Extract browser from user agent string"""
+    if not user_agent:
+        return 'Unknown'
+    
+    user_agent_lower = user_agent.lower()
+    
+    # Check for specific browsers (order matters for accuracy)
+    if 'edg/' in user_agent_lower or 'edge/' in user_agent_lower:
+        return 'Microsoft Edge'
+    elif 'opr/' in user_agent_lower or 'opera' in user_agent_lower:
+        return 'Opera'
+    elif 'firefox' in user_agent_lower:
+        return 'Firefox'
+    elif 'safari' in user_agent_lower and 'chrome' not in user_agent_lower:
+        return 'Safari'
+    elif 'chrome' in user_agent_lower:
+        return 'Chrome'
+    elif 'trident' in user_agent_lower or 'msie' in user_agent_lower:
+        return 'Internet Explorer'
+    
+    return 'Unknown'
+
 def convert_decimals(obj):
     """Recursively convert Decimal objects to int/float in DynamoDB items"""
     if isinstance(obj, list):
@@ -624,7 +703,7 @@ def delete_campaign(event):
         return _response(500, {"error": f"Failed to delete campaign: {str(e)}"})
 
 def get_campaign_events(event):
-    """Get analytics/events for a specific campaign"""
+    """Get analytics/events for a specific campaign with time range filtering and distribution data"""
     try:
         user = event['user']  # User already authenticated in handler
         campaign_id = event['pathParameters']['id']
@@ -641,33 +720,123 @@ def get_campaign_events(event):
         if campaign.get('owner_id') != user['id']:
             return _response(403, {"error": "Access denied"})
         
-        # Get events for this campaign
+        # Get query parameters
         query_params = event.get('queryStringParameters') or {}
-        limit = int(query_params.get('limit', 100))
+        limit = int(query_params.get('limit', 1000))
         limit = min(limit, 1000)  # Max 1000 events per request
+        from_epoch = query_params.get('from_epoch')
+        to_epoch = query_params.get('to_epoch')
         
-        events_response = events_table.query(
-            IndexName='campaign_index',
-            KeyConditionExpression=Key('campaign_id').eq(campaign_id),
-            Limit=limit,
-            ScanIndexForward=False  # Most recent first
-        )
+        # Build query parameters for DynamoDB
+        query_kwargs = {
+            'IndexName': 'campaign_index',
+            'KeyConditionExpression': Key('campaign_id').eq(campaign_id),
+            'Limit': limit,
+            'ScanIndexForward': False  # Most recent first
+        }
         
+        # Add time range filtering if provided
+        filter_conditions = []
+        
+        if from_epoch:
+            try:
+                from_timestamp = int(from_epoch)
+                filter_conditions.append(Attr('timestamp').gte(from_timestamp))
+            except ValueError:
+                return _response(400, {"error": "Invalid from_epoch format. Must be Unix timestamp"})
+        
+        if to_epoch:
+            try:
+                to_timestamp = int(to_epoch)
+                filter_conditions.append(Attr('timestamp').lte(to_timestamp))
+            except ValueError:
+                return _response(400, {"error": "Invalid to_epoch format. Must be Unix timestamp"})
+        
+        # Combine filter conditions if any exist
+        if filter_conditions:
+            if len(filter_conditions) == 1:
+                query_kwargs['FilterExpression'] = filter_conditions[0]
+            else:
+                # Combine multiple conditions with AND
+                combined_filter = filter_conditions[0]
+                for condition in filter_conditions[1:]:
+                    combined_filter = combined_filter & condition
+                query_kwargs['FilterExpression'] = combined_filter
+        
+        events_response = events_table.query(**query_kwargs)
         events = convert_decimals(events_response.get('Items', []))
         
         # Calculate summary statistics
         event_counts = {}
+        os_distribution = {}
+        device_distribution = {}
+        browser_distribution = {}
+        ip_distribution = {}
+        
         for event in events:
+            # Event type counts
             event_type = event.get('event_type', 'unknown')
             event_counts[event_type] = event_counts.get(event_type, 0) + 1
+            
+            # Extract user agent and IP data for distributions
+            user_agent = event.get('user_agent', '')
+            ip_address = event.get('ip_address', 'unknown')
+            
+            # Parse user agent for OS, device, and browser info
+            os_info = extract_os_from_user_agent(user_agent)
+            device_info = extract_device_from_user_agent(user_agent)
+            browser_info = extract_browser_from_user_agent(user_agent)
+            
+            # Update distributions
+            os_distribution[os_info] = os_distribution.get(os_info, 0) + 1
+            device_distribution[device_info] = device_distribution.get(device_info, 0) + 1
+            browser_distribution[browser_info] = browser_distribution.get(browser_info, 0) + 1
+            ip_distribution[ip_address] = ip_distribution.get(ip_address, 0) + 1
         
+        # Format distributions for frontend charts
+        def format_distribution(distribution_dict, max_items=10):
+            """Format distribution data for frontend charts with 'Other' category for long tail"""
+            sorted_items = sorted(distribution_dict.items(), key=lambda x: x[1], reverse=True)
+            
+            if len(sorted_items) <= max_items:
+                return [{"name": name, "value": count} for name, count in sorted_items]
+            
+            top_items = sorted_items[:max_items-1]
+            other_count = sum(count for _, count in sorted_items[max_items-1:])
+            
+            result = [{"name": name, "value": count} for name, count in top_items]
+            if other_count > 0:
+                result.append({"name": "Other", "value": other_count})
+            
+            return result
+        
+        # Format event counts for better visualization
+        event_types_summary = []
+        for event_type, count in sorted(event_counts.items(), key=lambda x: x[1], reverse=True):
+            event_types_summary.append({
+                "event_type": event_type,
+                "count": count,
+                "percentage": round((count / len(events) * 100), 2) if events else 0
+            })
+
         return _response(200, {
             "events": events,
             "summary": {
                 "total_events": len(events),
                 "event_counts": event_counts,
+                "event_types_breakdown": event_types_summary,
                 "campaign_id": campaign_id,
-                "campaign_name": campaign.get('name')
+                "campaign_name": campaign.get('name'),
+                "time_range": {
+                    "from_epoch": from_epoch,
+                    "to_epoch": to_epoch
+                }
+            },
+            "distributions": {
+                "os_distribution": format_distribution(os_distribution),
+                "device_distribution": format_distribution(device_distribution),
+                "browser_distribution": format_distribution(browser_distribution),
+                "ip_distribution": format_distribution(ip_distribution, max_items=15)
             },
             "has_more": 'LastEvaluatedKey' in events_response
         })
