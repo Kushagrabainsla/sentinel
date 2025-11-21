@@ -79,6 +79,7 @@ export interface CampaignEvent {
 export interface DistributionItem {
     name: string;
     value: number;
+    [key: string]: string | number;
 }
 
 export interface HourlyEngagement {
@@ -99,7 +100,6 @@ export interface TemporalAnalytics {
     hourly_engagement: {
         peak_hours: number[];
         engagement_by_hour: HourlyEngagement[];
-        optimal_send_time: string;
     };
     daily_patterns: {
         best_day: string | null;
@@ -108,7 +108,6 @@ export interface TemporalAnalytics {
     response_times: {
         avg_time_to_open: number;
         avg_time_to_click: number;
-        total_analysis_period: number;
     };
 }
 
@@ -117,11 +116,6 @@ export interface EngagementMetrics {
     unique_engagement_rate: number;
     engagement_quality_score: number;
     bounce_rate: number;
-    advanced_metrics: {
-        total_interactions: number;
-        interaction_diversity: number;
-        engagement_intensity: number;
-    };
 }
 
 export interface RecipientInsights {
@@ -132,11 +126,6 @@ export interface RecipientInsights {
         low_engaged: { count: number; percentage: number };
     };
     top_recipients: any[];
-    recipient_stats: {
-        avg_opens_per_recipient: number;
-        avg_clicks_per_recipient: number;
-        multi_event_recipients: number;
-    };
 }
 
 export interface CampaignEventsResponse {
