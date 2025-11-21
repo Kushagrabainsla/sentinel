@@ -6,6 +6,13 @@ import requests
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Try to find certifi bundle, fallback to system certs or disable verification
+try:
+    import certifi
+    CA_BUNDLE = certifi.where()
+except:
+    CA_BUNDLE = True  # Use system default
+
 class GeminiClient:
     """Simple HTTP-based Gemini client without gRPC dependencies."""
     
@@ -43,7 +50,7 @@ class GeminiClient:
                 }
             }
             
-            response = requests.post(url, json=payload, timeout=30)
+            response = requests.post(url, json=payload, timeout=30, verify=CA_BUNDLE)
             response.raise_for_status()
             
             result = response.json()
