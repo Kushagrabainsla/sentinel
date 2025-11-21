@@ -81,7 +81,7 @@ resource "aws_lambda_function" "analyze_optimization" {
             CAMPAIGNS_TABLE = module.dynamodb.campaigns_table
             EVENTS_TABLE    = module.dynamodb.events_table
             INSIGHTS_TABLE  = aws_dynamodb_table.optimization_insights.name
-            GEMINI_API_KEY  = var.gemini_api_key
+            GEMINI_API_KEY  = var.GEMINI_API_KEY
         }
     }
 }
@@ -98,7 +98,7 @@ resource "aws_lambda_function" "generate_subject_lines" {
     
     environment {
         variables = {
-            GEMINI_API_KEY = var.gemini_api_key
+            GEMINI_API_KEY = var.GEMINI_API_KEY
         }
     }
 }

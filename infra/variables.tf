@@ -24,7 +24,7 @@ variable "ses_from_address" {
     type = string
 }
 
-variable "gemini_api_key" {
+variable "GEMINI_API_KEY" {
     type        = string
     description = "API key for Google Gemini"
     sensitive   = true
