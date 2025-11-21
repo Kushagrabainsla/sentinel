@@ -1,19 +1,21 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyDrAY-XcKq2HqwKHprj1kE-N3rv_CQU1Y8');
-
 export async function POST(request: Request) {
     try {
         const { tone, finalGoal, audiences, keyPoints, links } = await request.json();
 
-        if (!process.env.GEMINI_API_KEY) {
+        const geminiApiKey = process.env.GEMINI_API_KEY;
+        
+        if (!geminiApiKey) {
             return NextResponse.json(
                 { error: 'GEMINI_API_KEY is not set' },
                 { status: 500 }
             );
         }
+
+        // Initialize Gemini API
+        const genAI = new GoogleGenerativeAI(geminiApiKey);
 
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
