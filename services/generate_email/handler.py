@@ -1,7 +1,7 @@
 import os
 import json
 import boto3
-from google.generativeai import genai
+import google.generativeai as genai     # ✅
 
 
 def get_gemini_api_key():
