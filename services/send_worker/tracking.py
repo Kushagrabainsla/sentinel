@@ -4,6 +4,7 @@ import uuid
 import json
 import hashlib
 import boto3
+import base64
 from botocore.exceptions import ClientError
 
 _dynamo = None
@@ -116,7 +117,7 @@ def generate_tracking_data(campaign_id, recipient_id, email, cta_links=None, bas
         base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
     
     # Open tracking pixel
-    pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={email}"
+    pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={base64.urlsafe_b64encode(email.encode()).decode()}"
     tracking_pixel = f'<img src="{pixel_url}" width="1" height="1" style="display:none;" alt="">'
     
     # CTA link tracking

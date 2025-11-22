@@ -198,7 +198,7 @@ def handle_open_tracking(path, headers, query_params):
         record_tracking_event(
             campaign_id=campaign_id,
             recipient_id=recipient_id,
-            email=query_params.get('email', 'unknown'),
+            email=base64.b64decode(query_params.get('email', '')).decode('utf-8'),
             event_type=EventType.OPEN.value,
             metadata=metadata
         )
