@@ -27,7 +27,7 @@ export function Sidebar() {
         <div className="flex h-full w-64 flex-col bg-card border-r border-border">
             <div className="flex h-16 items-center px-6 border-b border-border">
                 <Link href="/dashboard" className="flex items-center gap-2 font-display font-bold text-xl">
-                    <img src="/images/sentinel-logo.svg" alt="Sentinel Logo" className="h-8 w-auto" />
+                    <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-8 w-auto" />
                     Sentinel
                 </Link>
             </div>
