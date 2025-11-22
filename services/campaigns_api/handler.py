@@ -677,6 +677,9 @@ def get_campaign_events(event):
             raw_data = event.get('raw')
             raw_data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
 
+            if event_type == EventType.SENT.value:
+                continue
+
             # Extract device info from raw_data
             ip_address = raw_data.get('ip_address', 'Unknown')
             os_info = raw_data.get('os', 'Unknown')
