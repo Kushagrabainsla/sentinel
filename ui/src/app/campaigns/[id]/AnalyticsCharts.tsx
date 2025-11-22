@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, AreaChart, Area, CartesianGrid } from 'recharts';
-import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem } from '@/lib/api';
-import { Loader2, Clock, Users, MousePointerClick, Zap } from 'lucide-react';
+import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem, CampaignEventsResponse } from '@/lib/api';
+import { Loader2, Clock, Users, MousePointerClick, Zap, TrendingUp, Mail, BarChart3 } from 'lucide-react';
 
 interface AnalyticsChartsProps {
     campaignId: string;
@@ -35,6 +35,7 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
         temporal: TemporalAnalytics;
         engagement: EngagementMetrics;
         insights: RecipientInsights;
+        summary?: CampaignEventsResponse['summary'];
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -98,7 +99,8 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                         geo: distributions.ip_distribution,
                         temporal: temporal_analytics,
                         engagement: engagement_metrics,
-                        insights: recipient_insights
+                        insights: recipient_insights,
+                        summary: response.data.summary
                     });
 
                     // Extract available countries
@@ -221,6 +223,65 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                     subtext="Total reach"
                 />
             </div>
+
+            {/* Summary Stats Section */}
+            {data.summary && (
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold mb-4">Campaign Summary</h3>
+                    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Total Events</p>
+                            <p className="text-2xl font-bold">{data.summary.total_events}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Unique Opens</p>
+                            <p className="text-2xl font-bold">{data.summary.unique_opens}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Unique Clicks</p>
+                            <p className="text-2xl font-bold">{data.summary.unique_clicks}</p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Avg Time to Open</p>
+                            <p className="text-2xl font-bold">
+                                {data.summary.avg_time_to_open !== null
+                                    ? `${Math.round(data.summary.avg_time_to_open)}m`
+                                    : 'N/A'}
+                            </p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Avg Time to Click</p>
+                            <p className="text-2xl font-bold">
+                                {data.summary.avg_time_to_click !== null
+                                    ? `${Math.round(data.summary.avg_time_to_click)}m`
+                                    : 'N/A'}
+                            </p>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Opens</p>
+                            <p className="text-2xl font-bold">{data.summary.event_counts.open || 0}</p>
+                        </div>
+                    </div>
+
+                    {/* Event Type Breakdown */}
+                    {data.summary.event_types_breakdown && data.summary.event_types_breakdown.length > 0 && (
+                        <div className="mt-6">
+                            <h4 className="text-sm font-medium mb-3">Event Type Breakdown</h4>
+                            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+                                {data.summary.event_types_breakdown.map((item) => (
+                                    <div key={item.event_type} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                                        <div>
+                                            <p className="text-sm font-medium capitalize">{item.event_type}</p>
+                                            <p className="text-xs text-muted-foreground">{item.percentage.toFixed(1)}%</p>
+                                        </div>
+                                        <p className="text-lg font-bold">{item.count}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Advanced Charts Row 1 */}
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
