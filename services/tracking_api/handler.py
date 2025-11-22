@@ -11,7 +11,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 # Import common utilities and enums
-from common import decimal_to_int, get_table, parse_user_agent, EventType, Browser, OperatingSystem, DeviceType
+from common import decimal_to_int, get_table, parse_user_agent, EventType, Browser, OperatingSystem, DeviceType, get_country_code_from_ip
 
 
 
@@ -42,9 +42,8 @@ def get_analytics_metadata(headers, query_params=None):
         'is_tablet': device_info['is_tablet'],
         'is_desktop': device_info['is_desktop'],
 
-        # Country info (dummy values for now)
-        'country_code': 'US',
-        'country_name': 'United States',
+        # Country info
+        'country_code': get_country_code_from_ip(ip_address),
         
         # Additional request info
         'referer': headers.get('referer', headers.get('Referer', '')),

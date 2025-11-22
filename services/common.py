@@ -13,6 +13,7 @@ import re
 from decimal import Decimal
 from enum import Enum
 import boto3
+import requests
 from botocore.exceptions import ClientError
 
 # ================================
@@ -518,3 +519,12 @@ def parse_user_agent(user_agent):
         'is_tablet': is_tablet,
         'is_desktop': is_desktop
     }
+
+def get_country_code_from_ip(ip_address):
+    try:
+        resp = requests.get(f"https://ipapi.co/{ip_address}/country/", timeout=2)
+        if resp.status_code == 200:
+            return resp.text.strip()  # e.g. "US"
+    except Exception:
+        pass
+    return 'US'  # Default to US on failure
