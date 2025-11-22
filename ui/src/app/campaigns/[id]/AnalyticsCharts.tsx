@@ -17,6 +17,13 @@ const COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a'
 
 import { dummyCampaignEvents } from './dummy_data';
 
+// Helper function to format hour in 12-hour format with AM/PM
+const formatHour = (hour: number): string => {
+    const h = hour % 12 || 12;
+    const period = hour < 12 ? 'AM' : 'PM';
+    return `${h} ${period}`;
+};
+
 // ... (existing imports)
 
 export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all', onAvailableCountriesChange }: AnalyticsChartsProps) {
@@ -141,9 +148,12 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
         </div>
     );
 
-    const ChartCard = ({ title, children }: { title: string, children: React.ReactNode }) => (
+    const ChartCard = ({ title, subtitle, children }: { title: string, subtitle?: string, children: React.ReactNode }) => (
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="text-lg font-semibold mb-6">{title}</h3>
+            <div className="mb-6">
+                <h3 className="text-lg font-semibold">{title}</h3>
+                {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+            </div>
             <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     {children}
@@ -154,9 +164,12 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
+            // Format the label if it's a number (hour)
+            const formattedLabel = typeof label === 'number' ? formatHour(label) : label;
+
             return (
                 <div className="bg-popover border border-border p-3 rounded-lg shadow-lg">
-                    <p className="font-medium mb-2">{label}</p>
+                    <p className="font-medium mb-2">{formattedLabel}</p>
                     {payload.map((entry: any, index: number) => (
                         <div key={index} className="flex items-center gap-2 text-sm">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
@@ -184,7 +197,7 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                 <InsightCard
                     title="Optimal Send Time"
                     value={data.temporal.hourly_engagement.peak_hours.length > 0
-                        ? `${data.temporal.hourly_engagement.peak_hours[0]}:00 - ${data.temporal.hourly_engagement.peak_hours[0] + 1}:00`
+                        ? `${formatHour(data.temporal.hourly_engagement.peak_hours[0])} - ${formatHour(data.temporal.hourly_engagement.peak_hours[0] + 1)}`
                         : 'N/A'}
                     icon={Clock}
                     subtext="Based on open rates"
@@ -212,7 +225,10 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
             {/* Advanced Charts Row 1 */}
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                    <ChartCard title="Hourly Engagement Pattern">
+                    <ChartCard
+                        title="Hourly Engagement Pattern"
+                        subtitle={`Times shown in ${Intl.DateTimeFormat().resolvedOptions().timeZone} timezone`}
+                    >
                         <AreaChart data={data.temporal.hourly_engagement.engagement_by_hour}>
                             <defs>
                                 <linearGradient id="colorOpens" x1="0" y1="0" x2="0" y2="1">
@@ -221,7 +237,17 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
-                            <XAxis dataKey="hour" tickFormatter={(val) => `${val}:00`} stroke="#9ca3af" />
+                            <XAxis
+                                dataKey="hour"
+                                tickFormatter={(val) => {
+                                    // Convert 24-hour format to 12-hour format with AM/PM
+                                    // Data is already in user's local timezone
+                                    const hour = val % 12 || 12;
+                                    const period = val < 12 ? 'AM' : 'PM';
+                                    return `${hour} ${period}`;
+                                }}
+                                stroke="#9ca3af"
+                            />
                             <YAxis stroke="#9ca3af" />
                             <Tooltip content={<CustomTooltip />} />
                             <Area type="monotone" dataKey="opens" stroke="#2563eb" fillOpacity={1} fill="url(#colorOpens)" name="Opens" />
