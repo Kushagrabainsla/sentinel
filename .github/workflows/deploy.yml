@@ -45,7 +45,7 @@ jobs:
               rm -rf __pycache__ *.dist-info
             fi
             zip -r lambda.zip . -x "*.pyc" -x "__pycache__/*"
-            cp lambda.zip ../../../../infra/modules/lambdas/.artifacts/"$(basename $dir)".zip
+            cp lambda.zip ../../infra/modules/lambdas/.artifacts/"$(basename $dir)".zip
             rm lambda.zip
             cd - > /dev/null
           done
