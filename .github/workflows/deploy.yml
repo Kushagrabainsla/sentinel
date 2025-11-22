@@ -37,7 +37,7 @@ jobs:
 
       - name: Build Lambda Deployments
         run: |
-          mkdir -p modules/lambdas/.artifacts
+          mkdir -p sentinel/services/lambdas/.artifacts
           find sentinel/services -name "handler.py" -exec dirname {} \; | while read dir; do
             cd "$dir"
             if [ -f requirements.txt ]; then
@@ -45,7 +45,7 @@ jobs:
               rm -rf __pycache__ *.dist-info
             fi
             zip -r lambda.zip . -x "*.pyc" -x "__pycache__/*"
-             cp lambda.zip ../../../modules/lambdas/.artifacts/"$(basename $dir)".zip
+             cp lambda.zip ../../../sentinel/services/lambdas/.artifacts/"$(basename $dir)".zip
             rm lambda.zip
             cd ../../../..
           done
