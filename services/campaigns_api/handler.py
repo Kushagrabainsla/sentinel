@@ -68,7 +68,7 @@ def calculate_temporal_analytics(events):
     
     for event in events:
         timestamp = event.get('timestamp')
-        event_type = event.get('event_type', EventType.UNKNOWN.value)
+        event_type = event.get('type', EventType.UNKNOWN.value)
         
         if timestamp:
             dt = datetime.fromtimestamp(timestamp, timezone.utc)
@@ -803,26 +803,27 @@ def get_campaign_events(event):
         device_distribution = {}
         browser_distribution = {}
         ip_distribution = {}
+        country_distribution = {}
         
         for event in events:
             # Event type counts
-            event_type = event.get('event_type', EventType.UNKNOWN.value)
+            event_type = event.get('type', EventType.UNKNOWN.value)
             event_counts[event_type] = event_counts.get(event_type, 0) + 1
-            
-            # Extract user agent and IP data for distributions
-            user_agent = event.get('user_agent', '')
-            ip_address = event.get('ip_address', 'unknown')
-            
-            # Parse user agent for OS, device, and browser info
-            user_agent_info = parse_user_agent(user_agent)
-            os_info = user_agent_info['os']
-            device_info = user_agent_info['device_type']
-            browser_info = user_agent_info['browser']
+
+            raw_data = event.get('raw_data', {})
+
+            # Extract device info from raw_data
+            ip_address = raw_data.get('ip_address', 'Unknown')
+            os_info = raw_data.get('os', 'Unknown')
+            device_info = raw_data.get('device_type', 'Unknown')
+            browser_info = raw_data.get('browser', 'Unknown')
+            country_info = raw_data.get('country', 'Unknown')
             
             # Update distributions
             os_distribution[os_info] = os_distribution.get(os_info, 0) + 1
             device_distribution[device_info] = device_distribution.get(device_info, 0) + 1
             browser_distribution[browser_info] = browser_distribution.get(browser_info, 0) + 1
+            country_distribution[country_info] = country_distribution.get(country_info, 0) + 1
             ip_distribution[ip_address] = ip_distribution.get(ip_address, 0) + 1
         
         # Format distributions for frontend charts

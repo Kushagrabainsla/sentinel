@@ -40,6 +40,10 @@ def get_analytics_metadata(headers, query_params=None):
         'is_mobile': device_info['is_mobile'],
         'is_tablet': device_info['is_tablet'],
         'is_desktop': device_info['is_desktop'],
+
+        # Country info (dummy values for now)
+        'country_code': 'US',
+        'country_name': 'United States',
         
         # Additional request info
         'referer': headers.get('referer', headers.get('Referer', '')),
