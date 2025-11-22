@@ -86,6 +86,39 @@ curl -X POST https://api.thesentinel.site/v1/auth/regenerate-key \
 }
 ```
 
+### Update your account info (Name, timezone)
+
+```bash
+curl -X POST https://api.thesentinel.site/v1/auth/update \
+  -H "X-API-Key: YOUR_CURRENT_API_KEY_HERE"
+```
+
+**Request Body:**
+```json
+{
+  "name": "New Name",
+  "timezone": "America/New_York"
+}
+```
+- Both fields are optional; only include the ones you want to update.
+- If `timezone` is omitted, it remains unchanged. Default is `"UTC"` for new users.
+
+**Response:**
+```json
+{
+  "message": "User updated successfully",
+  "user": {
+    "id": "user-id-here",
+    "name": "New Name",
+    "email": "your.email@example.com",
+    "api_key": "sk_your-api-key-here",
+    "status": "active",
+    "timezone": "America/New_York",
+    "updated_at": 1763614000
+  }
+}
+```
+
 ---
 
 
