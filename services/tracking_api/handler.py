@@ -3,7 +3,7 @@ import os
 import time
 import uuid
 import base64
-import re
+import requests
 from decimal import Decimal
 from urllib.parse import unquote
 from datetime import datetime, timezone
@@ -11,9 +11,18 @@ import boto3
 from botocore.exceptions import ClientError
 
 # Import common utilities and enums
-from common import decimal_to_int, get_table, parse_user_agent, EventType, Browser, OperatingSystem, DeviceType, get_country_code_from_ip
+from common import decimal_to_int, get_table, parse_user_agent, EventType, Browser, OperatingSystem, DeviceType
 
 
+
+def get_country_code_from_ip(ip_address):
+    try:
+        resp = requests.get(f"https://ipapi.co/{ip_address}/country/", timeout=2)
+        if resp.status_code == 200:
+            return resp.text.strip()  # e.g. "US"
+    except Exception:
+        pass
+    return 'US'  # Default to US on failure
 
 def get_analytics_metadata(headers, query_params=None):
     """Extract comprehensive analytics metadata from request"""
