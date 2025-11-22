@@ -56,7 +56,6 @@ jobs:
             cd - > /dev/null
           done
 
-
       - name: Terraform Init
         working-directory: infra
         run: terraform init
