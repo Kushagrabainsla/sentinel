@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Sparkles, X, Loader2, Plus, Trash2 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { generateEmail } from '@/services/generate_email';
 
 interface AiGeneratorModalProps {
     onGenerate: (subject: string, content: string) => void;
@@ -80,14 +80,13 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
         setIsGenerating(true);
 
         try {
-            const response = await api.post('/generate-email', {
+            const data = await generateEmail({
                 tone,
                 finalGoal,
-                audiences: finalAudiences.join(', '),
+                audiences: finalAudiences,
                 keyPoints,
                 links
             });
-            const data = response.data;
             onGenerate(data.subject, data.content);
             setIsOpen(false);
         } catch (error) {
