@@ -879,7 +879,8 @@ def get_campaign_events(event):
                 "os_distribution": format_distribution(os_distribution),
                 "device_distribution": format_distribution(device_distribution),
                 "browser_distribution": format_distribution(browser_distribution),
-                "ip_distribution": format_distribution(ip_distribution, max_items=15)
+                "ip_distribution": format_distribution(ip_distribution, max_items=15),
+                "country_distribution": format_distribution(country_distribution)
             },
             "temporal_analytics": temporal_analytics,
             "engagement_metrics": engagement_metrics,

@@ -17,6 +17,7 @@ from common import decimal_to_int, get_table, parse_user_agent, EventType, Brows
 
 def get_analytics_metadata(headers, query_params=None):
     """Extract comprehensive analytics metadata from request"""
+    print(f"Headers: {headers}")
     user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
     ip_address = headers.get('x-forwarded-for', headers.get('X-Forwarded-For', '')).split(',')[0].strip() or headers.get('x-real-ip', headers.get('X-Real-IP', 'unknown'))
     
