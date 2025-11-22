@@ -27,9 +27,6 @@ resource "aws_lambda_function" "generate_email" {
     }
 }
 
-output "generate_email_arn" {
-    value = aws_lambda_function.generate_email.arn
-}
 variable "name"              { type = string }
 variable "region"            { type = string }
 variable "roles"             { type = any }
@@ -48,65 +45,21 @@ variable "tracking_base_url" { type = string }
 variable "assets_bucket_name" { type = string }
 variable "sentinel_logo_url" { type = string }
 
-resource "null_resource" "artifacts_dir" {
-    provisioner "local-exec" {
-        command = "mkdir -p ${path.module}/.artifacts"
+
+
+
+resource "aws_lambda_function" "generate_email" {
+    function_name    = "${var.name}-generate-email"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = "${path.module}/.artifacts/generate_email.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/generate_email.zip")
+    timeout          = 30
+    environment {
+        variables = {}
     }
 }
-
-
-
-data "archive_file" "start_campaign" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/start_campaign"
-    output_path = "${path.module}/.artifacts/start_campaign.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
-
-data "archive_file" "send_worker" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/send_worker"
-    output_path = "${path.module}/.artifacts/send_worker.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
-
-
-
-data "archive_file" "tracking_api" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/tracking_api"
-    output_path = "${path.module}/.artifacts/tracking_api.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
-
-data "archive_file" "segments_api" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/segments_api"
-    output_path = "${path.module}/.artifacts/segments_api.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
-
-data "archive_file" "authorizer" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/authorizer"
-    output_path = "${path.module}/.artifacts/authorizer.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
-
-data "archive_file" "auth_api" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/auth_api"
-    output_path = "${path.module}/.artifacts/auth_api.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
-
-data "archive_file" "campaigns_api" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/campaigns_api"
-    output_path = "${path.module}/.artifacts/campaigns_api.zip"
-    depends_on  = [null_resource.artifacts_dir]
-}
-
 
 
 resource "aws_lambda_function" "start_campaign" {
@@ -114,8 +67,8 @@ resource "aws_lambda_function" "start_campaign" {
     role             = var.roles.lambda_exec
     handler          = "handler.lambda_handler"
     runtime          = "python3.11"
-    filename         = data.archive_file.start_campaign.output_path
-    source_code_hash = data.archive_file.start_campaign.output_base64sha256
+    filename         = "${path.module}/.artifacts/start_campaign.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/start_campaign.zip")
     timeout          = 60
     environment {
         variables = {
@@ -132,8 +85,8 @@ resource "aws_lambda_function" "send_worker" {
     role             = var.roles.lambda_exec
     handler          = "handler.lambda_handler"
     runtime          = "python3.11"
-    filename         = data.archive_file.send_worker.output_path
-    source_code_hash = data.archive_file.send_worker.output_base64sha256
+    filename         = "${path.module}/.artifacts/send_worker.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/send_worker.zip")
     timeout          = 60
     environment {
         variables = {
@@ -162,8 +115,8 @@ resource "aws_lambda_function" "tracking_api" {
     role             = var.roles.lambda_exec
     handler          = "handler.lambda_handler"
     runtime          = "python3.11"
-    filename         = data.archive_file.tracking_api.output_path
-    source_code_hash = data.archive_file.tracking_api.output_base64sha256
+    filename         = "${path.module}/.artifacts/tracking_api.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/tracking_api.zip")
     timeout          = 30
     environment {
         variables = {
@@ -182,8 +135,8 @@ resource "aws_lambda_function" "segments_api" {
     role             = var.roles.lambda_exec
     handler          = "handler.lambda_handler"
     runtime          = "python3.11"
-    filename         = data.archive_file.segments_api.output_path
-    source_code_hash = data.archive_file.segments_api.output_base64sha256
+    filename         = "${path.module}/.artifacts/segments_api.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/segments_api.zip")
     timeout          = 30
     environment {
         variables = {
@@ -199,8 +152,8 @@ resource "aws_lambda_function" "authorizer" {
     role             = var.roles.lambda_exec
     handler          = "handler.lambda_handler"
     runtime          = "python3.11"
-    filename         = data.archive_file.authorizer.output_path
-    source_code_hash = data.archive_file.authorizer.output_base64sha256
+    filename         = "${path.module}/.artifacts/authorizer.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/authorizer.zip")
     timeout          = 10
     environment {
         variables = {
@@ -214,8 +167,8 @@ resource "aws_lambda_function" "auth_api" {
     role             = var.roles.lambda_exec
     handler          = "handler.lambda_handler"
     runtime          = "python3.11"
-    filename         = data.archive_file.auth_api.output_path
-    source_code_hash = data.archive_file.auth_api.output_base64sha256
+    filename         = "${path.module}/.artifacts/auth_api.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/auth_api.zip")
     timeout          = 30
     environment {
         variables = {
@@ -229,8 +182,8 @@ resource "aws_lambda_function" "campaigns_api" {
     role             = var.roles.lambda_exec
     handler          = "handler.lambda_handler"
     runtime          = "python3.11"
-    filename         = data.archive_file.campaigns_api.output_path
-    source_code_hash = data.archive_file.campaigns_api.output_base64sha256
+    filename         = "${path.module}/.artifacts/campaigns_api.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/campaigns_api.zip")
     timeout          = 30
     environment {
         variables = {
@@ -245,9 +198,9 @@ resource "aws_lambda_function" "campaigns_api" {
 
 
 output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
-
 output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }
 output "segments_api_arn"     { value = aws_lambda_function.segments_api.arn }
 output "authorizer_arn"       { value = aws_lambda_function.authorizer.invoke_arn }
 output "auth_api_arn"         { value = aws_lambda_function.auth_api.arn }
 output "campaigns_api_arn"    { value = aws_lambda_function.campaigns_api.arn }
+output "generate_email_arn"   { value = aws_lambda_function.generate_email.arn }
