@@ -561,6 +561,9 @@ def calculate_avg_time_to_open(events):
     if not open_times:
         return None
     
+    print(f"Open times: {open_times}")
+    print(f'Sent times: {sent_times}')
+    
     average_time = sum(open_times) / len(open_times)
     return round(average_time, 2)
 
@@ -581,6 +584,9 @@ def calculate_avg_time_to_click(events):
     
     if not click_times:
         return None
+    
+    print(f"Click times: {click_times}")
+    print(f'Sent times: {sent_times}')
     
     average_time = sum(click_times) / len(click_times)
     return round(average_time, 2)
@@ -730,17 +736,6 @@ def get_campaign_events(event):
                 "ip_distribution": format_distribution(ip_distribution, max_items=15),
                 "country_distribution": format_distribution(country_distribution)
             },
-            """
-            Advanced Analytics to implement:
-            --------------------------------
-                Unique opens: Unique(campaign, email)
-                Unique clicks: Unique(campaign, email)
-                Top Clicked Links: count_frequency(link_url)
-                Time-to-Open: (click - sent)
-                Time-to-click: (click - sent)
-                Click-Through Rate (CTR): Unique clicks / Total sent
-                Click-to-Open Rate (CTOR): Unique clicks / Unique opens
-            """
             "advanced_aggregates": {
                 'unique_opens': calculate_unique_opens(events),
                 'unique_clicks': calculate_unique_clicks(events),
