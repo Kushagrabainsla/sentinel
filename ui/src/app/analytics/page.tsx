@@ -25,6 +25,7 @@ export default function AnalyticsPage() {
     const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('all');
     const [country, setCountry] = useState<string>('all');
+    const [availableCountries, setAvailableCountries] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -129,7 +130,7 @@ export default function AnalyticsPage() {
                         <div className="w-full lg:w-[500px] shrink-0 relative">
                             <div className="aspect-square w-full relative flex items-center justify-center">
                                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent z-10 pointer-events-none" />
-                                <Globe selectedCountry={country} onSelectCountry={setCountry} />
+                                <Globe selectedCountry={country} onSelectCountry={setCountry} availableCountries={availableCountries} />
                             </div>
                             <div className="absolute bottom-0 left-0 right-0 text-center pb-4 z-20 pointer-events-none">
                                 <p className="text-xs text-zinc-600 font-medium tracking-widest uppercase">Interactive Global View</p>
@@ -140,7 +141,12 @@ export default function AnalyticsPage() {
 
                 {/* Charts Section */}
                 {selectedCampaignId ? (
-                    <AnalyticsCharts campaignId={selectedCampaignId} timeRange={timeRange} country={country} />
+                    <AnalyticsCharts
+                        campaignId={selectedCampaignId}
+                        timeRange={timeRange}
+                        country={country}
+                        onAvailableCountriesChange={setAvailableCountries}
+                    />
                 ) : (
                     <div className="flex flex-col items-center justify-center h-[400px] border border-dashed border-border rounded-xl bg-muted/10">
                         <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />

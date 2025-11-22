@@ -7,9 +7,10 @@ import { useSpring } from 'react-spring';
 interface GlobeProps {
     selectedCountry?: string;
     onSelectCountry?: (country: string) => void;
+    availableCountries?: string[];
 }
 
-export function Globe({ selectedCountry = 'all', onSelectCountry }: GlobeProps) {
+export function Globe({ selectedCountry = 'all', onSelectCountry, availableCountries }: GlobeProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const pointerInteracting = useRef<number | null>(null);
     const pointerInteractionMovement = useRef(0);
@@ -23,7 +24,7 @@ export function Globe({ selectedCountry = 'all', onSelectCountry }: GlobeProps) 
         },
     }));
 
-    const locations = [
+    const allLocations = [
         { name: 'US', location: [40, -100], size: 0.1 },
         { name: 'UK', location: [51.5, -0.1], size: 0.05 },
         { name: 'CA', location: [60, -100], size: 0.1 },
@@ -32,6 +33,10 @@ export function Globe({ selectedCountry = 'all', onSelectCountry }: GlobeProps) 
         { name: 'AU', location: [-25, 133], size: 0.1 },
         { name: 'IN', location: [20, 77], size: 0.1 },
     ];
+
+    const locations = availableCountries
+        ? allLocations.filter(loc => availableCountries.includes(loc.name))
+        : allLocations;
 
     useEffect(() => {
         let phi = 0;
@@ -67,7 +72,17 @@ export function Globe({ selectedCountry = 'all', onSelectCountry }: GlobeProps) 
             globe.destroy();
             window.removeEventListener('resize', onResize);
         };
-    }, []);
+    }, [locations]);
+
+    const handleCountryClick = (country: string) => {
+        if (onSelectCountry) {
+            if (selectedCountry === country) {
+                onSelectCountry('all');
+            } else {
+                onSelectCountry(country);
+            }
+        }
+    };
 
     return (
         <div className="relative w-full max-w-[400px] mx-auto aspect-square">
@@ -106,8 +121,7 @@ export function Globe({ selectedCountry = 'all', onSelectCountry }: GlobeProps) 
                 }}
             />
 
-            {/* Overlay Controls for Country Selection */}
-            {onSelectCountry && (
+            {onSelectCountry && locations.length > 0 && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap justify-center gap-2 w-full px-4">
                     <button
                         onClick={() => onSelectCountry('all')}
@@ -121,7 +135,7 @@ export function Globe({ selectedCountry = 'all', onSelectCountry }: GlobeProps) 
                     {locations.map((loc) => (
                         <button
                             key={loc.name}
-                            onClick={() => onSelectCountry(loc.name)}
+                            onClick={() => handleCountryClick(loc.name)}
                             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCountry === loc.name
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-background/80 backdrop-blur-sm border border-border hover:bg-accent'
