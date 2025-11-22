@@ -1,32 +1,3 @@
-resource "null_resource" "generate_email_dependencies" {
-  provisioner "local-exec" {
-    command = <<EOT
-      docker run --rm -v ${path.module}/../../../services/generate_email:/var/task lambci/lambda:build-python3.11 \
-      pip install -r requirements.txt -t /var/task
-    EOT
-  }
-}
-
-data "archive_file" "generate_email" {
-    type        = "zip"
-    source_dir  = "${path.module}/../../../services/generate_email"
-    output_path = "${path.module}/.artifacts/generate_email.zip"
-    depends_on  = [null_resource.artifacts_dir, null_resource.generate_email_dependencies]
-}
-
-resource "aws_lambda_function" "generate_email" {
-    function_name    = "${var.name}-generate-email"
-    role             = var.roles.lambda_exec
-    handler          = "handler.lambda_handler"
-    runtime          = "python3.11"
-    filename         = data.archive_file.generate_email.output_path
-    source_code_hash = data.archive_file.generate_email.output_base64sha256
-    timeout          = 30
-    environment {
-        variables = {}
-    }
-}
-
 variable "name"              { type = string }
 variable "region"            { type = string }
 variable "roles"             { type = any }
