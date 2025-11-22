@@ -543,7 +543,7 @@ def calculate_top_clicked_links(events, top_n=5):
     sorted_links = sorted(link_counts.items(), key=lambda x: x[1], reverse=True)
     return [{"link_id": url, "click_count": count} for url, count in sorted_links[:top_n]]
 
-def calculate_avg_time_to_open(events, campaign):
+def calculate_avg_time_to_open(events):
     """Calculate average time-to-open from sent to open events"""
     sent_times = {}
     open_times = []
@@ -564,7 +564,7 @@ def calculate_avg_time_to_open(events, campaign):
     average_time = sum(open_times) / len(open_times)
     return round(average_time, 2)
 
-def calculate_avg_time_to_click(events, campaign):
+def calculate_avg_time_to_click(events):
     """Calculate average time-to-click from sent to click events"""
     sent_times = {}
     click_times = []
