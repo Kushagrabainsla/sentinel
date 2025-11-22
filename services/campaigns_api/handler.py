@@ -757,6 +757,7 @@ def get_campaign_events(event):
         limit = min(limit, 1000)  # Max 1000 events per request
         from_epoch = query_params.get('from_epoch')
         to_epoch = query_params.get('to_epoch')
+        country_code = query_params.get('country_code')
         
         # Build query parameters for DynamoDB
         query_kwargs = {
@@ -772,16 +773,19 @@ def get_campaign_events(event):
         if from_epoch:
             try:
                 from_timestamp = int(from_epoch)
-                filter_conditions.append(Attr('timestamp').gte(from_timestamp))
+                filter_conditions.append(Attr('created_at').gte(from_timestamp))
             except ValueError:
                 return _response(400, {"error": "Invalid from_epoch format. Must be Unix timestamp"})
         
         if to_epoch:
             try:
                 to_timestamp = int(to_epoch)
-                filter_conditions.append(Attr('timestamp').lte(to_timestamp))
+                filter_conditions.append(Attr('created_at').lte(to_timestamp))
             except ValueError:
                 return _response(400, {"error": "Invalid to_epoch format. Must be Unix timestamp"})
+        
+        if country_code:
+            filter_conditions.append(Attr('raw').contains(f'"country_code": "{country_code}"'))
         
         # Combine filter conditions if any exist
         if filter_conditions:
