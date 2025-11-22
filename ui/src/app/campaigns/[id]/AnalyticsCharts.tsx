@@ -15,8 +15,6 @@ interface AnalyticsChartsProps {
 
 const COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a'];
 
-import { dummyCampaignEvents } from './dummy_data';
-
 // Helper function to format hour in 12-hour format with AM/PM
 const formatHour = (hour: number): string => {
     const h = hour % 12 || 12;
