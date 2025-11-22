@@ -9,6 +9,7 @@ interface AnalyticsChartsProps {
     campaignId: string;
     timeRange?: '24h' | '7d' | '30d' | 'all';
     country?: string;
+    onAvailableCountriesChange?: (countries: string[]) => void;
 }
 
 
@@ -18,7 +19,7 @@ import { dummyCampaignEvents } from './dummy_data';
 
 // ... (existing imports)
 
-export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all' }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all', onAvailableCountriesChange }: AnalyticsChartsProps) {
     const [data, setData] = useState<{
         os: DistributionItem[];
         device: DistributionItem[];
@@ -37,11 +38,10 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                 // Simulate network delay
                 await new Promise(resolve => setTimeout(resolve, 500));
 
-                /* 
-                // Real API Call Logic (Commented out for development)
+                // Real API Call Logic
                 const now = Math.floor(Date.now() / 1000);
                 let from_epoch = 0;
- 
+
                 switch (timeRange) {
                     case '24h':
                         from_epoch = now - 86400;
@@ -57,60 +57,30 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                         from_epoch = 0;
                         break;
                 }
- 
+
                 const params: any = {
                     from_epoch,
                     to_epoch: now,
                     limit: 1000
                 };
- 
+
                 if (country && country !== 'all') {
-                    params.country = country;
+                    params.country_code = country;
                 }
- 
+
                 const response = await api.get(`/campaigns/${campaignId}/events`, { params });
-                const { distributions, temporal_analytics, engagement_metrics, recipient_insights } = response.data;
-                */
+                const { distributions, events } = response.data;
 
-                // Use Dummy Data
-                let { distributions, temporal_analytics, engagement_metrics, recipient_insights } = dummyCampaignEvents;
+                // Calculate metrics client-side if not provided by backend
+                let temporal_analytics = response.data.temporal_analytics;
+                let engagement_metrics = response.data.engagement_metrics;
+                let recipient_insights = response.data.recipient_insights;
 
-                // Simulate filtering by country
-                if (country && country !== 'all') {
-                    // Filter Geo Distribution
-                    const countryName = {
-                        'US': 'United States',
-                        'UK': 'United Kingdom',
-                        'CA': 'Canada',
-                        'DE': 'Germany',
-                        'FR': 'France',
-                        'AU': 'Australia',
-                        'IN': 'India'
-                    }[country] || country;
-
-                    distributions = {
-                        ...distributions,
-                        ip_distribution: distributions.ip_distribution.filter(d => d.name === countryName)
-                    };
-
-                    // Simulate reduced metrics for specific country
-                    const reductionFactor = 0.2; // Assume ~20% of traffic is from this country
-
-                    engagement_metrics = {
-                        ...engagement_metrics,
-                        click_to_open_rate: engagement_metrics.click_to_open_rate * (0.8 + Math.random() * 0.4), // Vary slightly
-                        unique_engagement_rate: engagement_metrics.unique_engagement_rate * (0.8 + Math.random() * 0.4),
-                    };
-
-                    recipient_insights = {
-                        ...recipient_insights,
-                        unique_recipients: Math.floor(recipient_insights.unique_recipients * reductionFactor),
-                        engagement_segments: {
-                            highly_engaged: { ...recipient_insights.engagement_segments.highly_engaged, count: Math.floor(recipient_insights.engagement_segments.highly_engaged.count * reductionFactor) },
-                            moderately_engaged: { ...recipient_insights.engagement_segments.moderately_engaged, count: Math.floor(recipient_insights.engagement_segments.moderately_engaged.count * reductionFactor) },
-                            low_engaged: { ...recipient_insights.engagement_segments.low_engaged, count: Math.floor(recipient_insights.engagement_segments.low_engaged.count * reductionFactor) },
-                        }
-                    };
+                if (!temporal_analytics && events) {
+                    const { calculateTemporalAnalytics, calculateEngagementMetrics, calculateRecipientInsights } = await import('@/lib/analytics_utils');
+                    temporal_analytics = calculateTemporalAnalytics(events);
+                    engagement_metrics = calculateEngagementMetrics(events);
+                    recipient_insights = calculateRecipientInsights(events);
                 }
 
                 if (distributions) {
@@ -123,6 +93,12 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                         engagement: engagement_metrics,
                         insights: recipient_insights
                     });
+
+                    // Extract available countries
+                    if (distributions.country_distribution && onAvailableCountriesChange) {
+                        const countries = distributions.country_distribution.map((d: any) => d.name);
+                        onAvailableCountriesChange(countries);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch analytics:', error);

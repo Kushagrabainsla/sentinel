@@ -43,6 +43,7 @@ export interface User {
     email: string;
     api_key: string;
     status: string;
+    timezone?: string;
     created_at?: number;
 }
 
@@ -68,11 +69,13 @@ export interface Campaign {
 }
 
 export interface CampaignEvent {
-    event_id: string;
+    id: string;
     campaign_id: string;
-    event_type: string;
-    timestamp: number;
-    recipient?: string;
+    type: string; // 'open', 'sent', 'click', etc.
+    created_at: number;
+    recipient_id?: string;
+    email?: string;
+    raw?: string;
     metadata?: any;
 }
 

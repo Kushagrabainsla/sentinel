@@ -10,6 +10,7 @@ const navigation = [
     { name: 'Campaigns', href: '/campaigns', icon: Mail },
     { name: 'Segments', href: '/segments', icon: Users },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Profile', href: '/profile', icon: Settings },
 ];
 
 export function Sidebar() {
