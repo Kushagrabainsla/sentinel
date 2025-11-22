@@ -818,7 +818,7 @@ def get_campaign_events(event):
             os_info = raw_data.get('os', 'Unknown')
             device_info = raw_data.get('device_type', 'Unknown')
             browser_info = raw_data.get('browser', 'Unknown')
-            country_info = raw_data.get('country', 'Unknown')
+            country_info = raw_data.get('country_code', 'Unknown')
             
             # Update distributions
             os_distribution[os_info] = os_distribution.get(os_info, 0) + 1
