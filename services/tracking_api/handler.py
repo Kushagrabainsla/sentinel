@@ -23,20 +23,9 @@ def get_analytics_metadata(headers, query_params=None):
     # Parse user agent for device info
     device_info = parse_user_agent(user_agent)
     
-    # Get timestamp and time analytics
-    now = datetime.now(timezone.utc)
-    
     metadata = {
         # Timing information
         'timestamp': int(time.time()),
-        'iso_timestamp': now.isoformat(),
-        'date': now.strftime('%Y-%m-%d'),
-        'time_of_day': now.strftime('%H:%M:%S'),
-        'hour_of_day': now.hour,
-        'day_of_week': now.strftime('%A'),
-        'day_of_week_num': now.weekday(),  # 0=Monday, 6=Sunday
-        'month': now.strftime('%B'),
-        'year': now.year,
         
         # Network information
         'ip_address': ip_address,
@@ -71,7 +60,7 @@ def record_tracking_event(campaign_id, recipient_id, email, event_type, metadata
             'recipient_id': str(recipient_id),
             'email': email,
             'type': event_type,
-            'created_at': int(time.time()),
+            'created_at': metadata.get('timestamp', int(time.time())),
             'raw': json.dumps(metadata or {})
         }
         
@@ -97,17 +86,6 @@ def get_link_mapping(tracking_id):
     except Exception as e:
         print(f"❌ Failed to get link mapping: {e}")
         return None
-
-def record_tracking_status(campaign_id, email, status):
-    """Record tracking status in events table"""
-    try:
-        # The tracking event is already recorded by record_tracking_event
-        # This function is kept for compatibility but doesn't need separate status tracking
-        return True
-        
-    except Exception as e:
-        print(f"❌ Failed to record tracking status: {e}")
-        return False
 
 def generate_1x1_pixel():
     """Generate a 1x1 transparent PNG pixel"""
@@ -212,10 +190,7 @@ def handle_open_tracking(path, headers, query_params):
             event_type=EventType.OPEN.value,
             metadata=metadata
         )
-        
-        # Record tracking status (already handled by record_tracking_event)
-        record_tracking_status(campaign_id, query_params.get('email', 'unknown'), 'opened')
-    
+
     # Serve the S3 logo directly (fetch and return the image data)
     sentinel_logo_url = os.environ.get('SENTINEL_LOGO_URL')
     
@@ -300,10 +275,7 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
                 event_type=EventType.CLICK.value,
                 metadata=metadata
             )
-            
-            # Record tracking status (already handled by record_tracking_event)
-            record_tracking_status(campaign_id, link_mapping.get('email', 'unknown'), 'clicked')
-            
+
             # Redirect to original URL
             return {
                 'statusCode': 302,
