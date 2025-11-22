@@ -1,7 +1,7 @@
 import os
 import json
 import boto3
-import google.generativeai as genai     # ✅
+import google.generativeai as genai
 
 
 def get_gemini_api_key():
@@ -30,7 +30,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'key': 'GEMINI_API_KEY environment variable not set'})
             }
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
 
         prompt = f'''
 You are an AI assistant that generates professional HTML email content.
