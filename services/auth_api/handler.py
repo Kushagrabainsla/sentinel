@@ -88,7 +88,8 @@ def create_user(event):
         'status': UserStatus.ACTIVE.value,
         'created_at': current_time,
         'updated_at': current_time,
-        'last_login': None
+        'last_login': None,
+        'timezone': 'UTC'
     }
     
     try:
@@ -211,6 +212,40 @@ def get_current_user(event):
     
     return _response(200, {"user": user})
 
+def update_user(event):
+    """Update user profile details (name, timezone)"""
+    api_key = event.get('headers', {}).get('X-API-Key') or event.get('headers', {}).get('x-api-key')
+    if not api_key:
+        return _response(401, {"error": "API key required in X-API-Key header"})
+    user = get_user_by_api_key(api_key)
+    if not user:
+        return _response(401, {"error": "Invalid API key"})
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except json.JSONDecodeError:
+        return _response(400, {"error": "Invalid JSON in request body"})
+    
+    name = body.get('name', user['name'])
+    timezone = body.get('timezone', user.get('timezone', 'UTC'))
+    # Optionally, validate timezone string here
+
+    users_table = get_users_table()
+    users_table.update_item(
+        Key={'id': user['id']},
+        UpdateExpression='SET #n = :name, timezone = :tz, updated_at = :time',
+        ExpressionAttributeNames={'#n': 'name'},
+        ExpressionAttributeValues={
+            ':name': name,
+            ':tz': timezone,
+            ':time': int(time.time())
+        }
+    )
+    # Return updated user info
+    user['name'] = name
+    user['timezone'] = timezone
+    user['updated_at'] = int(time.time())
+    return _response(200, {"message": "User updated successfully", "user": user})
+
 def regenerate_api_key(event):
     """Regenerate API key for authenticated user"""
     api_key = event.get('headers', {}).get('X-API-Key') or event.get('headers', {}).get('x-api-key')
@@ -270,6 +305,10 @@ def lambda_handler(event, context):
         elif path == '/auth/me' or path == '/v1/auth/me':
             if http_method == 'GET':
                 return get_current_user(event)
+            
+        elif path == '/auth/update' or path == '/v1/auth/update':
+            if http_method == 'POST':
+                return update_user(event)
         
         elif path == '/auth/regenerate-key' or path == '/v1/auth/regenerate-key':
             if http_method == 'POST':
