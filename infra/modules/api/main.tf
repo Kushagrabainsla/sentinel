@@ -290,6 +290,14 @@ resource "aws_apigatewayv2_route" "auth_me" {
     authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
 }
 
+resource "aws_apigatewayv2_route" "auth_update" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/auth/update"
+    target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
 resource "aws_apigatewayv2_route" "auth_regenerate_key" {
     api_id    = aws_apigatewayv2_api.http.id
     route_key = "POST /v1/auth/regenerate-key"
