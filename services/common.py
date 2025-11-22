@@ -83,6 +83,7 @@ class EventType(Enum):
     UNSUBSCRIBE = "unsubscribe"
     SPAM = "spam"
     UNKNOWN = "unknown"
+    SENT = "sent"
 
 class DeliveryStatus(Enum):
     """Email delivery status"""

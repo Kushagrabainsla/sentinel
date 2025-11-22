@@ -25,17 +25,14 @@ from boto3.dynamodb.conditions import Key, Attr
 # Import additional enums from common
 from common import (
     CampaignType, CampaignDeliveryType, CampaignState, CampaignStatus,
-    EventType, EngagementLevel
+    EventType, EngagementLevel, _response, convert_decimals, get_user_from_context, get_campaigns_table, get_events_table, get_segments_table
 )
 
-# ================================
-# CONSTANTS
-# ================================
 
-# Default values
 DEFAULT_FROM_EMAIL = "no-reply@thesentinel.site"
 DEFAULT_FROM_NAME = "Sentinel"
 
+lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -47,225 +44,6 @@ class DecimalEncoder(json.JSONEncoder):
             else:
                 return float(obj)
         return super(DecimalEncoder, self).default(obj)
-
-
-
-def calculate_temporal_analytics(events):
-    """Calculate time-based engagement analytics"""
-    if not events:
-        return {
-            "hourly_engagement": {"peak_hours": [], "engagement_by_hour": []},
-            "daily_patterns": {"best_day": None, "engagement_by_day": []},
-            "response_times": {"avg_time_to_open": 0, "avg_time_to_click": 0}
-        }
-    
-    from collections import defaultdict
-    import calendar
-    
-    # Hourly engagement analysis
-    hourly_stats = defaultdict(lambda: {"opens": 0, "clicks": 0, "total": 0})
-    daily_stats = defaultdict(lambda: {"opens": 0, "clicks": 0, "total": 0})
-    
-    for event in events:
-        timestamp = event.get('timestamp')
-        event_type = event.get('type', EventType.UNKNOWN.value)
-        
-        if timestamp:
-            dt = datetime.fromtimestamp(timestamp, timezone.utc)
-            hour = dt.hour
-            day_name = calendar.day_name[dt.weekday()]
-            
-            hourly_stats[hour]["total"] += 1
-            daily_stats[day_name]["total"] += 1
-            
-            if event_type == EventType.OPEN.value:
-                hourly_stats[hour]["opens"] += 1
-                daily_stats[day_name]["opens"] += 1
-            elif event_type == EventType.CLICK.value:
-                hourly_stats[hour]["clicks"] += 1 
-                daily_stats[day_name]["clicks"] += 1
-    
-    # Format hourly data
-    engagement_by_hour = []
-    for hour in range(24):
-        stats = hourly_stats[hour]
-        engagement_score = (stats["opens"] + stats["clicks"] * 2)  # Clicks weighted higher
-        engagement_by_hour.append({
-            "hour": hour,
-            "opens": stats["opens"],
-            "clicks": stats["clicks"],
-            "engagement_score": engagement_score
-        })
-    
-    # Find peak hours (top 3)
-    peak_hours = sorted(engagement_by_hour, key=lambda x: x["engagement_score"], reverse=True)[:3]
-    peak_hour_numbers = [h["hour"] for h in peak_hours if h["engagement_score"] > 0]
-    
-    # Format daily data
-    engagement_by_day = []
-    day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    for day in day_order:
-        stats = daily_stats[day]
-        engagement_score = (stats["opens"] + stats["clicks"] * 2)
-        engagement_by_day.append({
-            "day": day,
-            "opens": stats["opens"],
-            "clicks": stats["clicks"], 
-            "engagement_score": engagement_score
-        })
-    
-    # Find best day
-    best_day_data = max(engagement_by_day, key=lambda x: x["engagement_score"]) if engagement_by_day else None
-    best_day = best_day_data["day"] if best_day_data and best_day_data["engagement_score"] > 0 else None
-    
-    return {
-        "hourly_engagement": {
-            "peak_hours": peak_hour_numbers,
-            "engagement_by_hour": engagement_by_hour,
-            "optimal_send_time": f"{peak_hour_numbers[0]:02d}:00" if peak_hour_numbers else None
-        },
-        "daily_patterns": {
-            "best_day": best_day,
-            "engagement_by_day": engagement_by_day
-        },
-        "response_times": {
-            "avg_time_to_open": None,  # Would need send timestamp to calculate
-            "avg_time_to_click": None,  # Would need open timestamp to calculate 
-            "total_analysis_period": len(events)
-        }
-    }
-
-def calculate_engagement_metrics(events, event_counts):
-    """Calculate advanced engagement metrics"""
-    if not events or not event_counts:
-        return {
-            "click_to_open_rate": 0,
-            "unique_engagement_rate": 0,
-            "engagement_quality_score": 0,
-            "bounce_rate": 0
-        }
-    
-    opens = event_counts.get(EventType.OPEN.value, 0)
-    clicks = event_counts.get(EventType.CLICK.value, 0)  
-    bounces = event_counts.get(EventType.BOUNCE.value, 0)
-    total_events = len(events)
-    
-    # Click-to-Open Rate (CTOR) - industry standard metric
-    click_to_open_rate = round((clicks / opens * 100), 2) if opens > 0 else 0
-    
-    # Unique engagement rate (opens + clicks / total events)
-    unique_engagement_rate = round(((opens + clicks) / total_events * 100), 2) if total_events > 0 else 0
-    
-    # Engagement quality score (weighted metric)
-    engagement_quality_score = round((opens * 1 + clicks * 3 - bounces * 2) / max(total_events, 1) * 10, 1)
-    engagement_quality_score = max(0, min(10, engagement_quality_score))  # Clamp between 0-10
-    
-    # Bounce rate
-    bounce_rate = round((bounces / total_events * 100), 2) if total_events > 0 else 0
-    
-    return {
-        "click_to_open_rate": click_to_open_rate,
-        "unique_engagement_rate": unique_engagement_rate, 
-        "engagement_quality_score": engagement_quality_score,
-        "bounce_rate": bounce_rate,
-        "advanced_metrics": {
-            "total_interactions": opens + clicks,
-            "interaction_diversity": len([k for k, v in event_counts.items() if v > 0]),
-            "engagement_intensity": round((clicks + opens) / max(len(set(e.get('recipient_email', '') for e in events if e.get('recipient_email'))), 1), 2)
-        }
-    }
-
-def calculate_recipient_insights(events):
-    """Calculate recipient behavior insights"""
-    if not events:
-        return {
-            "unique_recipients": 0,
-            "engagement_segments": {
-                "highly_engaged": {"count": 0, "percentage": 0},
-                "moderately_engaged": {"count": 0, "percentage": 0}, 
-                "low_engaged": {"count": 0, "percentage": 0}
-            },
-            "top_recipients": []
-        }
-    
-    from collections import defaultdict, Counter
-    
-    # Track recipient activity
-    recipient_activity = defaultdict(lambda: {"opens": 0, "clicks": 0, "events": 0, "last_activity": 0})
-    
-    for event in events:
-        recipient = event.get('recipient_email', EventType.UNKNOWN.value)
-        event_type = event.get('event_type', EventType.UNKNOWN.value)
-        timestamp = event.get('timestamp', 0)
-        
-        recipient_activity[recipient]["events"] += 1
-        recipient_activity[recipient]["last_activity"] = max(recipient_activity[recipient]["last_activity"], timestamp)
-        
-        if event_type == EventType.OPEN.value:
-            recipient_activity[recipient]["opens"] += 1
-        elif event_type == EventType.CLICK.value:
-            recipient_activity[recipient]["clicks"] += 1
-    
-    # Calculate engagement scores for each recipient
-    recipient_scores = []
-    for recipient, activity in recipient_activity.items():
-        if recipient != EventType.UNKNOWN.value:
-            # Engagement score: opens * 1 + clicks * 3
-            score = activity["opens"] * 1 + activity["clicks"] * 3
-            recipient_scores.append({
-                "recipient": recipient[:50] + "..." if len(recipient) > 50 else recipient,  # Truncate for privacy
-                "engagement_score": score,
-                "opens": activity["opens"],
-                "clicks": activity["clicks"],
-                "total_events": activity["events"],
-                "last_activity": activity["last_activity"]
-            })
-    
-    # Sort by engagement score
-    recipient_scores.sort(key=lambda x: x["engagement_score"], reverse=True)
-    
-    # Segment recipients by engagement level
-    total_recipients = len(recipient_scores)
-    if total_recipients > 0:
-        # Define thresholds (can be customized)
-        high_threshold = 5  # 5+ engagement points
-        medium_threshold = 2  # 2-4 engagement points
-        
-        highly_engaged = [r for r in recipient_scores if r["engagement_score"] >= high_threshold]
-        moderately_engaged = [r for r in recipient_scores if medium_threshold <= r["engagement_score"] < high_threshold]
-        low_engaged = [r for r in recipient_scores if r["engagement_score"] < medium_threshold]
-    else:
-        highly_engaged = moderately_engaged = low_engaged = []
-    
-    return {
-        "unique_recipients": total_recipients,
-        "engagement_segments": {
-            "highly_engaged": {
-                "count": len(highly_engaged),
-                "percentage": round(len(highly_engaged) / max(total_recipients, 1) * 100, 1)
-            },
-            "moderately_engaged": {
-                "count": len(moderately_engaged),
-                "percentage": round(len(moderately_engaged) / max(total_recipients, 1) * 100, 1)
-            },
-            "low_engaged": {
-                "count": len(low_engaged), 
-                "percentage": round(len(low_engaged) / max(total_recipients, 1) * 100, 1)
-            }
-        },
-        "top_recipients": recipient_scores[:10],  # Top 10 most engaged
-        "recipient_stats": {
-            "avg_opens_per_recipient": round(sum(r["opens"] for r in recipient_scores) / max(total_recipients, 1), 2),
-            "avg_clicks_per_recipient": round(sum(r["clicks"] for r in recipient_scores) / max(total_recipients, 1), 2),
-            "multi_event_recipients": len([r for r in recipient_scores if r["total_events"] > 1])
-        }
-    }
-
-# Import common utilities
-from common import _response, convert_decimals, get_user_from_context, get_campaigns_table, get_events_table, get_segments_table, parse_user_agent
-
-# DynamoDB clients
-lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 
 def list_campaigns(event):
     """List user's campaigns with filtering and pagination"""
@@ -733,6 +511,80 @@ def delete_campaign(event):
         print(f"Error deleting campaign: {str(e)}")
         return _response(500, {"error": f"Failed to delete campaign: {str(e)}"})
 
+def calculate_unique_opens(events):
+    """Calculate unique opens from events"""
+    unique_opens = set()
+    for event in events:
+        if event.get('type') == EventType.OPEN.value:
+            email = event.get('email')
+            if email:
+                unique_opens.add(email)
+    return len(unique_opens)
+
+def calculate_unique_clicks(events):
+    """Calculate unique clicks from events"""
+    unique_clicks = set()
+    for event in events:
+        if event.get('type') == EventType.CLICK.value:
+            email = event.get('email')
+            if email:
+                unique_clicks.add(email)
+    return len(unique_clicks)
+
+def calculate_top_clicked_links(events, top_n=5):
+    """Calculate top clicked links from events"""
+    link_counts = {}
+    for event in events:
+        if event.get('type') == EventType.CLICK.value:
+            link_id = event.get('link_id')
+            if link_id:
+                link_counts[link_id] = link_counts.get(link_id, 0) + 1
+    # Sort links by count and return top N
+    sorted_links = sorted(link_counts.items(), key=lambda x: x[1], reverse=True)
+    return [{"link_id": url, "click_count": count} for url, count in sorted_links[:top_n]]
+
+def calculate_avg_time_to_open(events, campaign):
+    """Calculate average time-to-open from sent to open events"""
+    sent_times = {}
+    open_times = []
+    
+    for event in events:
+        if event.get('type') == EventType.SENT.value:
+            email = event.get('email')
+            sent_times[email] = event.get('created_at')
+        elif event.get('type') == EventType.OPEN.value:
+            email = event.get('email')
+            if email in sent_times:
+                time_diff = event.get('created_at') - sent_times[email]
+                open_times.append(time_diff)
+    
+    if not open_times:
+        return None
+    
+    average_time = sum(open_times) / len(open_times)
+    return round(average_time, 2)
+
+def calculate_avg_time_to_click(events, campaign):
+    """Calculate average time-to-click from sent to click events"""
+    sent_times = {}
+    click_times = []
+    
+    for event in events:
+        if event.get('type') == EventType.SENT.value:
+            email = event.get('email')
+            sent_times[email] = event.get('created_at')
+        elif event.get('type') == EventType.CLICK.value:
+            email = event.get('email')
+            if email in sent_times:
+                time_diff = event.get('created_at') - sent_times[email]
+                click_times.append(time_diff)
+    
+    if not click_times:
+        return None
+    
+    average_time = sum(click_times) / len(click_times)
+    return round(average_time, 2)
+
 def get_campaign_events(event):
     """Get analytics/events for a specific campaign with time range filtering and distribution data"""
     try:
@@ -856,15 +708,7 @@ def get_campaign_events(event):
                 "count": count,
                 "percentage": round((count / len(events) * 100), 2) if events else 0
             })
-        
-        # Calculate temporal analytics (Phase 1 enhancement)
-        temporal_analytics = calculate_temporal_analytics(events)
-        
-        # Calculate advanced engagement metrics
-        engagement_metrics = calculate_engagement_metrics(events, event_counts)
-        
-        # Calculate recipient insights
-        recipient_insights = calculate_recipient_insights(events)
+
 
         return _response(200, {
             "events": events,
@@ -886,9 +730,24 @@ def get_campaign_events(event):
                 "ip_distribution": format_distribution(ip_distribution, max_items=15),
                 "country_distribution": format_distribution(country_distribution)
             },
-            "temporal_analytics": temporal_analytics,
-            "engagement_metrics": engagement_metrics,
-            "recipient_insights": recipient_insights,
+            """
+            Advanced Analytics to implement:
+            --------------------------------
+                Unique opens: Unique(campaign, email)
+                Unique clicks: Unique(campaign, email)
+                Top Clicked Links: count_frequency(link_url)
+                Time-to-Open: (click - sent)
+                Time-to-click: (click - sent)
+                Click-Through Rate (CTR): Unique clicks / Total sent
+                Click-to-Open Rate (CTOR): Unique clicks / Unique opens
+            """
+            "advanced_aggregates": {
+                'unique_opens': calculate_unique_opens(events),
+                'unique_clicks': calculate_unique_clicks(events),
+                'top_clicked_links': calculate_top_clicked_links(events),
+                'avg_time_to_open': calculate_avg_time_to_open(events),
+                'avg_time_to_click': calculate_avg_time_to_click(events),
+            },
             "has_more": 'LastEvaluatedKey' in events_response
         })
         

@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from tracking import generate_tracking_data
 
 # Import common utilities and enums
-from common import DeliveryStatus
+from common import DeliveryStatus, EventType
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -38,7 +38,7 @@ def update_email_status_in_events(campaign_id, email, status):
             'campaign_id': str(campaign_id),
             'recipient_id': hashlib.md5(email.encode()).hexdigest()[:8],  # Generate consistent ID from email
             'email': email,
-            'type': 'send_status',
+            'type': EventType.SENT.value,
             'created_at': int(time.time()),
             'raw': json.dumps({'status': status})
         }
