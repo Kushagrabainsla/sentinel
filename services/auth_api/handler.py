@@ -232,8 +232,8 @@ def update_user(event):
     users_table = get_users_table()
     users_table.update_item(
         Key={'id': user['id']},
-        UpdateExpression='SET #n = :name, timezone = :tz, updated_at = :time',
-        ExpressionAttributeNames={'#n': 'name'},
+        UpdateExpression='SET #n = :name, #tz = :tz, updated_at = :time',
+        ExpressionAttributeNames={'#n': 'name', '#tz': 'timezone'},
         ExpressionAttributeValues={
             ':name': name,
             ':tz': timezone,
