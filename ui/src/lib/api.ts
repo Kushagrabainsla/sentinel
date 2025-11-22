@@ -136,14 +136,29 @@ export interface CampaignEventsResponse {
     summary: {
         total_events: number;
         event_counts: Record<string, number>;
+        event_types_breakdown?: Array<{
+            event_type: string;
+            count: number;
+            percentage: number;
+        }>;
         campaign_id: string;
         campaign_name: string;
+        time_range?: {
+            from_epoch: string;
+            to_epoch: string;
+        };
+        unique_opens: number;
+        unique_clicks: number;
+        top_clicked_links?: any[];
+        avg_time_to_open: number | null;
+        avg_time_to_click: number | null;
     };
     distributions: {
         os_distribution: DistributionItem[];
         device_distribution: DistributionItem[];
         browser_distribution: DistributionItem[];
         ip_distribution: DistributionItem[];
+        country_distribution?: DistributionItem[];
     };
     temporal_analytics: TemporalAnalytics;
     engagement_metrics: EngagementMetrics;
