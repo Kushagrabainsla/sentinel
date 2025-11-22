@@ -4,14 +4,6 @@ import boto3
 import google.generativeai as genai
 
 
-def get_gemini_api_key():
-    secret_name = "sentinel_gemini_api_key"  # Hardcoded secret name
-    region_name = "us-east-1"            # Update to your AWS region
-    client = boto3.client('secretsmanager', region_name=region_name)
-    response = client.get_secret_value(SecretId=secret_name)
-    secret = response['SecretString']
-    return json.loads(secret)['GEMINI_API_KEY']
-
 def lambda_handler(event, context):
     try:
         body = event.get('body')
@@ -23,13 +15,8 @@ def lambda_handler(event, context):
         keyPoints = body.get('keyPoints')
         links = body.get('links')
 
-        api_key = get_gemini_api_key()
-        if not api_key:
-            return {
-                'statusCode': 500,
-                'body': json.dumps({'key': 'GEMINI_API_KEY environment variable not set'})
-            }
-        genai.configure(api_key=api_key)
+
+        genai.configure(api_key='AIzaSyAPuhaWBdBM_tWONkMJc8Jny5mx6QSiwEE')
         model = genai.GenerativeModel("gemini-2.5-flash")
 
         prompt = f'''
@@ -70,7 +57,8 @@ links: {json.dumps(links)}
 '''
 
         result = model.generate_content(prompt)
-        text = result.text
+        response = result.response
+        text = response.text()
         clean_text = text.replace('```json', '').replace('```', '').strip()
 
         try:
