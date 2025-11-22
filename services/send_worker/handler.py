@@ -65,12 +65,6 @@ def extract_cta_links(html_content):
     
     cta_links = {}
     excluded_patterns = [
-        r'terms',
-        r'privacy',
-        r'policy',
-        r'unsubscribe',
-        r'footer',
-        r'mailto:',
         r'#',  # anchor links
         r'javascript:',  # javascript links
     ]
@@ -105,6 +99,7 @@ def extract_cta_links(html_content):
             used_ids.add(cta_id)
             cta_links[cta_id] = url
     
+    print(f"Extracted {json.dumps(cta_links)} CTA links for tracking")
     return cta_links
 
 def optimize_html_for_deliverability(html_content):
