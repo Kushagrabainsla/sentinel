@@ -810,7 +810,7 @@ def get_campaign_events(event):
             event_type = event.get('type', EventType.UNKNOWN.value)
             event_counts[event_type] = event_counts.get(event_type, 0) + 1
 
-            raw_data = event.get('raw_data', {})
+            raw_data = event.get('raw')
             raw_data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
 
             # Extract device info from raw_data
