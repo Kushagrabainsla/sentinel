@@ -408,28 +408,35 @@ def handle_events_api(path, http_method, query_params):
     try:
         events_table = get_table('DYNAMODB_EVENTS_TABLE')
         
-        # Build filter expression
-        filter_expression = 'campaign_id = :cid'
-        expression_values = {':cid': campaign_id}
-        
-        # Add variation_id filter if provided
-        if variation_id:
-            filter_expression += ' AND contains(#raw, :vid)'
-            expression_values[':vid'] = f'"variation_id": "{variation_id}"'
-        
-        # Scan for events with this campaign_id (and optionally variation_id)
-        scan_params = {
-            'FilterExpression': filter_expression,
-            'ExpressionAttributeValues': expression_values
-        }
-        
-        # Add ExpressionAttributeNames if filtering by variation
-        if variation_id:
-            scan_params['ExpressionAttributeNames'] = {'#raw': 'raw'}
-        
-        response = events_table.scan(**scan_params)
+        # Scan for events with this campaign_id
+        response = events_table.scan(
+            FilterExpression='campaign_id = :cid',
+            ExpressionAttributeValues={':cid': campaign_id}
+        )
         
         events = response.get('Items', [])
+        
+        # Filter by variation_id in Python if specified
+        if variation_id:
+            filtered_events = []
+            for event in events:
+                raw_data = event.get('raw', '{}')
+                try:
+                    # Parse the raw JSON string
+                    if isinstance(raw_data, str):
+                        metadata = json.loads(raw_data)
+                    else:
+                        metadata = raw_data
+                    
+                    # Check if variation_id matches
+                    if metadata.get('variation_id') == variation_id:
+                        filtered_events.append(event)
+                except (json.JSONDecodeError, AttributeError):
+                    # Skip events with invalid JSON
+                    continue
+            
+            events = filtered_events
+            print(f"📊 Filtered {len(events)} events for variation {variation_id} out of {len(response.get('Items', []))} total events")
         
         # Sort events by created_at (most recent first)
         events.sort(key=lambda x: x.get('created_at', 0), reverse=True)
