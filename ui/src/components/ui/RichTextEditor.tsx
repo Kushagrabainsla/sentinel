@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Heading1, Heading2 } from 'lucide-react';
+import Link from '@tiptap/extension-link';
+import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Heading1, Heading2, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
@@ -18,6 +19,12 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
         extensions: [
             StarterKit,
             Underline,
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: {
+                    class: 'text-primary underline decoration-primary cursor-pointer',
+                },
+            }),
         ],
         content: value,
         editorProps: {
@@ -37,6 +44,28 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
             editor.commands.setContent(value);
         }
     }, [value, editor]);
+
+    const setLink = useCallback(() => {
+        if (!editor) {
+            return;
+        }
+        const previousUrl = editor.getAttributes('link').href;
+        const url = window.prompt('URL', previousUrl);
+
+        // cancelled
+        if (url === null) {
+            return;
+        }
+
+        // empty
+        if (url === '') {
+            editor.chain().focus().extendMarkRange('link').unsetLink().run();
+            return;
+        }
+
+        // update
+        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    }, [editor]);
 
     if (!editor) {
         return null;
@@ -89,6 +118,13 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
                     title="Underline"
                 >
                     <UnderlineIcon className="h-4 w-4" />
+                </ToolbarButton>
+                <ToolbarButton
+                    onClick={setLink}
+                    isActive={editor.isActive('link')}
+                    title="Link"
+                >
+                    <LinkIcon className="h-4 w-4" />
                 </ToolbarButton>
 
                 <div className="w-px h-6 bg-border mx-1" />
