@@ -402,14 +402,32 @@ def handle_events_api(path, http_method, query_params):
     
     campaign_id = path_parts[1]
     
+    # Get optional variation_id filter from query params
+    variation_id = query_params.get('variation_id') if query_params else None
+    
     try:
         events_table = get_table('DYNAMODB_EVENTS_TABLE')
         
-        # Scan for events with this campaign_id
-        response = events_table.scan(
-            FilterExpression='campaign_id = :cid',
-            ExpressionAttributeValues={':cid': campaign_id}
-        )
+        # Build filter expression
+        filter_expression = 'campaign_id = :cid'
+        expression_values = {':cid': campaign_id}
+        
+        # Add variation_id filter if provided
+        if variation_id:
+            filter_expression += ' AND contains(#raw, :vid)'
+            expression_values[':vid'] = f'"variation_id": "{variation_id}"'
+        
+        # Scan for events with this campaign_id (and optionally variation_id)
+        scan_params = {
+            'FilterExpression': filter_expression,
+            'ExpressionAttributeValues': expression_values
+        }
+        
+        # Add ExpressionAttributeNames if filtering by variation
+        if variation_id:
+            scan_params['ExpressionAttributeNames'] = {'#raw': 'raw'}
+        
+        response = events_table.scan(**scan_params)
         
         events = response.get('Items', [])
         
@@ -431,6 +449,9 @@ def handle_events_api(path, http_method, query_params):
             'event_summary': event_summary,
             'events': events[:50]  # Limit to first 50 events for performance
         }
+        
+        if variation_id:
+            result['variation_filter'] = variation_id
         
         if len(events) > 50:
             result['note'] = f'Showing first 50 of {len(events)} total events'

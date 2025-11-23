@@ -26,7 +26,17 @@ export default function AnalyticsPage() {
     const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d' | 'all'>('all');
     const [country, setCountry] = useState<string>('all');
     const [availableCountries, setAvailableCountries] = useState<string[]>([]);
+    const [selectedVariation, setSelectedVariation] = useState<string>('all');
     const [isLoading, setIsLoading] = useState(true);
+
+    // Get selected campaign details
+    const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId);
+    const isABTest = selectedCampaign?.type === 'AB';
+
+    // Reset variation filter when campaign changes
+    useEffect(() => {
+        setSelectedVariation('all');
+    }, [selectedCampaignId]);
 
     useEffect(() => {
         const fetchCampaigns = async () => {
@@ -111,6 +121,23 @@ export default function AnalyticsPage() {
                                         className="bg-zinc-900/50 border-zinc-800 text-zinc-100 focus:ring-blue-500/50"
                                     />
                                 </div>
+                                {isABTest && (
+                                    <div className="space-y-2 sm:col-span-2">
+                                        <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Variation Filter</label>
+                                        <SimpleSelect
+                                            value={selectedVariation}
+                                            onChange={setSelectedVariation}
+                                            options={[
+                                                { value: 'all', label: 'Overall (All Variations)' },
+                                                { value: 'A', label: 'Variation A' },
+                                                { value: 'B', label: 'Variation B' },
+                                                { value: 'C', label: 'Variation C' },
+                                            ]}
+                                            placeholder="Select variation"
+                                            className="bg-zinc-900/50 border-zinc-800 text-zinc-100 focus:ring-blue-500/50"
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-4 p-4 rounded-xl bg-zinc-900/30 border border-zinc-800/50 backdrop-blur-sm">
@@ -145,6 +172,7 @@ export default function AnalyticsPage() {
                         campaignId={selectedCampaignId}
                         timeRange={timeRange}
                         country={country}
+                        variationFilter={isABTest && selectedVariation !== 'all' ? selectedVariation : undefined}
                         onAvailableCountriesChange={setAvailableCountries}
                     />
                 ) : (
