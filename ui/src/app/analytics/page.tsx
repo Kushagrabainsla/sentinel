@@ -4,7 +4,19 @@ import { useState, useEffect } from 'react';
 import { api, Campaign } from '@/lib/api';
 import { AnalyticsCharts } from '@/app/campaigns/[id]/AnalyticsCharts';
 import { Globe } from '@/components/ui/Globe';
-import { Loader2, BarChart3, Globe2 } from 'lucide-react';
+import { Loader2, BarChart3, Globe2, Sparkles, CheckCircle2, AlertTriangle, Lightbulb, ArrowRight } from 'lucide-react';
+import { Dialog } from '@/components/ui/Dialog';
+import { CampaignEventsResponse } from '@/lib/api';
+
+interface InsightsReport {
+    executive_summary: string;
+    key_strengths: string[];
+    areas_for_improvement: string[];
+    actionable_recommendations: Array<{
+        recommendation: string;
+        example: string;
+    }>;
+}
 
 // Fallback UI components if shadcn/ui components are not available
 const SimpleSelect = ({ value, onChange, options, placeholder, className }: any) => (
@@ -27,6 +39,39 @@ export default function AnalyticsPage() {
     const [country, setCountry] = useState<string>('all');
     const [availableCountries, setAvailableCountries] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [summary, setSummary] = useState<CampaignEventsResponse['summary'] | undefined>(undefined);
+    const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+    const [aiReport, setAiReport] = useState<InsightsReport | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+    const generateInsights = async () => {
+        const campaign = campaigns.find(c => c.id === selectedCampaignId);
+        if (!campaign || !summary) return;
+
+        setIsGeneratingInsights(true);
+        try {
+            const response = await fetch(`/api/campaigns/${selectedCampaignId}/insights`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    campaign,
+                    stats: summary
+                }),
+            });
+
+            const result = await response.json();
+            if (result.report) {
+                setAiReport(result.report);
+                setIsDialogOpen(true);
+            }
+        } catch (error) {
+            console.error('Failed to generate insights:', error);
+        } finally {
+            setIsGeneratingInsights(false);
+        }
+    };
 
     useEffect(() => {
         const fetchCampaigns = async () => {
@@ -114,15 +159,27 @@ export default function AnalyticsPage() {
                             </div>
 
                             <div className="flex items-center gap-4 p-4 rounded-xl bg-zinc-900/30 border border-zinc-800/50 backdrop-blur-sm">
-                                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-                                    <Globe2 className="h-5 w-5" />
+                                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
+                                    <Sparkles className="h-5 w-5" />
                                 </div>
-                                <div>
-                                    <h3 className="text-sm font-medium text-zinc-200">Geographic Filter Active</h3>
+                                <div className="flex-1">
+                                    <h3 className="text-sm font-medium text-zinc-200">AI Insights</h3>
                                     <p className="text-xs text-zinc-500 mt-0.5">
-                                        Viewing data for: <span className="font-semibold text-white">{country === 'all' ? 'Global' : country}</span>
+                                        Generate deep performance analysis
                                     </p>
                                 </div>
+                                <button
+                                    onClick={generateInsights}
+                                    disabled={isGeneratingInsights || !summary}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                >
+                                    {isGeneratingInsights ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="h-4 w-4" />
+                                    )}
+                                    {isGeneratingInsights ? 'Analyzing...' : 'Generate Report'}
+                                </button>
                             </div>
                         </div>
 
@@ -143,9 +200,11 @@ export default function AnalyticsPage() {
                 {selectedCampaignId ? (
                     <AnalyticsCharts
                         campaignId={selectedCampaignId}
+                        campaign={campaigns.find(c => c.id === selectedCampaignId)}
                         timeRange={timeRange}
                         country={country}
                         onAvailableCountriesChange={setAvailableCountries}
+                        onDataLoaded={setSummary}
                     />
                 ) : (
                     <div className="flex flex-col items-center justify-center h-[400px] border border-dashed border-border rounded-xl bg-muted/10">
@@ -155,6 +214,88 @@ export default function AnalyticsPage() {
                     </div>
                 )}
             </div>
+
+
+            <Dialog
+                isOpen={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                title="Campaign Insights"
+                className="max-w-4xl"
+            >
+                {aiReport && (
+                    <div className="space-y-8">
+                        {/* Executive Summary */}
+                        <div className="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20">
+                            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                                <Sparkles className="h-5 w-5 text-purple-500" />
+                                Executive Summary
+                            </h3>
+                            <p className="text-muted-foreground leading-relaxed">
+                                {aiReport.executive_summary}
+                            </p>
+                        </div>
+
+                        <div className="grid gap-6 md:grid-cols-2">
+                            {/* Strengths */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    Key Strengths
+                                </h3>
+                                <div className="space-y-3">
+                                    {aiReport.key_strengths.map((strength, i) => (
+                                        <div key={i} className="p-4 rounded-lg bg-green-500/5 border border-green-500/10 text-sm">
+                                            {strength}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Improvements */}
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                    Areas for Improvement
+                                </h3>
+                                <div className="space-y-3">
+                                    {aiReport.areas_for_improvement.map((area, i) => (
+                                        <div key={i} className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/10 text-sm">
+                                            {area}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Recommendations */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                <Lightbulb className="h-4 w-4 text-blue-500" />
+                                Actionable Recommendations
+                            </h3>
+                            <div className="grid gap-4">
+                                {aiReport.actionable_recommendations.map((rec, i) => (
+                                    <div key={i} className="group p-4 rounded-xl border border-border bg-card hover:bg-accent/50 transition-colors">
+                                        <div className="flex items-start gap-4">
+                                            <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 text-blue-500 font-bold text-sm">
+                                                {i + 1}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <h4 className="font-medium text-base">{rec.recommendation}</h4>
+                                                <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                                                    <ArrowRight className="h-4 w-4 mt-0.5 shrink-0 opacity-50" />
+                                                    <p><span className="font-medium text-foreground">Example:</span> {rec.example}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                    </div>
+                )}
+            </Dialog>
         </div >
     );
 }

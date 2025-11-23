@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, AreaChart, Area, CartesianGrid } from 'recharts';
-import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem, CampaignEventsResponse } from '@/lib/api';
-import { Loader2, Clock, Users, MousePointerClick, Zap, TrendingUp, Mail, BarChart3 } from 'lucide-react';
+import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem, CampaignEventsResponse, Campaign } from '@/lib/api';
+import { Loader2, Clock, Users, MousePointerClick, Zap } from 'lucide-react';
+
+
 
 interface AnalyticsChartsProps {
     campaignId: string;
+    campaign?: Campaign;
     timeRange?: '24h' | '7d' | '30d' | 'all';
     country?: string;
     onAvailableCountriesChange?: (countries: string[]) => void;
+    onDataLoaded?: (summary: CampaignEventsResponse['summary']) => void;
 }
 
 
@@ -24,7 +28,7 @@ const formatHour = (hour: number): string => {
 
 // ... (existing imports)
 
-export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all', onAvailableCountriesChange }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', country = 'all', onAvailableCountriesChange, onDataLoaded }: AnalyticsChartsProps) {
     const [data, setData] = useState<{
         os: DistributionItem[];
         device: DistributionItem[];
@@ -36,6 +40,7 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
         summary?: CampaignEventsResponse['summary'];
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -105,6 +110,11 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                     if (distributions.country_distribution && onAvailableCountriesChange) {
                         const countries = distributions.country_distribution.map((d: any) => d.name);
                         onAvailableCountriesChange(countries);
+                    }
+
+                    // Pass summary data to parent
+                    if (response.data.summary && onDataLoaded) {
+                        onDataLoaded(response.data.summary);
                     }
                 }
             } catch (error) {
@@ -281,6 +291,9 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                 </div>
             )}
 
+
+
+
             {/* Advanced Charts Row 1 */}
             <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
                 <div className="lg:col-span-2">
@@ -379,6 +392,6 @@ export function AnalyticsCharts({ campaignId, timeRange = 'all', country = 'all'
                     </PieChart>
                 </ChartCard>
             </div>
-        </div>
+        </div >
     );
 }
