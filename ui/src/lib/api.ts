@@ -63,9 +63,23 @@ export interface Campaign {
     status: string;
     state: string;
     recipient_count?: number;
-    type: 'I' | 'S';
+    type: 'I' | 'S' | 'AB';
     schedule_at?: number;
     created_at: number;
+    ab_test_config?: ABTestConfig;
+    variations?: CampaignVariation[];
+}
+
+export interface ABTestConfig {
+    test_percentage: number;
+    decision_time: number;
+    winner_id?: string;
+}
+
+export interface CampaignVariation {
+    subject: string;
+    content: string;
+    tone?: string;
 }
 
 export interface CampaignEvent {

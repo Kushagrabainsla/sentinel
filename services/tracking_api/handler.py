@@ -192,7 +192,8 @@ def handle_open_tracking(path, headers, query_params):
         metadata.update({
             'event_type': EventType.OPEN.value,
             'campaign_id': campaign_id,
-            'recipient_id': recipient_id
+            'recipient_id': recipient_id,
+            'variation_id': query_params.get('variation_id')
         })
         
         record_tracking_event(
@@ -264,6 +265,7 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
             recipient_id = link_mapping['recipient_id']
             original_url = link_mapping['original_url']
             link_id = link_mapping.get('link_id', 'unknown')
+            variation_id = link_mapping.get('variation_id')
             
             print(f"✅ Found mapping: {original_url} for campaign {campaign_id}")
             
@@ -277,7 +279,8 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
                 'recipient_id': recipient_id,
                 'link_id': link_id,
                 'original_url': original_url,
-                'tracking_id': tracking_id
+                'tracking_id': tracking_id,
+                'variation_id': variation_id
             })
             
             record_tracking_event(

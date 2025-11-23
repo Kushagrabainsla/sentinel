@@ -42,7 +42,7 @@ def update_email_tracking_status(campaign_id, email, status):
     except Exception as e:
         print(f"❌ Failed to update tracking status: {e}")
 
-def store_link_mapping(campaign_id, recipient_id, link_id, original_url, tracking_id, email):
+def store_link_mapping(campaign_id, recipient_id, link_id, original_url, tracking_id, email, variation_id=None):
     """Store link mapping for click tracking"""
     table_name = os.environ.get("DYNAMODB_LINK_MAPPINGS_TABLE")
     if not table_name:
@@ -60,6 +60,7 @@ def store_link_mapping(campaign_id, recipient_id, link_id, original_url, trackin
             'campaign_id': str(campaign_id),
             'recipient_id': str(recipient_id),
             'email': email,
+            'variation_id': variation_id,
             'link_id': link_id,
             'original_url': original_url,
             'created_at': int(time.time()),
@@ -73,7 +74,7 @@ def store_link_mapping(campaign_id, recipient_id, link_id, original_url, trackin
         print(f"❌ Failed to store link mapping: {e}")
         return False
 
-def create_cta_tracking_link(campaign_id, recipient_id, cta_id, original_url, email, base_url=None):
+def create_cta_tracking_link(campaign_id, recipient_id, cta_id, original_url, email, base_url=None, variation_id=None):
     """
     Create a tracking link for a specific CTA
     
@@ -104,20 +105,24 @@ def create_cta_tracking_link(campaign_id, recipient_id, cta_id, original_url, em
         link_id=cta_id,
         original_url=original_url,
         tracking_id=tracking_id,
-        email=email
+        tracking_id=tracking_id,
+        email=email,
+        variation_id=variation_id
     )
     
     print(f"📊 Created tracking link for CTA '{cta_id}': {original_url} -> {tracking_url}")
     
     return tracking_url
 
-def generate_tracking_data(campaign_id, recipient_id, email, cta_links=None, base_url=None):
+def generate_tracking_data(campaign_id, recipient_id, email, cta_links=None, base_url=None, variation_id=None):
     """Generate simple email tracking: open pixel + CTA link tracking"""
     if not base_url:
         base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
     
     # Open tracking pixel
     pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={base64.urlsafe_b64encode(email.encode()).decode()}"
+    if variation_id:
+        pixel_url += f"&variation_id={variation_id}"
     tracking_pixel = f'<img src="{pixel_url}" width="1" height="1" style="display:none;" alt="">'
     
     # CTA link tracking
@@ -126,7 +131,7 @@ def generate_tracking_data(campaign_id, recipient_id, email, cta_links=None, bas
         for cta_id, original_url in cta_links.items():
             if original_url and original_url.startswith(('http://', 'https://')):
                 tracking_url = create_cta_tracking_link(
-                    campaign_id, recipient_id, cta_id, original_url, email, base_url
+                    campaign_id, recipient_id, cta_id, original_url, email, base_url, variation_id
                 )
                 tracked_cta_links[cta_id] = tracking_url
     

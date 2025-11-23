@@ -118,7 +118,8 @@ def get_campaign(event):
         return _response(500, {"error": f"Failed to get campaign: {str(e)}"})
 
 def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_type=None, recipient_email=None, 
-                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None):
+                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None,
+                   ab_test_config=None, variations=None):
     """Create a campaign item and return its id (string UUID)."""
     
     campaigns_table = get_campaigns_table()
@@ -149,8 +150,13 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
     elif campaign_type == CampaignType.IMMEDIATE.value:
         if schedule_at:
             raise ValueError("schedule_at should not be provided for immediate campaigns")
+    elif campaign_type == CampaignType.AB_TEST.value:
+        if not ab_test_config:
+            raise ValueError("ab_test_config is required for A/B test campaigns")
+        if not variations or len(variations) != 3:
+            raise ValueError("Exactly 3 variations are required for A/B test campaigns")
     else:
-        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE.value}' or '{CampaignType.SCHEDULED.value}'")
+        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE.value}', '{CampaignType.SCHEDULED.value}' or '{CampaignType.AB_TEST.value}'")
     
     item = {
         "id": campaign_id,
@@ -170,7 +176,9 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
         "status": CampaignStatus.ACTIVE.value,
         "owner_id": owner_id,
         "tags": [],  # For categorization and filtering
-        "metadata": {}  # For additional custom fields
+        "metadata": {},  # For additional custom fields
+        "ab_test_config": ab_test_config,
+        "variations": variations
     }
     
     try:
@@ -276,15 +284,19 @@ def create_campaign(event):
         from_email = body.get("from_email")
         from_name = body.get("from_name")
         
+        # A/B Test specific fields
+        ab_test_config = body.get("ab_test_config")
+        variations = body.get("variations")
+        
         # Validate required fields
         if not name:
             return _response(400, {"error": "name is required"})
         
         if not campaign_type:
-            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE.value} for immediate, {CampaignType.SCHEDULED.value} for scheduled)"})
+            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE.value}, {CampaignType.SCHEDULED.value}, or {CampaignType.AB_TEST.value})"})
         
-        if not (subject and html_body):
-            return _response(400, {"error": "subject and html_body are required"})
+        if campaign_type != CampaignType.AB_TEST.value and not (subject and html_body):
+            return _response(400, {"error": "subject and html_body are required for standard campaigns"})
         
         # Validate delivery type and corresponding fields
         if not delivery_type:
@@ -352,7 +364,11 @@ def create_campaign(event):
             html_body=html_body,
             from_email=from_email,
             from_name=from_name,
-            owner_id=user['id']
+            from_email=from_email,
+            from_name=from_name,
+            owner_id=user['id'],
+            ab_test_config=ab_test_config,
+            variations=variations
         )
         
         # Dual-path approach based on campaign type:
@@ -400,6 +416,31 @@ def create_campaign(event):
                     response_data["temporary_segment"] = True
                 else:
                     response_data["temporary_segment"] = False
+        elif campaign_type == CampaignType.AB_TEST.value:
+            print(f"🧪 A/B Test execution path for campaign {campaign_id}")
+            # For A/B tests, we trigger immediate execution (Phase A)
+            # The send_worker will handle the split logic
+            immediate_triggered = trigger_immediate_campaign(campaign_id)
+            
+            # We also need to schedule the decision phase (Phase C)
+            # But we'll let the send_worker handle creating that scheduler rule 
+            # to ensure it only happens if the initial send is successful
+            
+            response_data = {
+                "campaign_id": campaign_id,
+                "state": CampaignState.PENDING.value,
+                "type": campaign_type,
+                "delivery_type": delivery_type,
+                "segment_id": final_segment_id,
+                "ab_test_config": ab_test_config,
+                "triggered": immediate_triggered
+            }
+            
+            if emails:
+                response_data["recipient_count"] = len(set(emails))
+                response_data["temporary_segment"] = True
+            else:
+                response_data["temporary_segment"] = False
         else:
             return _response(400, {"error": "Invalid campaign type"})
         
