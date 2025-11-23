@@ -364,8 +364,6 @@ def create_campaign(event):
             html_body=html_body,
             from_email=from_email,
             from_name=from_name,
-            from_email=from_email,
-            from_name=from_name,
             owner_id=user['id'],
             ab_test_config=ab_test_config,
             variations=variations
