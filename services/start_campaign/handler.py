@@ -198,8 +198,9 @@ def create_ab_test_scheduler(campaign_id, decision_time):
         return False
     
     try:
-        # Convert epoch timestamp to datetime
-        schedule_dt = datetime.fromtimestamp(decision_time, timezone.utc)
+        # Convert epoch timestamp to datetime (handle Decimal from DynamoDB)
+        decision_time_int = int(decision_time)
+        schedule_dt = datetime.fromtimestamp(decision_time_int, timezone.utc)
         
         # Only create scheduler if it's in the future
         if schedule_dt <= datetime.now(timezone.utc):

@@ -105,7 +105,6 @@ def create_cta_tracking_link(campaign_id, recipient_id, cta_id, original_url, em
         link_id=cta_id,
         original_url=original_url,
         tracking_id=tracking_id,
-        tracking_id=tracking_id,
         email=email,
         variation_id=variation_id
     )
