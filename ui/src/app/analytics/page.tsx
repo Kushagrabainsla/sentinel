@@ -50,18 +50,12 @@ export default function AnalyticsPage() {
 
         setIsGeneratingInsights(true);
         try {
-            const response = await fetch(`/api/campaigns/${selectedCampaignId}/insights`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    campaign,
-                    stats: summary
-                }),
+            const response = await api.post('/generate-insights', {
+                campaign,
+                stats: summary
             });
 
-            const result = await response.json();
+            const result = response.data;
             if (result.report) {
                 setAiReport(result.report);
                 setIsDialogOpen(true);
