@@ -12,6 +12,7 @@ interface AnalyticsChartsProps {
     campaign?: Campaign;
     timeRange?: '24h' | '7d' | '30d' | 'all';
     country?: string;
+    variationFilter?: string;
     onAvailableCountriesChange?: (countries: string[]) => void;
     onDataLoaded?: (summary: CampaignEventsResponse['summary']) => void;
 }
@@ -28,7 +29,7 @@ const formatHour = (hour: number): string => {
 
 // ... (existing imports)
 
-export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', country = 'all', onAvailableCountriesChange, onDataLoaded }: AnalyticsChartsProps) {
+export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', country = 'all', variationFilter, onAvailableCountriesChange, onDataLoaded }: AnalyticsChartsProps) {
     const [data, setData] = useState<{
         os: DistributionItem[];
         device: DistributionItem[];
@@ -79,6 +80,10 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                     params.country_code = country;
                 }
 
+                if (variationFilter) {
+                    params.variation_id = variationFilter;
+                }
+
                 const response = await api.get(`/campaigns/${campaignId}/events`, { params });
                 const { distributions, events } = response.data;
 
@@ -127,7 +132,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
         if (campaignId) {
             fetchData();
         }
-    }, [campaignId, timeRange, country]);
+    }, [campaignId, timeRange, country, variationFilter]);
 
     if (isLoading) {
         return (

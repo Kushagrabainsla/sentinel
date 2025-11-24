@@ -42,6 +42,7 @@ class CampaignType(Enum):
     """Campaign execution timing types"""
     IMMEDIATE = "I"  # Immediate execution
     SCHEDULED = "S"  # Scheduled execution
+    AB_TEST = "AB"   # A/B Test execution
 
 class CampaignDeliveryType(Enum):
     """Campaign delivery mechanism types"""

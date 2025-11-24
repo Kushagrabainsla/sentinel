@@ -90,7 +90,6 @@ module "api" {
     authorizer_arn                  = module.lambdas.authorizer_arn
     auth_api_arn                    = module.lambdas.auth_api_arn
     campaigns_api_arn               = module.lambdas.campaigns_api_arn
-    generate_email_lambda_arn       = module.lambdas.generate_email_arn
 }
 
 # Events (EventBridge Scheduler only - SES events not configured)

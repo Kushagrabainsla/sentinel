@@ -192,7 +192,8 @@ def handle_open_tracking(path, headers, query_params):
         metadata.update({
             'event_type': EventType.OPEN.value,
             'campaign_id': campaign_id,
-            'recipient_id': recipient_id
+            'recipient_id': recipient_id,
+            'variation_id': query_params.get('variation_id')
         })
         
         record_tracking_event(
@@ -264,6 +265,7 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
             recipient_id = link_mapping['recipient_id']
             original_url = link_mapping['original_url']
             link_id = link_mapping.get('link_id', 'unknown')
+            variation_id = link_mapping.get('variation_id')
             
             print(f"✅ Found mapping: {original_url} for campaign {campaign_id}")
             
@@ -277,7 +279,8 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
                 'recipient_id': recipient_id,
                 'link_id': link_id,
                 'original_url': original_url,
-                'tracking_id': tracking_id
+                'tracking_id': tracking_id,
+                'variation_id': variation_id
             })
             
             record_tracking_event(
@@ -399,6 +402,9 @@ def handle_events_api(path, http_method, query_params):
     
     campaign_id = path_parts[1]
     
+    # Get optional variation_id filter from query params
+    variation_id = query_params.get('variation_id') if query_params else None
+    
     try:
         events_table = get_table('DYNAMODB_EVENTS_TABLE')
         
@@ -409,6 +415,28 @@ def handle_events_api(path, http_method, query_params):
         )
         
         events = response.get('Items', [])
+        
+        # Filter by variation_id in Python if specified
+        if variation_id:
+            filtered_events = []
+            for event in events:
+                raw_data = event.get('raw', '{}')
+                try:
+                    # Parse the raw JSON string
+                    if isinstance(raw_data, str):
+                        metadata = json.loads(raw_data)
+                    else:
+                        metadata = raw_data
+                    
+                    # Check if variation_id matches
+                    if metadata.get('variation_id') == variation_id:
+                        filtered_events.append(event)
+                except (json.JSONDecodeError, AttributeError):
+                    # Skip events with invalid JSON
+                    continue
+            
+            events = filtered_events
+            print(f"📊 Filtered {len(events)} events for variation {variation_id} out of {len(response.get('Items', []))} total events")
         
         # Sort events by created_at (most recent first)
         events.sort(key=lambda x: x.get('created_at', 0), reverse=True)
@@ -428,6 +456,9 @@ def handle_events_api(path, http_method, query_params):
             'event_summary': event_summary,
             'events': events[:50]  # Limit to first 50 events for performance
         }
+        
+        if variation_id:
+            result['variation_filter'] = variation_id
         
         if len(events) > 50:
             result['note'] = f'Showing first 50 of {len(events)} total events'

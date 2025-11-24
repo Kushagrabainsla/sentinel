@@ -1,7 +1,8 @@
 import { api } from '@/lib/api';
 
 export interface GenerateEmailParams {
-    tone: string;
+    tone?: string;
+    tones?: string[];
     finalGoal: string;
     audiences: string[];
     keyPoints: string;
@@ -11,15 +12,30 @@ export interface GenerateEmailParams {
 export interface GenerateEmailResponse {
     subject: string;
     content: string;
+    variations?: Array<{ subject: string; content: string; tone: string }>;
 }
 
 export const generateEmail = async (params: GenerateEmailParams): Promise<GenerateEmailResponse> => {
-    const response = await api.post('/generate-email', {
-        tone: params.tone,
-        finalGoal: params.finalGoal,
-        audiences: params.audiences.join(', '),
-        keyPoints: params.keyPoints,
-        links: params.links
+    // Call the Next.js API route directly, not through the backend proxy
+    const response = await fetch('/api/generate-email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            tone: params.tone,
+            tones: params.tones,
+            finalGoal: params.finalGoal,
+            audiences: params.audiences.join(', '),
+            keyPoints: params.keyPoints,
+            links: params.links
+        })
     });
-    return response.data;
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate email');
+    }
+
+    return response.json();
 };
