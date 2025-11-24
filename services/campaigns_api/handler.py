@@ -550,54 +550,76 @@ def delete_campaign(event):
 
 def calculate_unique_opens(events):
     """Calculate unique opens from events (including implied opens from clicks)"""
-    unique_opens = set()
-    unique_clicks = set()
-    
-    for event in events:
-        email = event.get('email')
-        if not email:
-            continue
-            
-        if event.get('type') == EventType.OPEN.value:
-            unique_opens.add(email)
-        elif event.get('type') == EventType.CLICK.value:
-            unique_clicks.add(email)
-            
-    # If a user clicked, they must have opened. Add them to opens.
-    unique_opens.update(unique_clicks)
-    
-    return len(unique_opens)
+    try:
+        unique_opens = set()
+        unique_clicks = set()
+        
+        for event in events:
+            email = event.get('email')
+            if not email:
+                continue
+                
+            if event.get('type') == EventType.OPEN.value:
+                unique_opens.add(email)
+            elif event.get('type') == EventType.CLICK.value:
+                unique_clicks.add(email)
+                
+        # If a user clicked, they must have opened. Add them to opens.
+        unique_opens.update(unique_clicks)
+        
+        return len(unique_opens)
+    except Exception as e:
+        print(f"Error calculating unique opens: {e}")
+        return 0
 
 def calculate_unique_clicks(events):
     """Calculate unique clicks from events"""
-    unique_clicks = set()
-    for event in events:
-        if event.get('type') == EventType.CLICK.value:
-            email = event.get('email')
-            if email:
-                unique_clicks.add(email)
-    return len(unique_clicks)
+    try:
+        unique_clicks = set()
+        for event in events:
+            if event.get('type') == EventType.CLICK.value:
+                email = event.get('email')
+                if email:
+                    unique_clicks.add(email)
+        return len(unique_clicks)
+    except Exception as e:
+        print(f"Error calculating unique clicks: {e}")
+        return 0
 
 def calculate_unique_recipients(events):
     """Calculate unique recipients from all events"""
-    unique_recipients = set()
-    for event in events:
-        email = event.get('email')
-        if email:
-            unique_recipients.add(email)
-    return len(unique_recipients)
+    try:
+        unique_recipients = set()
+        for event in events:
+            email = event.get('email')
+            if email:
+                unique_recipients.add(email)
+        return len(unique_recipients)
+    except Exception as e:
+        print(f"Error calculating unique recipients: {e}")
+        return 0
 
 def calculate_top_clicked_links(events, top_n=5):
     """Calculate top clicked links from events"""
-    link_counts = {}
-    for event in events:
-        if event.get('type') == EventType.CLICK.value:
-            raw_data = event.get('raw')
-            raw_data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
-            link_id = raw_data.get('link_id')
-            if link_id:
-                link_counts[link_id] = link_counts.get(link_id, 0) + 1
-    # Sort links by count and return top N
+    try:
+        link_counts = {}
+        for event in events:
+            if event.get('type') == EventType.CLICK.value:
+                raw_data = event.get('raw')
+                if not raw_data:
+                    continue
+                    
+                raw_data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
+                link_id = raw_data.get('link_id')
+                if link_id:
+                    link_counts[link_id] = link_counts.get(link_id, 0) + 1
+        
+        # Sort links by count and return top N
+        sorted_links = sorted(link_counts.items(), key=lambda x: x[1], reverse=True)
+        return [{"url": link, "clicks": count} for link, count in sorted_links[:top_n]]
+    except Exception as e:
+        print(f"Error calculating top clicked links: {e}")
+        return []
     sorted_links = sorted(link_counts.items(), key=lambda x: x[1], reverse=True)
     return [{"link_id": url, "click_count": count} for url, count in sorted_links[:top_n]]
 
