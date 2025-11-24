@@ -2,29 +2,29 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-    try {
-        const { tone, tones, finalGoal, audiences, keyPoints, links } = await request.json();
+  try {
+    const { tone, tones, finalGoal, audiences, keyPoints, links } = await request.json();
 
-        // Initialize Gemini API with key from environment variables
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json(
-                { key: `GEMINI_API_KEY environment variable not set` },
-                { status: 500 }
-            );
-        }
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    // Initialize Gemini API with key from environment variables
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { key: `GEMINI_API_KEY environment variable not set` },
+        { status: 500 }
+      );
+    }
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-        // Support both single tone (legacy) and multiple tones (A/B test)
-        const tonesArray = tones || (tone ? [tone] : ['Professional']);
-        const isMultipleTones = tonesArray.length > 1;
+    // Support both single tone (legacy) and multiple tones (A/B test)
+    const tonesArray = tones || (tone ? [tone] : ['Professional']);
+    const isMultipleTones = tonesArray.length > 1;
 
-        let prompt: string;
+    let prompt: string;
 
-        if (isMultipleTones) {
-            // A/B Testing: Generate multiple variations
-            prompt = `
+    if (isMultipleTones) {
+      // A/B Testing: Generate multiple variations
+      prompt = `
 You are an AI assistant that generates professional HTML email content.
 
 I will provide you with:
@@ -74,9 +74,9 @@ keyPoints: ${keyPoints}
 links: ${JSON.stringify(links)}
 ${links && links.length > 0 ? '\n⚠️ CRITICAL: The links array has ' + links.length + ' link(s). You MUST include ALL of them in the email body!' : ''}
 `;
-        } else {
-            // Single tone (legacy)
-            prompt = `
+    } else {
+      // Single tone (legacy)
+      prompt = `
 You are an AI assistant that generates professional HTML email content.
 
 I will provide you with:
@@ -120,51 +120,62 @@ keyPoints: ${keyPoints}
 links: ${JSON.stringify(links)}
 ${links && links.length > 0 ? '\n⚠️ CRITICAL: The links array has ' + links.length + ' link(s). You MUST include ALL of them in the email body!' : ''}
 `;
-        }
-
-        // Log the request for debugging
-        console.log('🔍 Email Generation Request:', {
-            tones: tonesArray,
-            finalGoal,
-            audiences,
-            keyPoints: keyPoints.substring(0, 100) + '...',
-            linksCount: links?.length || 0,
-            links
-        });
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-
-        // Clean up markdown code blocks if present
-        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-
-        try {
-            const jsonResponse = JSON.parse(cleanText);
-
-            if (isMultipleTones) {
-                // Return variations array
-                return NextResponse.json({
-                    subject: jsonResponse[0]?.subject || '',
-                    content: jsonResponse[0]?.content || '',
-                    variations: jsonResponse
-                });
-            } else {
-                // Return single result
-                return NextResponse.json(jsonResponse);
-            }
-        } catch (e) {
-            console.error('Failed to parse Gemini response:', text);
-            return NextResponse.json(
-                { error: 'Failed to parse AI response' },
-                { status: 500 }
-            );
-        }
-    } catch (error: any) {
-        console.error('Gemini API error:', error);
-        return NextResponse.json(
-            { error: error.message },
-            { status: 500 }
-        );
     }
+
+    // Log the request for debugging
+    console.log('🔍 Email Generation Request:', {
+      tones: tonesArray,
+      finalGoal,
+      audiences,
+      keyPoints: keyPoints.substring(0, 100) + '...',
+      linksCount: links?.length || 0,
+      links
+    });
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    console.log('📨 LLM Response (first 500 chars):', text.substring(0, 500));
+
+    // Clean up markdown code blocks if present
+    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    try {
+      const jsonResponse = JSON.parse(cleanText);
+
+      console.log('✅ Parsed JSON response:', {
+        hasSubject: !!jsonResponse.subject || !!jsonResponse[0]?.subject,
+        hasContent: !!jsonResponse.content || !!jsonResponse[0]?.content,
+        isArray: Array.isArray(jsonResponse),
+        variationsCount: Array.isArray(jsonResponse) ? jsonResponse.length : 0
+      });
+
+      if (isMultipleTones) {
+        // Return variations array
+        return NextResponse.json({
+          subject: jsonResponse[0]?.subject || '',
+          content: jsonResponse[0]?.content || '',
+          variations: jsonResponse
+        });
+      } else {
+        // Return single result
+        console.log('📧 Generated email content length:', jsonResponse.content?.length || 0);
+        console.log('🔗 Content includes link tags:', jsonResponse.content?.includes('<a href') || false);
+        return NextResponse.json(jsonResponse);
+      }
+    } catch (e) {
+      console.error('Failed to parse Gemini response:', text);
+      return NextResponse.json(
+        { error: 'Failed to parse AI response' },
+        { status: 500 }
+      );
+    }
+  } catch (error: any) {
+    console.error('Gemini API error:', error);
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
 }
