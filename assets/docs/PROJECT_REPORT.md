@@ -31,7 +31,7 @@ Sentinel provides a **Serverless Email Marketing SaaS** that offers:
 *   **Real-time Analytics:** Granular tracking of opens, clicks, and engagement.
 
 ### Competitive Analysis
-| Feature | Sentinel (Our Solution) | Mailchimp | SendGrid |
+| Feature | Sentinel (Our Solution) | [Mailchimp](https://mailchimp.com) | [SendGrid](https://sendgrid.com) |
 | :--- | :--- | :--- | :--- |
 | **Pricing Model** | Pay-per-use (Serverless) | Monthly Subscription | Monthly / CPM |
 | **AI Content Gen** | Native (Gemini Pro) | Add-on / Basic | Basic |
