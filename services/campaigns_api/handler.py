@@ -834,6 +834,13 @@ def get_campaign_events(event):
             })
 
 
+        # Calculate unique recipients and opens
+        unique_recipients = calculate_unique_recipients(events)
+        unique_opens_count = calculate_unique_opens(events)
+        
+        # Ensure total opens is at least equal to unique opens (handling implied opens)
+        event_counts['open'] = max(event_counts.get('open', 0), unique_opens_count)
+
         return _response(200, {
             "events": events,
             "summary": {
