@@ -603,53 +603,63 @@ def calculate_top_clicked_links(events, top_n=5):
 
 def calculate_avg_time_to_open(events):
     """Calculate average time-to-open from sent to open events"""
-    # First pass: collect all sent times
-    sent_times = {
-        e.get('email'): e.get('created_at') 
-        for e in events 
-        if e.get('type') == EventType.SENT.value and e.get('email')
-    }
-    
-    open_times = []
-    
-    for event in events:
-        if event.get('type') == EventType.OPEN.value:
-            email = event.get('email')
-            if email and email in sent_times:
-                # Ensure we don't get negative times due to clock skew
-                time_diff = max(0, event.get('created_at') - sent_times[email])
-                open_times.append(time_diff)
-    
-    if not open_times:
+    try:
+        # First pass: collect all sent times
+        sent_times = {
+            e.get('email'): e.get('created_at') 
+            for e in events 
+            if e.get('type') == EventType.SENT.value and e.get('email') and e.get('created_at') is not None
+        }
+        
+        open_times = []
+        
+        for event in events:
+            if event.get('type') == EventType.OPEN.value:
+                email = event.get('email')
+                created_at = event.get('created_at')
+                if email and email in sent_times and created_at is not None:
+                    # Ensure we don't get negative times due to clock skew
+                    time_diff = max(0, created_at - sent_times[email])
+                    open_times.append(time_diff)
+        
+        if not open_times:
+            return None
+        
+        average_time = sum(open_times) / len(open_times)
+        return round(average_time, 2)
+    except Exception as e:
+        print(f"Error calculating avg time to open: {e}")
         return None
-    
-    average_time = sum(open_times) / len(open_times)
-    return round(average_time, 2)
 
 def calculate_avg_time_to_click(events):
     """Calculate average time-to-click from sent to click events"""
-    # First pass: collect all sent times
-    sent_times = {
-        e.get('email'): e.get('created_at') 
-        for e in events 
-        if e.get('type') == EventType.SENT.value and e.get('email')
-    }
-    
-    click_times = []
-    
-    for event in events:
-        if event.get('type') == EventType.CLICK.value:
-            email = event.get('email')
-            if email and email in sent_times:
-                # Ensure we don't get negative times due to clock skew
-                time_diff = max(0, event.get('created_at') - sent_times[email])
-                click_times.append(time_diff)
-    
-    if not click_times:
+    try:
+        # First pass: collect all sent times
+        sent_times = {
+            e.get('email'): e.get('created_at') 
+            for e in events 
+            if e.get('type') == EventType.SENT.value and e.get('email') and e.get('created_at') is not None
+        }
+        
+        click_times = []
+        
+        for event in events:
+            if event.get('type') == EventType.CLICK.value:
+                email = event.get('email')
+                created_at = event.get('created_at')
+                if email and email in sent_times and created_at is not None:
+                    # Ensure we don't get negative times due to clock skew
+                    time_diff = max(0, created_at - sent_times[email])
+                    click_times.append(time_diff)
+        
+        if not click_times:
+            return None
+        
+        average_time = sum(click_times) / len(click_times)
+        return round(average_time, 2)
+    except Exception as e:
+        print(f"Error calculating avg time to click: {e}")
         return None
-    
-    average_time = sum(click_times) / len(click_times)
-    return round(average_time, 2)
 
 def get_campaign_events(event):
     """Get analytics/events for a specific campaign with time range filtering and distribution data"""
