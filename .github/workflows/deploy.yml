@@ -29,7 +29,7 @@ jobs:
       - name: Prepare Lambda Services
         run: |
           echo "📋 Copying common utilities to all Lambda service directories..."
-          find services -name "handler.py" -exec dirname {} \; | while read dir; do
+          find services -name "handler.py" -exec dirname {} \; | grep -v "ai_features" | while read dir; do
             cp services/common.py "$dir/"
             echo "✅ Copied common.py to $dir"
           done
@@ -43,7 +43,7 @@ jobs:
       - name: Build Lambda Deployments
         run: |
           mkdir -p infra/modules/lambdas/.artifacts
-          find services -name "handler.py" -exec dirname {} \; | while read dir; do
+          find services -name "handler.py" -exec dirname {} \; | grep -v "ai_features" | while read dir; do
             cd "$dir"
             if [ -f requirements.txt ]; then
               pip install --upgrade pip
