@@ -655,6 +655,7 @@ def get_campaign_events(event):
         from_epoch = query_params.get('from_epoch')
         to_epoch = query_params.get('to_epoch')
         country_code = query_params.get('country_code')
+        variation_id = query_params.get('variation_id')  # A/B test variation filter
         
         # Build query parameters for DynamoDB
         query_kwargs = {
@@ -697,6 +698,28 @@ def get_campaign_events(event):
         
         events_response = events_table.query(**query_kwargs)
         events = convert_decimals(events_response.get('Items', []))
+        
+        # Filter by variation_id in Python if specified (more reliable than DynamoDB contains)
+        if variation_id:
+            filtered_events = []
+            for event in events:
+                raw_data = event.get('raw', '{}')
+                try:
+                    # Parse the raw JSON string
+                    if isinstance(raw_data, str):
+                        metadata = json.loads(raw_data)
+                    else:
+                        metadata = raw_data
+                    
+                    # Check if variation_id matches
+                    if metadata.get('variation_id') == variation_id:
+                        filtered_events.append(event)
+                except (json.JSONDecodeError, AttributeError):
+                    # Skip events with invalid JSON
+                    continue
+            
+            print(f"📊 Filtered {len(filtered_events)} events for variation {variation_id} out of {len(events)} total events")
+            events = filtered_events
         
         # Calculate summary statistics
         event_counts = {}
