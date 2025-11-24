@@ -199,7 +199,9 @@ def handle_open_tracking(path, headers, query_params):
         # Decode email from query params
         email_encoded = query_params.get('email', '')
         try:
-            email = base64.b64decode(email_encoded).decode('utf-8') if email_encoded else 'unknown'
+            # Fix padding if needed (some clients strip trailing =)
+            email_encoded += '=' * (-len(email_encoded) % 4)
+            email = base64.urlsafe_b64decode(email_encoded).decode('utf-8') if email_encoded else 'unknown'
         except Exception as e:
             print(f"❌ Failed to decode email: {e}")
             email = 'unknown'
