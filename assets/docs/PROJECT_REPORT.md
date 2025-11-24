@@ -2,6 +2,7 @@
 
 **Team Members:** Kushagra Bainsla, Yash, Tejas
 **Date:** November 21, 2024
+**Repository:** [GitHub - Sentinel](https://github.com/Kushagrabainsla/sentinel)
 
 ---
 
@@ -13,11 +14,11 @@ The platform integrates **Generative AI (Google Gemini)** to assist users in cre
 
 ---
 
-## 2. Concept & Use Case
+## 2. Concept, Use Case & Motivation
 
 ### Problem Statement
 Small businesses and developers often struggle with existing email marketing tools because they are:
-1.  **Expensive:** Fixed monthly subscriptions even for low volumes.
+1.  **Expensive:** Fixed monthly subscriptions even for low volumes (e.g., Mailchimp starts at ~$13/mo even for small lists).
 2.  **Complex:** Bloated interfaces with steep learning curves.
 3.  **Disconnected:** Hard to integrate programmatically into custom applications.
 4.  **Content Heavy:** Creating engaging email copy is time-consuming and difficult.
@@ -28,6 +29,15 @@ Sentinel provides a **Serverless Email Marketing SaaS** that offers:
 *   **Developer-first API:** Full programmatic control over campaigns, segments, and tracking.
 *   **AI-Powered Content:** Integrated GenAI to instantly generate professional email copy.
 *   **Real-time Analytics:** Granular tracking of opens, clicks, and engagement.
+
+### Competitive Analysis
+| Feature | Sentinel (Our Solution) | Mailchimp | SendGrid |
+| :--- | :--- | :--- | :--- |
+| **Pricing Model** | Pay-per-use (Serverless) | Monthly Subscription | Monthly / CPM |
+| **AI Content Gen** | Native (Gemini Pro) | Add-on / Basic | Basic |
+| **Architecture** | Serverless (Lambda) | Monolithic / Microservices | Legacy Infrastructure |
+| **Scalability** | Auto-scaling (Zero to Infinity) | Tier-based limits | Tier-based limits |
+| **Developer Focus** | High (API First) | Low (UI First) | High |
 
 ### Target Users
 *   **SaaS Developers:** Who need to embed email marketing into their apps.
@@ -52,6 +62,16 @@ Sentinel employs a fully **Serverless Microservices Architecture** on AWS.
 
 ### Architecture Diagram
 ![Architecture Diagram](/assets/images/sentinel-architecture-diagram.png?q=1)
+
+### Public Cloud Applicability
+*   **Scalability:** The system uses AWS Lambda and DynamoDB, which automatically scale up to handle traffic spikes (e.g., sending 10k emails in a minute) and scale down to zero when idle.
+*   **Security:**
+    *   **IAM Roles:** Least privilege access policies for all Lambda functions.
+    *   **Secrets Manager:** Secure storage for API keys (Gemini) and database credentials.
+    *   **Encryption:** DynamoDB encryption at rest (KMS) and TLS 1.3 in transit.
+*   **Reliability:**
+    *   **Multi-AZ:** All serverless components (Lambda, DynamoDB, SQS) are inherently distributed across multiple Availability Zones.
+    *   **DLQ (Dead Letter Queues):** Failed email jobs are captured in SQS DLQs for replay and analysis.
 
 ### Key Cloud Services Used
 1.  **Compute:** AWS Lambda (Python 3.11)
@@ -107,10 +127,18 @@ The entire infrastructure is defined in **Terraform**, ensuring reproducibility 
 
 *Note: Many of these fall within the AWS Free Tier for the first 12 months.*
 
-### Scalability Strategy
-*   **Stateless Compute:** Lambda functions scale horizontally automatically.
-*   **NoSQL Database:** DynamoDB handles massive scale without managing connections.
-*   **Queue Buffering:** SQS prevents system overload during massive campaign blasts by smoothing out the load.
+### Resource Estimation for Productization
+To take Sentinel from a prototype to a production-ready SaaS product, the following resources would be required:
+
+*   **Engineering Team:**
+    *   2 Full-stack Developers (Feature development)
+    *   1 DevOps Engineer (Security, Compliance, Multi-region rollout)
+*   **Infrastructure:**
+    *   Production AWS Account (Separate from Dev/Staging)
+    *   Dedicated IP Addresses for SES (to ensure high sender reputation) - ~$25/month/IP
+*   **Compliance:**
+    *   GDPR/CCPA Compliance audit
+    *   SOC 2 Type II certification (for enterprise clients)
 
 ---
 
@@ -130,7 +158,7 @@ The entire infrastructure is defined in **Terraform**, ensuring reproducibility 
 1.  **A/B Testing:** Automatically split traffic between two email variations.
 2.  **SMS & Push Notifications:** Expand beyond email to omni-channel marketing.
 3.  **Visual Email Builder:** Drag-and-drop editor for HTML emails.
-4.  **Advanced Analytics:** Heatmaps for click tracking and user geography.
+4.  **Advanced Analytics:** Heatmaps for click tracking and user geography reports.
 
 ---
 
