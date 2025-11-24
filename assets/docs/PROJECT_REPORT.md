@@ -58,7 +58,7 @@ Sentinel employs a fully **Serverless Microservices Architecture** on AWS.
 *   **Messaging & Queues:** **Amazon SQS** decouples the campaign initiation from the sending process, allowing for burst handling and rate limiting.
 *   **Email Delivery:** **Amazon SES** (Simple Email Service) handles the actual email transmission with high deliverability, DKIM signing, and custom domains.
 *   **Scheduling:** **Amazon EventBridge Scheduler** manages scheduled campaigns (e.g., "Send next Tuesday").
-*   **AI Integration:** **Google Gemini API** is integrated via a secure Lambda function for content generation.
+*   **AI Integration:** **Google Gemini API** is integrated via secure Lambda functions for content generation and campaign analytics insights.
 
 ### Architecture Diagram
 ![Architecture Diagram](/assets/images/sentinel-architecture-diagram.png?q=1)
@@ -93,9 +93,10 @@ Sentinel employs a fully **Serverless Microservices Architecture** on AWS.
 *   **Campaign Management:** Create, update, delete, and schedule email campaigns.
 *   **Audience Segmentation:** Manage contact lists and segments.
 *   **AI Content Generation:** Generate email subjects and bodies using Gemini AI based on tone and goal.
+*   **AI-Powered Analytics Insights:** Automated campaign performance analysis with actionable recommendations using Gemini AI.
 *   **Email Sending:** High-volume sending via SES with rate limiting.
 *   **Tracking:** Invisible pixel tracking for opens and redirect tracking for link clicks.
-*   **Dashboard:** Next.js UI for managing all aspects of the platform.
+*   **Dashboard:** Next.js UI for managing all aspects of the platform with real-time analytics.
 
 ### Infrastructure as Code (IaC)
 The entire infrastructure is defined in **Terraform**, ensuring reproducibility and modularity.
@@ -164,7 +165,27 @@ To take Sentinel from a prototype to a production-ready SaaS product, the follow
 
 ## 8. AI/ML Relevance
 
-Sentinel leverages **Google's Gemini Pro** model to democratize professional copywriting.
-*   **Integration:** A dedicated Lambda function (`generate_email`) securely calls the Gemini API.
-*   **Prompt Engineering:** Custom system prompts ensure the AI generates HTML-ready, spam-compliant content tailored to specific audience segments.
-*   **Value:** Reduces campaign creation time from hours to minutes.
+Sentinel leverages **Google's Gemini AI** (Gemini 2.5 Flash) in two critical areas to enhance the email marketing workflow. The AI integration was a collaborative effort: Yash and Tejas developed the initial Python scripts for AI content generation and analytics, while Kushagra refactored these into production-ready, scalable Lambda functions with proper error handling, API integration, and security controls.
+
+### 8.1 AI-Powered Content Generation (`generate_email`)
+*   **Development:** Initial scripts developed by Yash and Tejas, then migrated to production Lambda by Kushagra.
+*   **Integration:** A dedicated Lambda function securely calls the Gemini API with proper error handling and retry logic.
+*   **Prompt Engineering:** Custom system prompts ensure the AI generates HTML-ready, spam-compliant content tailored to specific audience segments, tone (professional, casual, urgent), and campaign goals.
+*   **Security:** API keys stored in AWS Secrets Manager with IAM-based access control.
+*   **Value:** Reduces campaign creation time from hours to minutes, democratizing professional copywriting for all users regardless of marketing expertise.
+
+### 8.2 AI-Powered Campaign Analytics (`generate_insights`)
+*   **Development:** Analytics engine co-developed by Yash and Tejas, productionized as a Lambda microservice by Kushagra.
+*   **Integration:** A dedicated Lambda function that processes campaign performance data and generates intelligent insights via Gemini API.
+*   **Intelligent Analysis:** The AI examines comprehensive campaign metrics including:
+    *   **Engagement Metrics:** Open rates, unique opens, click-through rates, unique clicks
+    *   **Timing Analysis:** Average time to open, average time to click, temporal patterns
+    *   **Event Distribution:** Breakdown of sent, delivered, opened, clicked, bounced, and unsubscribed events
+    *   **Comparative Benchmarks:** Performance relative to industry standards and historical campaigns
+*   **Structured Output:** Returns a comprehensive JSON report with:
+    *   **Executive Summary:** High-level campaign performance overview with key takeaways
+    *   **Key Strengths:** Identifies what worked well (e.g., subject line effectiveness, optimal send time)
+    *   **Areas for Improvement:** Data-driven identification of weaknesses and missed opportunities
+    *   **Actionable Recommendations:** 3 specific, concrete, and implementable suggestions with examples for optimizing the next campaign
+*   **API Integration:** Exposed via API Gateway endpoint, allowing both dashboard and programmatic access to insights.
+*   **Value:** Transforms raw analytics data into strategic, actionable insights, enabling data-driven decision-making without requiring deep marketing expertise or data analysis skills. Essentially provides every user with an AI marketing analyst.
