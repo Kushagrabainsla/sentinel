@@ -55,8 +55,12 @@ Instructions:
 2. Generate an HTML email body that includes:
    - Greeting appropriate to the tone
    - A brief intro sentence explaining the goal in that tone
-   - A bullet list using the provided keyPoints
-   - If links exist, generate a section titled "Useful Links:" followed by <ul><li>..</li></ul>
+   - A bullet list using the provided keyPoints (use <ul><li> tags)
+   - **IMPORTANT**: If links array is provided and not empty, you MUST include a "Useful Links" or "Learn More" section with clickable links using this format:
+     <h3>Useful Links</h3>
+     <ul>
+       <li><a href="URL" style="color: #2563eb; text-decoration: underline;">LINK_TEXT</a></li>
+     </ul>
    - A polite closing appropriate to the tone
    - Well-formatted HTML with <h2>, <p>, and <ul> tags
 3. Make each variation distinctly different in tone and style.
@@ -68,6 +72,7 @@ finalGoal: ${finalGoal}
 audiences: ${audiences}
 keyPoints: ${keyPoints}
 links: ${JSON.stringify(links)}
+${links && links.length > 0 ? '\n⚠️ CRITICAL: The links array has ' + links.length + ' link(s). You MUST include ALL of them in the email body!' : ''}
 `;
         } else {
             // Single tone (legacy)
@@ -95,8 +100,12 @@ Instructions:
 2. Generate an HTML email body that includes:
    - Greeting: "Hello <audiences comma-separated>,"
    - A brief intro sentence explaining the goal.
-   - A bullet list using the provided keyPoints.
-   - If links exist, generate a section titled "Useful Links:" followed by <ul><li>..</li></ul>.
+   - A bullet list using the provided keyPoints (use <ul><li> tags).
+   - **IMPORTANT**: If links array is provided and not empty, you MUST include a "Useful Links" or "Learn More" section with clickable links using this format:
+     <h3>Useful Links</h3>
+     <ul>
+       <li><a href="URL" style="color: #2563eb; text-decoration: underline;">LINK_TEXT</a></li>
+     </ul>
    - A polite closing: "Best regards, The Team"
    - Well-formatted HTML with <h2>, <p>, and <ul> tags.
 
@@ -109,8 +118,19 @@ finalGoal: ${finalGoal}
 audiences: ${audiences}
 keyPoints: ${keyPoints}
 links: ${JSON.stringify(links)}
+${links && links.length > 0 ? '\n⚠️ CRITICAL: The links array has ' + links.length + ' link(s). You MUST include ALL of them in the email body!' : ''}
 `;
         }
+
+        // Log the request for debugging
+        console.log('🔍 Email Generation Request:', {
+            tones: tonesArray,
+            finalGoal,
+            audiences,
+            keyPoints: keyPoints.substring(0, 100) + '...',
+            linksCount: links?.length || 0,
+            links
+        });
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
