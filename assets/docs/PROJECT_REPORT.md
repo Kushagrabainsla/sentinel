@@ -1,6 +1,6 @@
 # Cloud Computing Masters Project: Sentinel
 
-**Team Members:** [Your Name], [Teammate Name]
+**Team Members:** Kushagra Bainsla, Yash, Tejas
 **Date:** November 21, 2024
 
 ---
@@ -51,7 +51,7 @@ Sentinel employs a fully **Serverless Microservices Architecture** on AWS.
 *   **AI Integration:** **Google Gemini API** is integrated via a secure Lambda function for content generation.
 
 ### Architecture Diagram
-![Architecture Diagram](../images/sentinel-architecture-diagram.png)
+![Architecture Diagram](/assets/images/sentinel-architecture-diagram.png?q=1)
 
 ### Key Cloud Services Used
 1.  **Compute:** AWS Lambda (Python 3.11)
