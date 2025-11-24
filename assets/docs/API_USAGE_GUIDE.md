@@ -575,6 +575,33 @@ curl -X DELETE https://api.thesentinel.site/v1/segments/YOUR_SEGMENT_ID \
   -H "X-API-Key: YOUR_API_KEY_HERE"
 ```
 
+### Refresh Segment Counts
+Recalculate the number of contacts in all your segments. Useful if counts get out of sync.
+
+```bash
+curl -X POST https://api.thesentinel.site/v1/segments/refresh-counts \
+  -H "X-API-Key: YOUR_API_KEY_HERE"
+```
+
+**Response:**
+```json
+{
+  "message": "Updated contact counts for 5 segments",
+  "segments": [
+    {
+      "id": "segment-id-1",
+      "name": "Newsletter Subscribers",
+      "contact_count": 150
+    },
+    {
+      "id": "segment-id-2",
+      "name": "Test Group",
+      "contact_count": 5
+    }
+  ]
+}
+```
+
 ---
 
 ## 🔧 Common Issues & Solutions
@@ -629,5 +656,11 @@ These URLs don't require authentication and are used for email tracking:
 - `GET /v1/segments/{id}/emails` - Get segment emails
 - `POST /v1/segments/{id}/emails` - Add emails
 - `DELETE /v1/segments/{id}/emails` - Remove emails
+- `POST /v1/segments/refresh-counts` - Refresh segment contact counts
+
+### Tracking & Events Endpoints
+- `GET /track/open/{campaign_id}/{recipient_id}.png` - Track email open
+- `GET /track/click/{tracking_id}` - Track link click
+- `GET /unsubscribe/{token}` - Unsubscribe link
 
 Replace `YOUR_API_KEY_HERE`, `YOUR_SEGMENT_ID_HERE`, and `YOUR_CAMPAIGN_ID` with your actual values from the API responses.
