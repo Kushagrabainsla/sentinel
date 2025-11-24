@@ -196,10 +196,20 @@ def handle_open_tracking(path, headers, query_params):
             'variation_id': query_params.get('variation_id')
         })
         
+        # Decode email from query params
+        email_encoded = query_params.get('email', '')
+        try:
+            email = base64.b64decode(email_encoded).decode('utf-8') if email_encoded else 'unknown'
+        except Exception as e:
+            print(f"❌ Failed to decode email: {e}")
+            email = 'unknown'
+        
+        print(f"📧 Recording open event - Campaign: {campaign_id}, Recipient: {recipient_id}, Email: {email}")
+        
         record_tracking_event(
             campaign_id=campaign_id,
             recipient_id=recipient_id,
-            email=base64.b64decode(query_params.get('email', '')).decode('utf-8'),
+            email=email,
             event_type=EventType.OPEN.value,
             metadata=metadata
         )
