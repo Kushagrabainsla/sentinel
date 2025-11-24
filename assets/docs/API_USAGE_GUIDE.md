@@ -255,9 +255,63 @@ curl -X POST https://api.thesentinel.site/v1/campaigns \
   }'
 ```
 
+#### A/B Test Campaign
+Test multiple email variations to find the best performing content:
+
+```bash
+curl -X POST https://api.thesentinel.site/v1/campaigns \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -d '{
+    "name": "Product Launch A/B Test",
+    "type": "AB",
+    "delivery_type": "SEG",
+    "segment_id": "YOUR_SEGMENT_ID_HERE",
+    "from_email": "marketing@yourcompany.com",
+    "from_name": "Marketing Team",
+    "ab_test_config": {
+      "test_percentage": 30,
+      "decision_time": 3600
+    },
+    "variations": [
+      {
+        "id": "A",
+        "subject": "🚀 Introducing Our New Product",
+        "content": "<h1>Revolutionary New Product!</h1><p>Be the first to try it.</p>",
+        "html_body": "<h1>Revolutionary New Product!</h1><p>Be the first to try it.</p>",
+        "tone": "Exciting"
+      },
+      {
+        "id": "B",
+        "subject": "New Product Available Now",
+        "content": "<h1>Professional Solution</h1><p>Improve your workflow today.</p>",
+        "html_body": "<h1>Professional Solution</h1><p>Improve your workflow today.</p>",
+        "tone": "Professional"
+      },
+      {
+        "id": "C",
+        "subject": "You'll Love This New Product",
+        "content": "<h1>Hey There!</h1><p>Check out what we've built for you.</p>",
+        "html_body": "<h1>Hey There!</h1><p>Check out what we've built for you.</p>",
+        "tone": "Friendly"
+      }
+    ]
+  }'
+```
+
+**A/B Test Configuration:**
+- `test_percentage` - Percentage of recipients to use for testing (e.g., 30 = 30% split across 3 variations)
+- `decision_time` - Time in seconds before analyzing results and sending winner to remainder (e.g., 3600 = 1 hour)
+
+**How it works:**
+1. 30% of recipients receive variations A, B, and C (10% each)
+2. After 1 hour, the system analyzes opens and clicks
+3. The winning variation is automatically sent to the remaining 70%
+
 **Campaign Types:**
 - `"I"` - Immediate execution
 - `"S"` - Scheduled execution (requires `schedule_at` as Unix timestamp)
+- `"AB"` - A/B test campaign (requires `ab_test_config` and `variations`)
 
 **Delivery Types:**
 - `"IND"` - Individual email (requires `recipient_email`)
@@ -332,6 +386,12 @@ curl -H "X-API-Key: YOUR_API_KEY_HERE" \
   "https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events?from_epoch=1700000000&to_epoch=1700086400&limit=1000"
 ```
 
+#### Get Events for Specific A/B Test Variation
+```bash
+curl -H "X-API-Key: YOUR_API_KEY_HERE" \
+  "https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events?variation_id=A"
+```
+
 **Enhanced Response Example:**
 ```json
 {
@@ -401,6 +461,63 @@ curl -H "X-API-Key: YOUR_API_KEY_HERE" \
 - `from_epoch` - Unix timestamp to filter events from (optional)
 - `to_epoch` - Unix timestamp to filter events until (optional)
 - `limit` - Maximum number of events to return (default: 1000, max: 1000)
+- `variation_id` - Filter events by A/B test variation (A, B, or C) (optional)
+
+**Temporal Analytics:**
+The API provides time-based engagement analysis:
+
+```json
+"temporal_analytics": {
+  "hourly_engagement": {
+    "peak_hours": [9, 14, 18],
+    "engagement_by_hour": [
+      {"hour": 0, "opens": 5, "clicks": 2, "engagement_score": 7},
+      {"hour": 9, "opens": 45, "clicks": 23, "engagement_score": 68},
+      {"hour": 14, "opens": 38, "clicks": 19, "engagement_score": 57}
+    ]
+  },
+  "daily_patterns": {
+    "best_day": "Tuesday",
+    "engagement_by_day": [
+      {"day": "Monday", "opens": 120, "clicks": 45, "engagement_score": 165},
+      {"day": "Tuesday", "opens": 156, "clicks": 67, "engagement_score": 223}
+    ]
+  },
+  "response_times": {
+    "avg_time_to_open": 1847.5,
+    "avg_time_to_click": 2156.3
+  }
+}
+```
+
+**Engagement Metrics:**
+Advanced metrics for campaign performance:
+
+```json
+"engagement_metrics": {
+  "click_to_open_rate": 45.5,
+  "unique_engagement_rate": 32.8,
+  "engagement_quality_score": 78.2,
+  "bounce_rate": 2.1
+}
+```
+
+**Recipient Insights:**
+Detailed recipient segmentation:
+
+```json
+"recipient_insights": {
+  "unique_recipients": 1000,
+  "engagement_segments": {
+    "highly_engaged": {"count": 250, "percentage": 25.0},
+    "moderately_engaged": {"count": 450, "percentage": 45.0},
+    "low_engaged": {"count": 300, "percentage": 30.0}
+  },
+  "top_recipients": [
+    {"email": "user@example.com", "opens": 5, "clicks": 3}
+  ]
+}
+```
 
 **Distribution Data:**
 The API now provides ready-to-use analytics data for dashboard charts:
@@ -471,6 +588,18 @@ Monitor engagement by location/network:
   {"name": "10.0.0.1", "value": 12},
   {"name": "203.0.113.1", "value": 8},
   {"name": "Other", "value": 65}
+]
+```
+
+#### 5. Country Distribution
+Track engagement by country:
+```json
+"country_distribution": [
+  {"name": "United States", "value": 450},
+  {"name": "United Kingdom", "value": 180},
+  {"name": "Canada", "value": 95},
+  {"name": "Germany", "value": 67},
+  {"name": "Other", "value": 208}
 ]
 ```
 
