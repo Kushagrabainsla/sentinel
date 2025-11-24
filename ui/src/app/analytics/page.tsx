@@ -49,24 +49,23 @@ export default function AnalyticsPage() {
         if (!campaign || !summary) return;
 
         setIsGeneratingInsights(true);
-        try {
-            try {
-                const response = await api.post('/generate-insights', {
-                    campaign,
-                    stats: summary
-                });
 
-                const result = response.data;
-                if (result.report) {
-                    setAiReport(result.report);
-                    setIsDialogOpen(true);
-                }
-            } catch (error) {
-                console.error('Failed to generate insights:', error);
-            } finally {
-                setIsGeneratingInsights(false);
+        try {
+            const response = await api.post('/generate-insights', {
+                campaign,
+                stats: summary
+            });
+
+            const result = response.data;
+            if (result.report) {
+                setAiReport(result.report);
+                setIsDialogOpen(true);
             }
-        };
+        } catch (error) {
+            console.error('Failed to generate insights:', error);
+        } finally {
+            setIsGeneratingInsights(false);
+        }
 
         useEffect(() => {
             const fetchCampaigns = async () => {
@@ -294,3 +293,4 @@ export default function AnalyticsPage() {
             </div >
         );
     }
+}
