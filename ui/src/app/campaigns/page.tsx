@@ -46,7 +46,7 @@ export default function CampaignsPage() {
         if (activeTab === 'active') {
             return ['A'].includes(campaign.status);
         } else {
-            return ['deleted'].includes(campaign.status);
+            return ['deleted', 'D'].includes(campaign.status);
         }
     });
 
