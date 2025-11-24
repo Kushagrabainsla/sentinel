@@ -104,7 +104,11 @@ export function calculateEngagementMetrics(events: CampaignEvent[]): EngagementM
 
     events.forEach(event => {
         if (event.type === 'open' && event.email) uniqueOpens.add(event.email);
-        if (event.type === 'click' && event.email) uniqueClicks.add(event.email);
+        if (event.type === 'click' && event.email) {
+            uniqueClicks.add(event.email);
+            // Implied open: if they clicked, they must have opened
+            uniqueOpens.add(event.email);
+        }
         if (event.type === 'sent') totalSent++;
         if (event.type === 'bounce') bounces++;
     });
