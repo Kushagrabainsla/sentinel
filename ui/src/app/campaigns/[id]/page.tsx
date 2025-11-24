@@ -55,6 +55,10 @@ export default function CampaignDetailsPage() {
         );
     }
 
+    // Calculate recipient count from stats if not available in campaign
+    const recipientCount = campaign.recipient_count || stats?.unique_recipients || 0;
+    const isABTest = campaign.type === 'AB';
+
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
             <div className="flex items-center gap-4">
@@ -77,6 +81,12 @@ export default function CampaignDetailsPage() {
                         </span>
                         <span>•</span>
                         <span className="text-sm">ID: {campaign.id}</span>
+                        {isABTest && (
+                            <>
+                                <span>•</span>
+                                <span className="text-sm bg-purple-500/10 text-purple-500 px-2 py-0.5 rounded-full">A/B Test</span>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -89,7 +99,7 @@ export default function CampaignDetailsPage() {
                         </div>
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">Recipients</p>
-                            <h3 className="text-2xl font-bold">{campaign.recipient_count || 0}</h3>
+                            <h3 className="text-2xl font-bold">{recipientCount}</h3>
                         </div>
                     </div>
                 </div>
@@ -149,14 +159,14 @@ export default function CampaignDetailsPage() {
                         <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Opened</h3>
                         <MailOpen className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="text-2xl font-bold">{stats?.event_counts?.opened || 0}</div>
+                    <div className="text-2xl font-bold">{stats?.event_counts?.open || 0}</div>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                     <div className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Clicked</h3>
                         <MousePointerClick className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <div className="text-2xl font-bold">{stats?.event_counts?.clicked || 0}</div>
+                    <div className="text-2xl font-bold">{stats?.event_counts?.click || 0}</div>
                 </div>
             </div>
 
@@ -165,14 +175,35 @@ export default function CampaignDetailsPage() {
                     <h3 className="font-semibold">Email Content Preview</h3>
                 </div>
                 <div className="p-6 bg-white text-black min-h-[300px]">
-                    {/* Warning: This is a simplified preview. In a real app, use a proper HTML sanitizer/renderer */}
-                    <div className="prose max-w-none">
-                        <p className="text-gray-500 italic text-sm mb-4">
-                            Subject: {campaign.email_subject}
-                        </p>
-                        <hr className="my-4" />
-                        <div className="mt-4" dangerouslySetInnerHTML={{ __html: campaign.email_body }} />
-                    </div>
+                    {isABTest && campaign.variations && campaign.variations.length > 0 ? (
+                        <div className="space-y-6">
+                            {campaign.variations.map((variation, index) => (
+                                <div key={variation.id} className="border-b border-gray-200 last:border-0 pb-6 last:pb-0">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                                            Variation {variation.id}
+                                        </span>
+                                        <span className="text-sm text-gray-500">({variation.tone} tone)</span>
+                                    </div>
+                                    <div className="prose max-w-none">
+                                        <p className="text-gray-500 italic text-sm mb-4">
+                                            Subject: {variation.subject}
+                                        </p>
+                                        <hr className="my-4" />
+                                        <div className="mt-4" dangerouslySetInnerHTML={{ __html: variation.html_body }} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="prose max-w-none">
+                            <p className="text-gray-500 italic text-sm mb-4">
+                                Subject: {campaign.email_subject}
+                            </p>
+                            <hr className="my-4" />
+                            <div className="mt-4" dangerouslySetInnerHTML={{ __html: campaign.email_body }} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
