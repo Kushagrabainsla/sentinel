@@ -1,0 +1,59 @@
+service: ai-features
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    GEMINI_API_KEY: ${env:GEMINI_API_KEY}
+    DYNAMODB_CAMPAIGNS_TABLE: ${env:DYNAMODB_CAMPAIGNS_TABLE}
+    DYNAMODB_EVENTS_TABLE: ${env:DYNAMODB_EVENTS_TABLE}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_CAMPAIGNS_TABLE}
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_EVENTS_TABLE}
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_CAMPAIGNS_TABLE}/index/*
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_EVENTS_TABLE}/index/*
+
+functions:
+  generate_email:
+    handler: generate_email/handler.lambda_handler
+    timeout: 30
+    memorySize: 512
+    events:
+      - httpApi:
+          path: /v1/ai/generate-email
+          method: post
+          authorizer:
+            name: sentinelAuthorizer
+            type: request
+            identitySource: $request.header.X-API-Key
+
+  campaign_insights:
+    handler: campaign_insights/handler.lambda_handler
+    timeout: 30
+    memorySize: 512
+    events:
+      - httpApi:
+          path: /v1/ai/campaigns/{id}/insights
+          method: post
+          authorizer:
+            name: sentinelAuthorizer
+            type: request
+            identitySource: $request.header.X-API-Key
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+    layer: true
