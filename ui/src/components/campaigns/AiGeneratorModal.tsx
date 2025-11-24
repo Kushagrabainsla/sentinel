@@ -92,7 +92,14 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
 
         if (!finalGoal || finalAudiences.length === 0) return;
 
-        console.log('🔗 Links in modal state before generation:', links);
+        // Auto-add pending link if user forgot to click add
+        let finalLinks = [...links];
+        if (newLinkUrl && newLinkText) {
+            console.log('⚠️ User forgot to click add link, auto-adding:', { url: newLinkUrl, text: newLinkText });
+            finalLinks.push({ url: newLinkUrl, text: newLinkText });
+        }
+
+        console.log('🔗 Links in modal state before generation:', finalLinks);
 
         setIsGenerating(true);
 
@@ -103,10 +110,13 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
                 finalGoal,
                 audiences: finalAudiences,
                 keyPoints,
-                links
+                links: finalLinks
             });
             onGenerate(data.subject, data.content, data.variations);
             setIsOpen(false);
+            // Reset pending link fields
+            setNewLinkUrl('');
+            setNewLinkText('');
         } catch (error) {
             console.error('Generation error:', error);
             // You might want to add a toast error here
