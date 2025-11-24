@@ -549,13 +549,23 @@ def delete_campaign(event):
         return _response(500, {"error": f"Failed to delete campaign: {str(e)}"})
 
 def calculate_unique_opens(events):
-    """Calculate unique opens from events"""
+    """Calculate unique opens from events (including implied opens from clicks)"""
     unique_opens = set()
+    unique_clicks = set()
+    
     for event in events:
+        email = event.get('email')
+        if not email:
+            continue
+            
         if event.get('type') == EventType.OPEN.value:
-            email = event.get('email')
-            if email:
-                unique_opens.add(email)
+            unique_opens.add(email)
+        elif event.get('type') == EventType.CLICK.value:
+            unique_clicks.add(email)
+            
+    # If a user clicked, they must have opened. Add them to opens.
+    unique_opens.update(unique_clicks)
+    
     return len(unique_opens)
 
 def calculate_unique_clicks(events):
@@ -804,7 +814,7 @@ def get_campaign_events(event):
                     "from_epoch": from_epoch,
                     "to_epoch": to_epoch
                 },
-                'unique_opens': calculate_unique_opens(events),
+                'unique_opens': unique_opens_count,
                 'unique_clicks': calculate_unique_clicks(events),
                 'unique_recipients': calculate_unique_recipients(events),
                 'top_clicked_links': calculate_top_clicked_links(events),
