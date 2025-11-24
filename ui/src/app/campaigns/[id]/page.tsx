@@ -178,7 +178,7 @@ export default function CampaignDetailsPage() {
                     {isABTest && campaign.variations && campaign.variations.length > 0 ? (
                         <div className="space-y-6">
                             {campaign.variations.map((variation, index) => (
-                                <div key={variation.id} className="border-b border-gray-200 last:border-0 pb-6 last:pb-0">
+                                <div key={`variation-${index}`} className="border-b border-gray-200 last:border-0 pb-6 last:pb-0">
                                     <div className="flex items-center gap-2 mb-3">
                                         <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-purple-100 text-purple-700">
                                             Variation {variation.id}
@@ -190,7 +190,7 @@ export default function CampaignDetailsPage() {
                                             Subject: {variation.subject}
                                         </p>
                                         <hr className="my-4" />
-                                        <div className="mt-4" dangerouslySetInnerHTML={{ __html: variation.html_body }} />
+                                        <div className="mt-4" dangerouslySetInnerHTML={{ __html: variation.html_body || variation.content }} />
                                     </div>
                                 </div>
                             ))}

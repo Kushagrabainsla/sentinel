@@ -568,6 +568,15 @@ def calculate_unique_clicks(events):
                 unique_clicks.add(email)
     return len(unique_clicks)
 
+def calculate_unique_recipients(events):
+    """Calculate unique recipients from all events"""
+    unique_recipients = set()
+    for event in events:
+        email = event.get('email')
+        if email:
+            unique_recipients.add(email)
+    return len(unique_recipients)
+
 def calculate_top_clicked_links(events, top_n=5):
     """Calculate top clicked links from events"""
     link_counts = {}
@@ -795,6 +804,7 @@ def get_campaign_events(event):
                 },
                 'unique_opens': calculate_unique_opens(events),
                 'unique_clicks': calculate_unique_clicks(events),
+                'unique_recipients': calculate_unique_recipients(events),
                 'top_clicked_links': calculate_top_clicked_links(events),
                 'avg_time_to_open': calculate_avg_time_to_open(events),
                 'avg_time_to_click': calculate_avg_time_to_click(events)
