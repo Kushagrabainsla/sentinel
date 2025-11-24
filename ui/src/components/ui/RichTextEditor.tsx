@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -120,6 +120,13 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
                     title="Underline"
                 >
                     <UnderlineIcon className="h-4 w-4" />
+                </ToolbarButton>
+                <ToolbarButton
+                    onClick={setLink}
+                    isActive={editor.isActive('link')}
+                    title="Link"
+                >
+                    <LinkIcon className="h-4 w-4" />
                 </ToolbarButton>
 
                 <div className="w-px h-6 bg-border mx-1" />

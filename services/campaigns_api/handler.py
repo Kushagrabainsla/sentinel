@@ -368,7 +368,6 @@ def create_campaign(event):
                 "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else None,
                 "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT.value else None,
                 "schedule_at": schedule_at,
-                "execution_path": "immediate",
                 "triggered": immediate_triggered
             }
             
@@ -391,7 +390,6 @@ def create_campaign(event):
                 "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else None,
                 "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT.value else None,
                 "schedule_at": schedule_at,
-                "execution_path": CampaignDeliveryType.SCHEDULED.value,
                 "auto_scheduler": scheduler_created
             }
             

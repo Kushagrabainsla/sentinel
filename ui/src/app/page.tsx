@@ -77,7 +77,7 @@ export default function LandingPage() {
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-2 font-display font-bold text-xl">
-          <img src="/images/sentinel-logo.svg" alt="Sentinel Logo" className="h-8 w-auto" />
+          <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-8 w-auto" />
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6B11F4] to-violet-400">Sentinel</span>
         </div>
         <nav className="flex items-center gap-4">
@@ -237,7 +237,7 @@ export default function LandingPage() {
       <footer className="py-12 px-6 border-t border-white/10 bg-black/80 backdrop-blur-lg">
         <div className="container mx-auto max-w-7xl flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 font-display font-bold text-xl text-gray-400">
-            <img src="/images/sentinel-logo.svg" alt="Sentinel Logo" className="h-6 w-auto grayscale opacity-50" />
+            <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-6 w-auto grayscale opacity-50" />
             Sentinel
           </div>
           <div className="text-sm text-gray-500">

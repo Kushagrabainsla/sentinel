@@ -14,7 +14,7 @@
 
 ## 🏗️ Architecture
 
-![Sentinel System Architecture](/assets/images/sentinel-architecture-diagram.png)
+![Sentinel System Architecture](/assets/images/sentinel-architecture-diagram.png?q=1)
 
 *Serverless architecture using AWS Lambda, API Gateway, DynamoDB, and SES*
 

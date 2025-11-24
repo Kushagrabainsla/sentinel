@@ -4,6 +4,14 @@ Common utilities and enums for Sentinel services
 
 This module contains all shared utility functions and enum definitions used across
 different services in the Sentinel email marketing platform.
+
+**Deployment Note:**  
+This file is copied into all Lambda functions as a shared utility module during deployment.
+It is intended to be self-contained and should NOT import or depend on any external libraries
+that are not part of the AWS Lambda Python runtime.  
+Adding external dependencies here will break Lambda deployments that do not have a
+requirements.txt for those libraries.
+
 Consolidated into a single file for simplified deployment.
 """
 

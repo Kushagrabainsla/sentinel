@@ -54,7 +54,7 @@ export default function LoginPage() {
             <div className="w-full max-w-md space-y-8">
                 <div className="text-center space-y-2">
                     <div className="flex justify-center mb-4">
-                        <img src="/images/sentinel-logo.svg" alt="Sentinel Logo" className="h-12 w-auto" />
+                        <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-12 w-auto" />
                     </div>
                     <h1 className="text-4xl font-display font-bold tracking-tight text-foreground">
                         Sentinel
