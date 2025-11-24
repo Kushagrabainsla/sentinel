@@ -32,6 +32,19 @@ resource "aws_lambda_function" "generate_email" {
     }
 }
 
+resource "aws_lambda_function" "generate_insights" {
+    function_name    = "${var.name}-generate-insights"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = "${path.module}/.artifacts/generate_insights.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/generate_insights.zip")
+    timeout          = 60
+    environment {
+        variables = {}
+    }
+}
+
 
 resource "aws_lambda_function" "start_campaign" {
     function_name    = "${var.name}-start-campaign"
@@ -175,3 +188,4 @@ output "authorizer_arn"       { value = aws_lambda_function.authorizer.invoke_ar
 output "auth_api_arn"         { value = aws_lambda_function.auth_api.arn }
 output "campaigns_api_arn"    { value = aws_lambda_function.campaigns_api.arn }
 output "generate_email_arn"   { value = aws_lambda_function.generate_email.arn }
+output "generate_insights_arn" { value = aws_lambda_function.generate_insights.arn }
