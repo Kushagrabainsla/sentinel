@@ -77,8 +77,10 @@ export interface ABTestConfig {
 }
 
 export interface CampaignVariation {
+    id: string;  // A, B, or C
     subject: string;
     content: string;
+    html_body: string;
     tone?: string;
 }
 
@@ -163,6 +165,7 @@ export interface CampaignEventsResponse {
         };
         unique_opens: number;
         unique_clicks: number;
+        unique_recipients?: number;
         top_clicked_links?: any[];
         avg_time_to_open: number | null;
         avg_time_to_click: number | null;
