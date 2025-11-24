@@ -54,7 +54,10 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
 
     const handleAddLink = () => {
         if (newLinkUrl && newLinkText) {
-            setLinks([...links, { url: newLinkUrl, text: newLinkText }]);
+            const newLinks = [...links, { url: newLinkUrl, text: newLinkText }];
+            console.log('➕ Adding link:', { url: newLinkUrl, text: newLinkText });
+            console.log('📋 Updated links array:', newLinks);
+            setLinks(newLinks);
             setNewLinkUrl('');
             setNewLinkText('');
         }
@@ -88,6 +91,8 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
         if (customAudience) finalAudiences.push(customAudience);
 
         if (!finalGoal || finalAudiences.length === 0) return;
+
+        console.log('🔗 Links in modal state before generation:', links);
 
         setIsGenerating(true);
 
