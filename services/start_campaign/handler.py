@@ -6,7 +6,10 @@ import boto3
 from botocore.exceptions import ClientError
 
 # Import common utilities and enums
-from common import CampaignState, CampaignStatus, CampaignDeliveryType, SegmentStatus
+# Import common utilities and enums
+from common import CampaignState, CampaignStatus, CampaignDeliveryType, SegmentStatus, CampaignType
+import random
+from datetime import datetime, timezone
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -130,19 +133,31 @@ def record_segment_campaign(campaign_id, segment_id, recipient_emails):
     except Exception as e:
         print(f"❌ Failed to record segment campaign: {e}")
 
-def update_campaign_state(campaign_id, state):
+def update_campaign_state(campaign_id, state, recipient_count=None, sent_count=None):
     table_name = os.environ.get("DYNAMODB_CAMPAIGNS_TABLE")
     if not table_name:
         raise RuntimeError("DYNAMODB_CAMPAIGNS_TABLE env var not set")
     table = _get_dynamo().Table(table_name)
+    
+    update_expr = 'SET #s = :s, updated_at = :updated_at'
+    expr_values = {
+        ':s': state,
+        ':updated_at': int(time.time())
+    }
+    
+    if recipient_count is not None:
+        update_expr += ', recipient_count = :rc'
+        expr_values[':rc'] = recipient_count
+        
+    if sent_count is not None:
+        update_expr += ', sent_count = :sc'
+        expr_values[':sc'] = sent_count
+
     table.update_item(
         Key={'id': str(campaign_id)},
-        UpdateExpression='SET #s = :s, updated_at = :updated_at',
+        UpdateExpression=update_expr,
         ExpressionAttributeNames={'#s': 'state'},
-        ExpressionAttributeValues={
-            ':s': state,
-            ':updated_at': int(time.time())
-        }
+        ExpressionAttributeValues=expr_values
     )
 
 def fetch_campaign_details(campaign_id):
@@ -183,6 +198,50 @@ sqs = boto3.client("sqs")
 def _chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i+n]
+
+def create_ab_test_scheduler(campaign_id, decision_time):
+    """Create EventBridge Scheduler rule for A/B test analysis"""
+    scheduler = boto3.client("scheduler")
+    analyzer_lambda_arn = os.environ.get("AB_TEST_ANALYZER_LAMBDA_ARN")
+    scheduler_role_arn = os.environ.get("EVENTBRIDGE_ROLE_ARN")
+    
+    if not analyzer_lambda_arn or not scheduler_role_arn:
+        print(f"Missing scheduler config: lambda_arn={analyzer_lambda_arn}, role_arn={scheduler_role_arn}")
+        return False
+    
+    try:
+        # Convert epoch timestamp to datetime (handle Decimal from DynamoDB)
+        # Force conversion to float first to handle Decimal safely, then to int
+        decision_time_int = int(float(decision_time))
+        schedule_dt = datetime.fromtimestamp(decision_time_int, timezone.utc)
+        
+        # Only create scheduler if it's in the future
+        if schedule_dt <= datetime.now(timezone.utc):
+            print(f"Decision time {decision_time} is in the past, skipping scheduler")
+            return False
+        
+        # Create one-time schedule
+        schedule_name = f"analyze-ab-test-{campaign_id}"
+        
+        scheduler.create_schedule(
+            Name=schedule_name,
+            Description=f"Analyze A/B test for campaign {campaign_id}",
+            ScheduleExpression=f"at({schedule_dt.strftime('%Y-%m-%dT%H:%M:%S')})",
+            Target={
+                "Arn": analyzer_lambda_arn,
+                "RoleArn": scheduler_role_arn,
+                "Input": json.dumps({"campaign_id": campaign_id})
+            },
+            FlexibleTimeWindow={"Mode": "OFF"},
+            ActionAfterCompletion="DELETE"
+        )
+        
+        print(f"✅ Created A/B test analyzer scheduler: {schedule_name} for {decision_time}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to create analyzer scheduler: {e}")
+        return False
 
 def lambda_handler(event, _context):
     """
@@ -227,8 +286,96 @@ def lambda_handler(event, _context):
         recipient_emails = [c.get('email') for c in contacts if c.get('email')]
         record_segment_campaign(campaign_id, segment_id, recipient_emails)
     
+    # Check for A/B Test
+    campaign_type = campaign.get('type')
+    
+    if campaign_type == CampaignType.AB_TEST.value:
+        print(f"🧪 Processing A/B Test for campaign {campaign_id}")
+        ab_config = campaign.get('ab_test_config', {})
+        variations = campaign.get('variations', [])
+        
+        if not ab_config or len(variations) != 3:
+            print("❌ Invalid A/B test config or variations")
+            update_campaign_state(campaign_id, CampaignState.FAILED.value)
+            return {"statusCode": 400, "body": json.dumps({"error": "Invalid A/B test config"})}
+            
+        test_percentage = float(ab_config.get('test_percentage', 10))
+        decision_time = ab_config.get('decision_time') # Epoch timestamp
+        
+        # Shuffle contacts
+        random.shuffle(contacts)
+        
+        total_contacts = len(contacts)
+        # Calculate test group size (per variation)
+        # If test_percentage is 30%, then 30% of TOTAL users are tested.
+        # So each variation gets 10%.
+        test_group_size = int(total_contacts * (test_percentage / 100) / 3)
+        
+        # Ensure at least 1 user per group if possible
+        if test_group_size < 1 and total_contacts >= 3:
+            test_group_size = 1
+            
+        print(f"📊 A/B Split: Total={total_contacts}, Test%={test_percentage}, GroupSize={test_group_size}")
+        
+        group_a = contacts[:test_group_size]
+        group_b = contacts[test_group_size:test_group_size*2]
+        group_c = contacts[test_group_size*2:test_group_size*3]
+        remainder = contacts[test_group_size*3:]
+        
+        groups = [
+            (group_a, variations[0], "A"),
+            (group_b, variations[1], "B"),
+            (group_c, variations[2], "C")
+        ]
+        
+        enqueued_count = 0
+        
+        for group_contacts, variation, var_id in groups:
+            print(f"📤 Sending Variation {var_id} to {len(group_contacts)} recipients")
+            
+            for batch in _chunks(group_contacts, 10):
+                entries = []
+                for c in batch:
+                    message_body = {
+                        "campaign_id": campaign_id,
+                        "recipient_id": c["id"],
+                        "email": c["email"],
+                        "variation_id": var_id, # Pass variation ID
+                        "template_data": {
+                            "subject": variation.get("subject"),
+                            "html_body": variation.get("content"), # Assuming 'content' key from generate_email
+                            "from_email": campaign.get("from_email", "noreply@thesentinel.site"),
+                            "from_name": campaign.get("from_name", "Sentinel")
+                        }
+                    }
+                    
+                    entries.append({
+                        "Id": str(c["id"]),
+                        "MessageBody": json.dumps(message_body),
+                    })
+                
+                if entries:
+                    sqs.send_message_batch(QueueUrl=SQS_URL, Entries=entries)
+                    enqueued_count += len(entries)
+
+        # Schedule the analyzer
+        if decision_time:
+            create_ab_test_scheduler(campaign_id, decision_time)
+            
+        # Mark as SENDING (or PARTIAL?)
+        # We'll keep it as SENDING until the analyzer runs and finishes the job
+        update_campaign_state(campaign_id, CampaignState.SENDING.value, recipient_count=enqueued_count, sent_count=enqueued_count)
+        
+        return {"statusCode": 200, "body": json.dumps({
+            "campaign_id": campaign_id,
+            "enqueued": enqueued_count,
+            "message": f"Started A/B test with {enqueued_count} recipients. Remainder: {len(remainder)}"
+        })}
+
+    # Standard Campaign Logic
     # Fan out to SQS in batches of up to 10 messages
     for batch in _chunks(contacts, 10):
+        # ... (sqs sending logic)
         entries = []
         for c in batch:
             message_body = {
@@ -252,7 +399,7 @@ def lambda_handler(event, _context):
         sqs.send_message_batch(QueueUrl=SQS_URL, Entries=entries)
 
     # Mark campaign as "sending"
-    update_campaign_state(campaign_id, CampaignState.SENDING.value)
+    update_campaign_state(campaign_id, CampaignState.SENDING.value, recipient_count=len(contacts), sent_count=len(contacts))
 
     delivery_type = campaign.get('delivery_type', CampaignDeliveryType.SEGMENT.value)
     response_data = {

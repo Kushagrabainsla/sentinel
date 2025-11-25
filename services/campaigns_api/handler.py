@@ -118,7 +118,8 @@ def get_campaign(event):
         return _response(500, {"error": f"Failed to get campaign: {str(e)}"})
 
 def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_type=None, recipient_email=None, 
-                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None):
+                   schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None,
+                   ab_test_config=None, variations=None):
     """Create a campaign item and return its id (string UUID)."""
     
     campaigns_table = get_campaigns_table()
@@ -149,8 +150,13 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
     elif campaign_type == CampaignType.IMMEDIATE.value:
         if schedule_at:
             raise ValueError("schedule_at should not be provided for immediate campaigns")
+    elif campaign_type == CampaignType.AB_TEST.value:
+        if not ab_test_config:
+            raise ValueError("ab_test_config is required for A/B test campaigns")
+        if not variations or len(variations) != 3:
+            raise ValueError("Exactly 3 variations are required for A/B test campaigns")
     else:
-        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE.value}' or '{CampaignType.SCHEDULED.value}'")
+        raise ValueError(f"Invalid campaign_type: {campaign_type}. Must be '{CampaignType.IMMEDIATE.value}', '{CampaignType.SCHEDULED.value}' or '{CampaignType.AB_TEST.value}'")
     
     item = {
         "id": campaign_id,
@@ -170,7 +176,9 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
         "status": CampaignStatus.ACTIVE.value,
         "owner_id": owner_id,
         "tags": [],  # For categorization and filtering
-        "metadata": {}  # For additional custom fields
+        "metadata": {},  # For additional custom fields
+        "ab_test_config": ab_test_config,
+        "variations": variations
     }
     
     try:
@@ -276,15 +284,19 @@ def create_campaign(event):
         from_email = body.get("from_email")
         from_name = body.get("from_name")
         
+        # A/B Test specific fields
+        ab_test_config = body.get("ab_test_config")
+        variations = body.get("variations")
+        
         # Validate required fields
         if not name:
             return _response(400, {"error": "name is required"})
         
         if not campaign_type:
-            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE.value} for immediate, {CampaignType.SCHEDULED.value} for scheduled)"})
+            return _response(400, {"error": f"type is required ({CampaignType.IMMEDIATE.value}, {CampaignType.SCHEDULED.value}, or {CampaignType.AB_TEST.value})"})
         
-        if not (subject and html_body):
-            return _response(400, {"error": "subject and html_body are required"})
+        if campaign_type != CampaignType.AB_TEST.value and not (subject and html_body):
+            return _response(400, {"error": "subject and html_body are required for standard campaigns"})
         
         # Validate delivery type and corresponding fields
         if not delivery_type:
@@ -352,7 +364,9 @@ def create_campaign(event):
             html_body=html_body,
             from_email=from_email,
             from_name=from_name,
-            owner_id=user['id']
+            owner_id=user['id'],
+            ab_test_config=ab_test_config,
+            variations=variations
         )
         
         # Dual-path approach based on campaign type:
@@ -400,6 +414,31 @@ def create_campaign(event):
                     response_data["temporary_segment"] = True
                 else:
                     response_data["temporary_segment"] = False
+        elif campaign_type == CampaignType.AB_TEST.value:
+            print(f"🧪 A/B Test execution path for campaign {campaign_id}")
+            # For A/B tests, we trigger immediate execution (Phase A)
+            # The send_worker will handle the split logic
+            immediate_triggered = trigger_immediate_campaign(campaign_id)
+            
+            # We also need to schedule the decision phase (Phase C)
+            # But we'll let the send_worker handle creating that scheduler rule 
+            # to ensure it only happens if the initial send is successful
+            
+            response_data = {
+                "campaign_id": campaign_id,
+                "state": CampaignState.PENDING.value,
+                "type": campaign_type,
+                "delivery_type": delivery_type,
+                "segment_id": final_segment_id,
+                "ab_test_config": ab_test_config,
+                "triggered": immediate_triggered
+            }
+            
+            if emails:
+                response_data["recipient_count"] = len(set(emails))
+                response_data["temporary_segment"] = True
+            else:
+                response_data["temporary_segment"] = False
         else:
             return _response(400, {"error": "Invalid campaign type"})
         
@@ -510,86 +549,139 @@ def delete_campaign(event):
         return _response(500, {"error": f"Failed to delete campaign: {str(e)}"})
 
 def calculate_unique_opens(events):
-    """Calculate unique opens from events"""
-    unique_opens = set()
-    for event in events:
-        if event.get('type') == EventType.OPEN.value:
+    """Calculate unique opens from events (including implied opens from clicks)"""
+    try:
+        unique_opens = set()
+        unique_clicks = set()
+        
+        for event in events:
             email = event.get('email')
-            if email:
+            if not email:
+                continue
+                
+            if event.get('type') == EventType.OPEN.value:
                 unique_opens.add(email)
-    return len(unique_opens)
+            elif event.get('type') == EventType.CLICK.value:
+                unique_clicks.add(email)
+                
+        # If a user clicked, they must have opened. Add them to opens.
+        unique_opens.update(unique_clicks)
+        
+        return len(unique_opens)
+    except Exception as e:
+        print(f"Error calculating unique opens: {e}")
+        return 0
 
 def calculate_unique_clicks(events):
     """Calculate unique clicks from events"""
-    unique_clicks = set()
-    for event in events:
-        if event.get('type') == EventType.CLICK.value:
+    try:
+        unique_clicks = set()
+        for event in events:
+            if event.get('type') == EventType.CLICK.value:
+                email = event.get('email')
+                if email:
+                    unique_clicks.add(email)
+        return len(unique_clicks)
+    except Exception as e:
+        print(f"Error calculating unique clicks: {e}")
+        return 0
+
+def calculate_unique_recipients(events):
+    """Calculate unique recipients from all events"""
+    try:
+        unique_recipients = set()
+        for event in events:
             email = event.get('email')
             if email:
-                unique_clicks.add(email)
-    return len(unique_clicks)
+                unique_recipients.add(email)
+        return len(unique_recipients)
+    except Exception as e:
+        print(f"Error calculating unique recipients: {e}")
+        return 0
 
 def calculate_top_clicked_links(events, top_n=5):
     """Calculate top clicked links from events"""
-    link_counts = {}
-    for event in events:
-        if event.get('type') == EventType.CLICK.value:
-            raw_data = event.get('raw')
-            raw_data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
-            link_id = raw_data.get('link_id')
-            if link_id:
-                link_counts[link_id] = link_counts.get(link_id, 0) + 1
-    # Sort links by count and return top N
+    try:
+        link_counts = {}
+        for event in events:
+            if event.get('type') == EventType.CLICK.value:
+                raw_data = event.get('raw')
+                if not raw_data:
+                    continue
+                    
+                raw_data = raw_data if isinstance(raw_data, dict) else json.loads(raw_data)
+                link_id = raw_data.get('link_id')
+                if link_id:
+                    link_counts[link_id] = link_counts.get(link_id, 0) + 1
+        
+        # Sort links by count and return top N
+        sorted_links = sorted(link_counts.items(), key=lambda x: x[1], reverse=True)
+        return [{"url": link, "clicks": count} for link, count in sorted_links[:top_n]]
+    except Exception as e:
+        print(f"Error calculating top clicked links: {e}")
+        return []
     sorted_links = sorted(link_counts.items(), key=lambda x: x[1], reverse=True)
     return [{"link_id": url, "click_count": count} for url, count in sorted_links[:top_n]]
 
 def calculate_avg_time_to_open(events):
     """Calculate average time-to-open from sent to open events"""
-    sent_times = {}
-    open_times = []
-    
-    for event in events:
-        if event.get('type') == EventType.SENT.value:
-            email = event.get('email')
-            sent_times[email] = event.get('created_at')
-        elif event.get('type') == EventType.OPEN.value:
-            email = event.get('email')
-            if email in sent_times:
-                time_diff = event.get('created_at') - sent_times[email]
-                open_times.append(time_diff)
-    
-    if not open_times:
+    try:
+        # First pass: collect all sent times
+        sent_times = {
+            e.get('email'): e.get('created_at') 
+            for e in events 
+            if e.get('type') == EventType.SENT.value and e.get('email') and e.get('created_at') is not None
+        }
+        
+        open_times = []
+        
+        for event in events:
+            if event.get('type') == EventType.OPEN.value:
+                email = event.get('email')
+                created_at = event.get('created_at')
+                if email and email in sent_times and created_at is not None:
+                    # Ensure we don't get negative times due to clock skew
+                    time_diff = max(0, created_at - sent_times[email])
+                    open_times.append(time_diff)
+        
+        if not open_times:
+            return None
+        
+        average_time = sum(open_times) / len(open_times)
+        return round(average_time, 2)
+    except Exception as e:
+        print(f"Error calculating avg time to open: {e}")
         return None
-    
-    print(f"Open times: {open_times}")
-    print(f'Sent times: {sent_times}')
-    
-    average_time = sum(open_times) / len(open_times)
-    return round(average_time, 2)
 
 def calculate_avg_time_to_click(events):
     """Calculate average time-to-click from sent to click events"""
-    sent_times = {}
-    click_times = []
-    
-    for event in events:
-        if event.get('type') == EventType.SENT.value:
-            email = event.get('email')
-            sent_times[email] = event.get('created_at')
-        elif event.get('type') == EventType.CLICK.value:
-            email = event.get('email')
-            if email in sent_times:
-                time_diff = event.get('created_at') - sent_times[email]
-                click_times.append(time_diff)
-    
-    if not click_times:
+    try:
+        # First pass: collect all sent times
+        sent_times = {
+            e.get('email'): e.get('created_at') 
+            for e in events 
+            if e.get('type') == EventType.SENT.value and e.get('email') and e.get('created_at') is not None
+        }
+        
+        click_times = []
+        
+        for event in events:
+            if event.get('type') == EventType.CLICK.value:
+                email = event.get('email')
+                created_at = event.get('created_at')
+                if email and email in sent_times and created_at is not None:
+                    # Ensure we don't get negative times due to clock skew
+                    time_diff = max(0, created_at - sent_times[email])
+                    click_times.append(time_diff)
+        
+        if not click_times:
+            return None
+        
+        average_time = sum(click_times) / len(click_times)
+        return round(average_time, 2)
+    except Exception as e:
+        print(f"Error calculating avg time to click: {e}")
         return None
-    
-    print(f"Click times: {click_times}")
-    print(f'Sent times: {sent_times}')
-    
-    average_time = sum(click_times) / len(click_times)
-    return round(average_time, 2)
 
 def get_campaign_events(event):
     """Get analytics/events for a specific campaign with time range filtering and distribution data"""
@@ -616,6 +708,7 @@ def get_campaign_events(event):
         from_epoch = query_params.get('from_epoch')
         to_epoch = query_params.get('to_epoch')
         country_code = query_params.get('country_code')
+        variation_id = query_params.get('variation_id')  # A/B test variation filter
         
         # Build query parameters for DynamoDB
         query_kwargs = {
@@ -658,6 +751,27 @@ def get_campaign_events(event):
         
         events_response = events_table.query(**query_kwargs)
         events = convert_decimals(events_response.get('Items', []))
+        
+        # Filter by variation_id in Python if specified (more reliable than DynamoDB contains)
+        if variation_id:
+            filtered_events = []
+            for event in events:
+                raw_data = event.get('raw', '{}')
+                try:
+                    # Parse the raw JSON string
+                    if isinstance(raw_data, str):
+                        metadata = json.loads(raw_data)
+                    else:
+                        metadata = raw_data
+                    
+                    # Check if variation_id matches
+                    if metadata.get('variation_id') == variation_id:
+                        filtered_events.append(event)
+                except (json.JSONDecodeError, AttributeError):
+                    # Skip events with invalid JSON
+                    continue
+            
+            events = filtered_events
         
         # Calculate summary statistics
         event_counts = {}
@@ -719,6 +833,13 @@ def get_campaign_events(event):
             })
 
 
+        # Calculate unique recipients and opens
+        unique_recipients = calculate_unique_recipients(events)
+        unique_opens_count = calculate_unique_opens(events)
+        
+        # Ensure total opens is at least equal to unique opens (handling implied opens)
+        event_counts['open'] = max(event_counts.get('open', 0), unique_opens_count)
+
         return _response(200, {
             "events": events,
             "summary": {
@@ -731,8 +852,9 @@ def get_campaign_events(event):
                     "from_epoch": from_epoch,
                     "to_epoch": to_epoch
                 },
-                'unique_opens': calculate_unique_opens(events),
+                'unique_opens': unique_opens_count,
                 'unique_clicks': calculate_unique_clicks(events),
+                'unique_recipients': calculate_unique_recipients(events),
                 'top_clicked_links': calculate_top_clicked_links(events),
                 'avg_time_to_open': calculate_avg_time_to_open(events),
                 'avg_time_to_click': calculate_avg_time_to_click(events)

@@ -89,3 +89,5 @@ credentials.json
 scratch/
 local_scripts/
 notes.txt
+Cloudwatch logs/
+*.csv

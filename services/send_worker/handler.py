@@ -139,7 +139,9 @@ def lambda_handler(event, _context):
         body = json.loads(rec["body"])
         campaign_id = body["campaign_id"]
         recipient_id = body["recipient_id"]
+        recipient_id = body["recipient_id"]
         email = body["email"]
+        variation_id = body.get("variation_id")
 
         try:
             # Get template data from the message
@@ -159,7 +161,8 @@ def lambda_handler(event, _context):
                 campaign_id=campaign_id, 
                 recipient_id=recipient_id, 
                 email=email,
-                cta_links=cta_links
+                cta_links=cta_links,
+                variation_id=variation_id
             )
             
             # Replace original CTA links with tracking links in HTML
