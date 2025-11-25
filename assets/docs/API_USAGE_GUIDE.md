@@ -152,6 +152,172 @@ curl -X POST https://api.thesentinel.site/v1/auth/update \
 
 **Note:** This endpoint is powered by a Python Lambda using Google Gemini AI. The API key is securely managed via AWS Secrets Manager.
 
+---
+
+## 🧪 A/B Testing for Email Campaigns
+
+A/B testing allows you to test multiple email variations (A, B, C) to determine which performs best. The system automatically tracks performance metrics and can select a winner based on engagement.
+
+### Create an A/B Test Campaign
+
+#### Step 1: Generate Email Variations
+
+Generate 3 email variations with different tones using AI:
+
+```bash
+curl -X POST https://api.thesentinel.site/v1/generate-email \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-API-Key: YOUR_API_KEY_HERE\" \\\n  -d '{\n    \"tone\": \"Professional,Friendly,Persuasive\",\n    \"finalGoal\": \"Promote new product launch\",\n    \"audiences\": [\"Customers\", \"Prospects\"],\n    \"keyPoints\": \"New features\\nLimited time offer\\nFree trial available\",\n    \"links\": [{\"url\": \"https://product.example.com\", \"text\": \"Learn More\"}]\n  }'
+```
+
+**Response:**
+```json
+[
+  {
+    \"subject\": \"Introducing Our Latest Innovation\",
+    \"content\": \"<h2>Professional tone email...</h2>\"
+  },
+  {
+    \"subject\": \"Check Out What We've Built for You!\",
+    \"content\": \"<h2>Friendly tone email...</h2>\"
+  },
+  {
+    \"subject\": \"Don't Miss This Limited Opportunity\",
+    \"content\": \"<h2>Persuasive tone email...</h2>\"
+  }
+]
+```
+
+**Note:** When `tone` contains comma-separated values, the API generates multiple variations (up to 3).
+
+#### Step 2: Create A/B Test Campaign
+
+```bash
+curl -X POST https://api.thesentinel.site/v1/campaigns \\\n  -H \"Content-Type: application/json\" \\\n  -H \"X-API-Key: YOUR_API_KEY_HERE\" \\\n  -d '{\n    \"name\": \"Product Launch A/B Test\",\n    \"type\": \"AB\",\n    \"delivery_type\": \"SEG\",\n    \"segment_id\": \"YOUR_SEGMENT_ID\",\n    \"from_email\": \"marketing@yourcompany.com\",\n    \"from_name\": \"Marketing Team\",\n    \"ab_test_config\": {\n      \"variations\": [\n        {\n          \"id\": \"A\",\n          \"subject\": \"Introducing Our Latest Innovation\",\n          \"html_body\": \"<h2>Professional tone email...</h2>\"\n        },\n        {\n          \"id\": \"B\",\n          \"subject\": \"Check Out What We'\''ve Built for You!\",\n          \"html_body\": \"<h2>Friendly tone email...</h2>\"\n        },\n        {\n          \"id\": \"C\",\n          \"subject\": \"Don'\''t Miss This Limited Opportunity\",\n          \"html_body\": \"<h2>Persuasive tone email...</h2>\"\n        }\n      ],\n      \"test_duration_hours\": 24,\n      \"winner_criteria\": \"engagement_rate\"\n    }\n  }'
+```
+
+**Campaign Type for A/B Testing:**
+- `\"AB\"` - A/B Test campaign (requires `ab_test_config`)
+
+**A/B Test Configuration:**
+- `variations` - Array of 2-3 email variations (each with `id`, `subject`, `html_body`)
+- `test_duration_hours` - How long to run the test before selecting a winner (optional, default: 24)
+- `winner_criteria` - Metric to determine winner: `\"open_rate\"`, `\"click_rate\"`, or `\"engagement_rate\"` (optional, default: \"engagement_rate\")
+
+**Response:**
+```json
+{
+  \"message\": \"Campaign created and scheduled successfully\",
+  \"campaign\": {
+    \"id\": \"campaign-id-here\",
+    \"name\": \"Product Launch A/B Test\",
+    \"type\": \"AB\",
+    \"status\": \"scheduled\",
+    \"recipient_count\": 300,
+    \"ab_test_config\": {
+      \"variations\": [
+        {\"id\": \"A\", \"subject\": \"Introducing Our Latest Innovation\"},
+        {\"id\": \"B\", \"subject\": \"Check Out What We've Built for You!\"},
+        {\"id\": \"C\", \"subject\": \"Don't Miss This Limited Opportunity\"}
+      ],
+      \"test_duration_hours\": 24,
+      \"winner_criteria\": \"engagement_rate\"
+    }
+  }
+}
+```
+
+### View A/B Test Analytics
+
+#### Get Overall Campaign Analytics
+```bash
+curl -H \"X-API-Key: YOUR_API_KEY_HERE\" \\\n  \"https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events\"
+```
+
+#### Get Analytics for Specific Variation
+```bash
+curl -H \"X-API-Key: YOUR_API_KEY_HERE\" \\\n  \"https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID/events?variation_id=A\"
+```
+
+**Query Parameters:**
+- `variation_id` - Filter events by variation (`A`, `B`, or `C`)
+- `from_epoch` - Unix timestamp to filter events from (optional)
+- `to_epoch` - Unix timestamp to filter events until (optional)
+- `limit` - Maximum number of events to return (default: 1000)
+
+**Response with Variation Filtering:**
+```json
+{
+  \"events\": [
+    {
+      \"event_type\": \"open\",
+      \"timestamp\": 1700050000,
+      \"variation_id\": \"A\",
+      \"recipient_email\": \"user@example.com\"
+    }
+  ],
+  \"summary\": {
+    \"total_events\": 45,
+    \"unique_opens\": 30,
+    \"unique_clicks\": 12,
+    \"event_counts\": {
+      \"open\": 35,
+      \"click\": 10
+    },
+    \"campaign_id\": \"campaign-id-here\",
+    \"variation_id\": \"A\"
+  }
+}
+```
+
+### A/B Test Winner Selection
+
+The system automatically analyzes A/B test performance after the test duration and selects a winner based on the specified criteria.
+
+**Winner Criteria Options:**
+- `\"open_rate\"` - Highest percentage of recipients who opened the email
+- `\"click_rate\"` - Highest percentage of recipients who clicked links
+- `\"engagement_rate\"` - Combined metric of opens and clicks (default)
+
+**Automatic Winner Selection:**
+After the test duration expires, the `ab_test_analyzer` Lambda automatically:
+1. Analyzes performance metrics for each variation
+2. Selects the winning variation based on the criteria
+3. Updates the campaign with the winner ID
+
+**Check Winner Status:**
+```bash
+curl -H \"X-API-Key: YOUR_API_KEY_HERE\" \\\n  \"https://api.thesentinel.site/v1/campaigns/YOUR_CAMPAIGN_ID\"
+```
+
+**Response with Winner:**
+```json
+{
+  \"campaign\": {
+    \"id\": \"campaign-id-here\",
+    \"name\": \"Product Launch A/B Test\",
+    \"type\": \"AB\",
+    \"status\": \"completed\",
+    \"ab_test_config\": {
+      \"variations\": [...],
+      \"winner_id\": \"B\",
+      \"winner_selected_at\": 1700136400
+    }
+  }
+}
+```
+
+### A/B Test Best Practices
+
+1. **Segment Size**: Ensure your segment has at least 100 recipients for statistically significant results
+2. **Test Duration**: Run tests for at least 24 hours to capture different time zones and user behaviors
+3. **Single Variable**: Test one element at a time (subject line, tone, or content) for clearer insights
+4. **Variation Distribution**: Recipients are automatically distributed evenly across variations
+5. **Winner Criteria**: Choose criteria based on your campaign goal:
+   - Use `open_rate` for subject line testing
+   - Use `click_rate` for CTA and content testing
+   - Use `engagement_rate` for overall performance
+
+---
+
 ### Step 1: Create an Email Segment
 
 Create a list of email recipients:
@@ -258,6 +424,7 @@ curl -X POST https://api.thesentinel.site/v1/campaigns \
 **Campaign Types:**
 - `"I"` - Immediate execution
 - `"S"` - Scheduled execution (requires `schedule_at` as Unix timestamp)
+- `"AB"` - A/B Test campaign (requires `ab_test_config`)
 
 **Delivery Types:**
 - `"IND"` - Individual email (requires `recipient_email`)
@@ -641,11 +808,17 @@ These URLs don't require authentication and are used for email tracking:
 
 ### Campaign Endpoints
 - `GET /v1/campaigns` - List campaigns
-- `POST /v1/campaigns` - Create campaign
+- `POST /v1/campaigns` - Create campaign (supports types: I, S, AB)
 - `GET /v1/campaigns/{id}` - Get campaign
 - `PUT /v1/campaigns/{id}` - Update campaign
 - `DELETE /v1/campaigns/{id}` - Delete campaign
 - `GET /v1/campaigns/{id}/events` - Get campaign analytics & events
+- `GET /v1/campaigns/{id}/events?variation_id={A|B|C}` - Get A/B test variation analytics
+
+### AI & A/B Testing Endpoints
+- `POST /v1/generate-email` - Generate email content with AI
+  - Single tone: Returns one email
+  - Multiple tones (comma-separated): Returns array of variations for A/B testing
 
 ### Segment Endpoints
 - `GET /v1/segments` - List segments
