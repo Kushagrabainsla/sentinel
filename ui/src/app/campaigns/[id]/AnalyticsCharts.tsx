@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, AreaChart, Area, CartesianGrid } from 'recharts';
 import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem, CampaignEventsResponse, Campaign } from '@/lib/api';
-import { Loader2, Clock, Users, MousePointerClick, Zap } from 'lucide-react';
+import { Loader2, Clock, Users, MousePointerClick, Zap, Globe, Monitor, Link as LinkIcon } from 'lucide-react';
 
 
 
@@ -18,13 +18,35 @@ interface AnalyticsChartsProps {
 }
 
 
-const COLORS = ['#2563eb', '#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a'];
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#06b6d4'];
 
-// Helper function to format hour in 12-hour format with AM/PM
+// Helper function to format timestamp to date and time
+const formatTime = (timestamp: number): string => {
+    const date = new Date(timestamp * 1000);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const h = hours % 12 || 12;
+    const period = hours < 12 ? 'AM' : 'PM';
+    const m = minutes.toString().padStart(2, '0');
+    return `${month} ${day}, ${year} ${h}:${m} ${period}`;
+};
+
+// Helper function to format hour in 12-hour format with AM/PM (for peak hours display)
 const formatHour = (hour: number): string => {
     const h = hour % 12 || 12;
     const period = hour < 12 ? 'AM' : 'PM';
     return `${h} ${period}`;
+};
+
+const formatDuration = (seconds: number): string => {
+    if (seconds < 60) {
+        return `${Math.round(seconds)}s`;
+    }
+    return `${Math.round(seconds / 60)}m`;
 };
 
 // ... (existing imports)
@@ -179,8 +201,8 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
-            // Format the label if it's a number (hour)
-            const formattedLabel = typeof label === 'number' ? formatHour(label) : label;
+            // Format the label - if it's a large number (timestamp), use formatTime, otherwise use formatHour
+            const formattedLabel = label > 100 ? formatTime(label) : formatHour(label);
 
             return (
                 <div className="bg-popover border border-border p-3 rounded-lg shadow-lg">
@@ -196,6 +218,31 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
             );
         }
         return null;
+    };
+
+    // Helper to calculate total for percentages
+    const calculateTotal = (data: any[]) => data.reduce((acc, item) => acc + item.value, 0);
+
+    const renderCustomLegend = (props: any) => {
+        const { payload } = props;
+        const total = payload.reduce((acc: number, entry: any) => acc + entry.payload.value, 0);
+
+        return (
+            <ul className="flex flex-wrap justify-center gap-4 mt-4">
+                {payload.map((entry: any, index: number) => {
+                    const percentage = ((entry.payload.value / total) * 100).toFixed(1);
+                    return (
+                        <li key={`item-${index}`} className="flex items-center gap-2 text-sm">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                            <span className="text-muted-foreground">{entry.value}</span>
+                            <span className="font-medium">
+                                {entry.payload.value} ({percentage}%)
+                            </span>
+                        </li>
+                    );
+                })}
+            </ul>
+        );
     };
 
     // Prepare user segments data
@@ -225,7 +272,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 />
                 <InsightCard
                     title="Click-to-Open Rate"
-                    value={`${Number(data.engagement.click_to_open_rate).toFixed(3)}%`}
+                    value={`${Number(data.engagement.click_to_open_rate).toFixed(1)}%`}
                     icon={MousePointerClick}
                     subtext="Effectiveness of content"
                 />
@@ -258,7 +305,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             <p className="text-xs text-muted-foreground">Avg Time to Open</p>
                             <p className="text-2xl font-bold">
                                 {data.summary.avg_time_to_open !== null
-                                    ? `${Math.round(data.summary.avg_time_to_open)}m`
+                                    ? formatDuration(data.summary.avg_time_to_open)
                                     : 'N/A'}
                             </p>
                         </div>
@@ -266,7 +313,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             <p className="text-xs text-muted-foreground">Avg Time to Click</p>
                             <p className="text-2xl font-bold">
                                 {data.summary.avg_time_to_click !== null
-                                    ? `${Math.round(data.summary.avg_time_to_click)}m`
+                                    ? formatDuration(data.summary.avg_time_to_click)
                                     : 'N/A'}
                             </p>
                         </div>
@@ -312,22 +359,26 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                                     <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
                                     <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                                 </linearGradient>
+                                <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
                             <XAxis
                                 dataKey="hour"
-                                tickFormatter={(val) => {
-                                    // Convert 24-hour format to 12-hour format with AM/PM
-                                    // Data is already in user's local timezone
-                                    const hour = val % 12 || 12;
-                                    const period = val < 12 ? 'AM' : 'PM';
-                                    return `${hour} ${period}`;
-                                }}
                                 stroke="#9ca3af"
+                                tick={false}
+                                axisLine={true}
                             />
-                            <YAxis stroke="#9ca3af" />
+                            <YAxis
+                                stroke="#9ca3af"
+                                allowDecimals={false}
+                            />
                             <Tooltip content={<CustomTooltip />} />
+                            <Legend />
                             <Area type="monotone" dataKey="opens" stroke="#2563eb" fillOpacity={1} fill="url(#colorOpens)" name="Opens" />
+                            <Area type="monotone" dataKey="clicks" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorClicks)" name="Clicks" />
                         </AreaChart>
                     </ChartCard>
                 </div>
@@ -344,20 +395,47 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                                 outerRadius={80}
                                 paddingAngle={5}
                                 dataKey="value"
+                                stroke="none"
                             >
                                 {segmentsData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
                             <Tooltip content={<CustomTooltip />} />
-                            <Legend />
+                            <Legend content={renderCustomLegend} />
                         </PieChart>
                     </ChartCard>
                 </div>
             </div>
 
+            {/* Top Clicked Links Section */}
+            {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6">
+                        <LinkIcon className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">Top Clicked Links</h3>
+                    </div>
+                    <div className="space-y-4">
+                        {data.summary.top_clicked_links.map((link: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
+                                <div className="flex-1 min-w-0 mr-4">
+                                    <p className="text-sm font-medium truncate text-foreground" title={link.url}>
+                                        {link.url}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                                        {link.clicks} {link.clicks === 1 ? 'click' : 'clicks'}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* Distribution Charts Row 2 */}
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
                 <ChartCard title="Device Distribution">
                     <PieChart>
                         <Pie
@@ -368,13 +446,14 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             outerRadius={80}
                             paddingAngle={5}
                             dataKey="value"
+                            stroke="none"
                         >
                             {data.device.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
                         <Tooltip content={<CustomTooltip />} />
-                        <Legend />
+                        <Legend content={renderCustomLegend} />
                     </PieChart>
                 </ChartCard>
                 <ChartCard title="Browser Distribution">
@@ -387,16 +466,60 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             outerRadius={80}
                             paddingAngle={5}
                             dataKey="value"
+                            stroke="none"
                         >
                             {data.browser.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
                         <Tooltip content={<CustomTooltip />} />
-                        <Legend />
+                        <Legend content={renderCustomLegend} />
+                    </PieChart>
+                </ChartCard>
+                <ChartCard title="OS Distribution">
+                    <PieChart>
+                        <Pie
+                            data={data.os}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                            stroke="none"
+                        >
+                            {data.os.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend content={renderCustomLegend} />
                     </PieChart>
                 </ChartCard>
             </div>
+
+            {/* IP Distribution Section */}
+            {data.geo && data.geo.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="flex items-center gap-2 mb-6">
+                        <Globe className="h-5 w-5 text-primary" />
+                        <h3 className="text-lg font-semibold">IP Address Distribution</h3>
+                    </div>
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        {data.geo.map((item, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
+                                <div className="flex items-center gap-2">
+                                    <Monitor className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium text-foreground">{item.name}</span>
+                                </div>
+                                <span className="text-xs font-bold bg-muted px-2 py-1 rounded-md text-muted-foreground">
+                                    {item.value}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
