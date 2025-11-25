@@ -60,6 +60,8 @@ resource "aws_lambda_function" "start_campaign" {
             DYNAMODB_SEGMENTS_TABLE   = var.dynamodb_segments_table
             DYNAMODB_EVENTS_TABLE     = var.dynamodb_events_table
             SEND_QUEUE_URL = var.queues.send_queue_url
+            AB_TEST_ANALYZER_LAMBDA_ARN = aws_lambda_function.ab_test_analyzer.arn
+            EVENTBRIDGE_ROLE_ARN        = var.scheduler_invoke_role_arn
         }
     }
 }
@@ -180,6 +182,25 @@ resource "aws_lambda_function" "campaigns_api" {
     }
 }
 
+resource "aws_lambda_function" "ab_test_analyzer" {
+    function_name    = "${var.name}-ab-test-analyzer"
+    role             = var.roles.lambda_exec
+    handler          = "handler.lambda_handler"
+    runtime          = "python3.11"
+    filename         = "${path.module}/.artifacts/ab_test_analyzer.zip"
+    source_code_hash = filebase64sha256("${path.module}/.artifacts/ab_test_analyzer.zip")
+    timeout          = 60
+    environment {
+        variables = {
+            DYNAMODB_CAMPAIGNS_TABLE = var.dynamodb_campaigns_table
+            DYNAMODB_SEGMENTS_TABLE  = var.dynamodb_segments_table
+            DYNAMODB_EVENTS_TABLE    = var.dynamodb_events_table
+            SEND_QUEUE_URL           = var.queues.send_queue_url
+            SES_FROM_ADDRESS         = var.ses_from_address
+        }
+    }
+}
+
 
 output "start_campaign_arn"   { value = aws_lambda_function.start_campaign.arn }
 output "tracking_api_arn"     { value = aws_lambda_function.tracking_api.arn }
@@ -189,3 +210,5 @@ output "auth_api_arn"         { value = aws_lambda_function.auth_api.arn }
 output "campaigns_api_arn"    { value = aws_lambda_function.campaigns_api.arn }
 output "generate_email_arn"   { value = aws_lambda_function.generate_email.arn }
 output "generate_insights_arn" { value = aws_lambda_function.generate_insights.arn }
+output "ab_test_analyzer_arn" { value = aws_lambda_function.ab_test_analyzer.arn }
+
