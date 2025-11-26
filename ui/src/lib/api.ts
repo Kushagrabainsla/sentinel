@@ -30,8 +30,13 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-            // Optional: Redirect to login or clear storage if needed
-            // window.location.href = '/login';
+            // Clear authentication data
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('sentinel_api_key');
+                localStorage.removeItem('sentinel_user_name');
+                // Redirect to login
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
