@@ -90,12 +90,20 @@ Sentinel employs a fully **Serverless Microservices Architecture** on AWS.
 
 ### Features Implemented
 *   **User Authentication:** Secure registration and login with API key generation.
+*   **Enhanced Authentication Guard:** Client-side route protection with automatic redirects, preventing unauthorized access to protected routes and seamlessly redirecting authenticated users away from login/register pages.
 *   **Campaign Management:** Create, update, delete, and schedule email campaigns.
 *   **Audience Segmentation:** Manage contact lists and segments.
 *   **AI Content Generation:** Generate email subjects and bodies using Gemini AI based on tone and goal.
 *   **AI-Powered Analytics Insights:** Automated campaign performance analysis with actionable recommendations using Gemini AI.
 *   **Email Sending:** High-volume sending via SES with rate limiting.
 *   **Tracking:** Invisible pixel tracking for opens and redirect tracking for link clicks.
+*   **Advanced Analytics Dashboard:** Comprehensive real-time analytics with:
+    *   **Temporal Analysis:** Hourly and daily engagement patterns with peak time identification
+    *   **User Segmentation:** Engagement-based recipient categorization (highly engaged, moderately engaged, low engagement)
+    *   **Multi-dimensional Metrics:** Device, browser, OS, and geographic distribution analysis
+    *   **Link Performance:** Top clicked links tracking with detailed click counts
+    *   **Response Time Analytics:** Average time-to-open and time-to-click metrics
+    *   **Interactive Visualizations:** Area charts, pie charts, and bar charts with custom tooltips using Recharts
 *   **Dashboard:** Next.js UI for managing all aspects of the platform with real-time analytics.
 
 ### Infrastructure as Code (IaC)
@@ -156,10 +164,11 @@ To take Sentinel from a prototype to a production-ready SaaS product, the follow
 
 ## 7. Roadmap & Future Work
 
-1.  **A/B Testing:** Automatically split traffic between two email variations.
-2.  **SMS & Push Notifications:** Expand beyond email to omni-channel marketing.
-3.  **Visual Email Builder:** Drag-and-drop editor for HTML emails.
-4.  **Advanced Analytics:** Heatmaps for click tracking and user geography reports.
+1.  **SMS & Push Notifications:** Expand beyond email to omni-channel marketing.
+2.  **Visual Email Builder:** Drag-and-drop editor for HTML emails.
+3.  **Advanced Analytics Enhancements:** Heatmaps for click tracking and enhanced user geography reports.
+4.  **Email Templates Library:** Pre-built, customizable templates for faster campaign creation.
+5.  **Smart Segments:** Dynamic audience segmentation based on engagement patterns and behavior.
 
 ---
 
