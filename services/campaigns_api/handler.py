@@ -25,7 +25,8 @@ from boto3.dynamodb.conditions import Key, Attr
 # Import additional enums from common
 from common import (
     CampaignType, CampaignDeliveryType, CampaignState, CampaignStatus,
-    EventType, EngagementLevel, _response, convert_decimals, get_user_from_context, get_campaigns_table, get_events_table, get_segments_table
+    EventType, EngagementLevel, _response, convert_decimals, get_user_from_context, 
+    get_campaigns_table, get_events_table, get_segments_table, sanitize_html_content
 )
 
 
@@ -297,6 +298,25 @@ def create_campaign(event):
         
         if campaign_type != CampaignType.AB_TEST.value and not (subject and html_body):
             return _response(400, {"error": "subject and html_body are required for standard campaigns"})
+        
+        # SECURITY: Sanitize HTML content to prevent injection attacks
+        if html_body:
+            print(f"🔒 Sanitizing HTML content for campaign: {name}")
+            validation_result = sanitize_html_content(html_body)
+            
+            if not validation_result["is_valid"]:
+                print(f"⚠️ HTML validation failed. Blocked elements: {validation_result['blocked_elements']}")
+                return _response(400, {
+                    "error": "HTML content contains potentially malicious elements",
+                    "blocked_elements": validation_result["blocked_elements"],
+                    "warnings": validation_result["warnings"]
+                })
+            
+            # Use sanitized HTML
+            html_body = validation_result["sanitized_html"]
+            
+            if validation_result["warnings"]:
+                print(f"⚠️ HTML sanitization warnings: {validation_result['warnings']}")
         
         # Validate delivery type and corresponding fields
         if not delivery_type:
