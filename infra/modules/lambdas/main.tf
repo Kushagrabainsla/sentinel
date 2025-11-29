@@ -74,6 +74,8 @@ resource "aws_lambda_function" "send_worker" {
     filename         = "${path.module}/.artifacts/send_worker.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/send_worker.zip")
     timeout          = 60
+    memory_size      = 256  # Increased from default 128MB for better performance
+
     environment {
         variables = {
             DYNAMODB_CAMPAIGNS_TABLE     = var.dynamodb_campaigns_table
@@ -91,7 +93,10 @@ resource "aws_lambda_function" "send_worker" {
 resource "aws_lambda_event_source_mapping" "send_worker_sqs" {
     event_source_arn = var.queues.send_queue_arn
     function_name    = aws_lambda_function.send_worker.arn
-    batch_size       = 10
+    batch_size       = 25  # Increased from 10 to process more emails per invocation
+    maximum_batching_window_in_seconds = 5  # Wait up to 5 seconds to collect full batch
+    
+
 }
 
 
