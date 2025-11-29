@@ -844,7 +844,7 @@ To take Sentinel from a prototype to a production-ready SaaS product, the follow
 - ✅ 14-day DLQ retention for forensic analysis
 
 **Lambda Concurrency Optimization:**
-- ✅ Reserved concurrency: 500 executions for send_worker
+
 - ✅ Batch size increased: 10 → 25 emails per invocation
 - ✅ Memory optimized: 128MB → 256MB
 - ✅ Batching window: 5 seconds to collect full batches

@@ -75,8 +75,7 @@ resource "aws_lambda_function" "send_worker" {
     source_code_hash = filebase64sha256("${path.module}/.artifacts/send_worker.zip")
     timeout          = 60
     memory_size      = 256  # Increased from default 128MB for better performance
-    reserved_concurrent_executions = 500  # Reserve capacity to prevent throttling
-    
+
     environment {
         variables = {
             DYNAMODB_CAMPAIGNS_TABLE     = var.dynamodb_campaigns_table
@@ -97,9 +96,7 @@ resource "aws_lambda_event_source_mapping" "send_worker_sqs" {
     batch_size       = 25  # Increased from 10 to process more emails per invocation
     maximum_batching_window_in_seconds = 5  # Wait up to 5 seconds to collect full batch
     
-    scaling_config {
-        maximum_concurrency = 500  # Match reserved concurrency
-    }
+
 }
 
 
