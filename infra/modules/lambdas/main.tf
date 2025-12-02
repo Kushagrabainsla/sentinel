@@ -33,17 +33,12 @@ locals {
     memory_high    = 512  # For AI workloads
     
     # Reserved concurrency settings
-    concurrency_ai        = 20   # AI workloads (generate_email, generate_insights)
-    concurrency_api       = 20   # Standard APIs
-    concurrency_auth      = 50   # Authorizer (high traffic)
-    concurrency_worker    = 20   # send_worker safety net
-    concurrency_analyzer  = 10   # ab_test_analyzer (background job)
     
     # SES rate limiting via SQS scaling
-    ses_batch_size              = 5    # Emails per Lambda invocation
-    ses_max_concurrency         = 10    # Max concurrent Lambda executions
+    ses_batch_size              = 7    # Emails per Lambda invocation
+    ses_max_concurrency         = 2    # Max concurrent Lambda executions
     ses_batching_window_seconds = 1    # Wait time to collect full batch
-    # Throughput: ses_max_concurrency × ses_batch_size = 10 × 5 = 50 emails/sec
+    # Throughput: ses_max_concurrency × ses_batch_size = 2 × 7 = 14 emails/sec
     
     # CloudWatch log retention
     log_retention_days = 30
@@ -116,7 +111,6 @@ resource "aws_lambda_function" "send_worker" {
     source_code_hash = filebase64sha256("${path.module}/.artifacts/send_worker.zip")
     timeout          = local.timeout_long
     memory_size      = local.memory_medium
-    reserved_concurrent_executions = local.concurrency_worker
 
     environment {
         variables = {
