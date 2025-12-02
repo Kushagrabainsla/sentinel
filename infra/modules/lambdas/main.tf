@@ -40,10 +40,10 @@ locals {
     concurrency_analyzer  = 10   # ab_test_analyzer (background job)
     
     # SES rate limiting via SQS scaling
-    ses_batch_size              = 7    # Emails per Lambda invocation
-    ses_max_concurrency         = 2    # Max concurrent Lambda executions
+    ses_batch_size              = 5    # Emails per Lambda invocation
+    ses_max_concurrency         = 10    # Max concurrent Lambda executions
     ses_batching_window_seconds = 1    # Wait time to collect full batch
-    # Throughput: ses_max_concurrency × ses_batch_size = 2 × 7 = 14 emails/sec
+    # Throughput: ses_max_concurrency × ses_batch_size = 10 × 5 = 50 emails/sec
     
     # CloudWatch log retention
     log_retention_days = 30

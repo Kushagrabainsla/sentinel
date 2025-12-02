@@ -51,7 +51,7 @@
 - 🔒 **HTML Content Sanitization** - Automatic XSS and phishing link prevention with whitelist-based filtering
 - 📊 **Comprehensive Monitoring** - 30+ CloudWatch alarms for Lambda, DynamoDB, API Gateway, and SQS
 - 📊 **Queue Depth Monitoring** - CloudWatch alarms for proactive SQS queue management
-- ⚡ **Optimized Concurrency** - Batch processing with controlled concurrency (14 emails/sec via 2×7 batches)
+- ⚡ **Optimized Concurrency** - Batch processing with controlled concurrency (50 emails/sec via 10×5 batches)
 - 🔍 **URL Validation** - Blocks dangerous schemes (javascript:, data:) and obfuscated URLs
 - 🚨 **Dead Letter Queue Alerts** - Immediate notifications for failed email deliveries
 - 🔄 **Exponential Backoff Retry** - Intelligent retry logic for transient errors with jitter
@@ -112,7 +112,7 @@
 **Messaging & Events**
 - SQS for asynchronous email processing with DLQ
 - EventBridge Scheduler for scheduled campaigns
-- SES for email delivery with DKIM (rate-limited to 14 emails/sec via batch processing)
+- SES for email delivery with DKIM (rate-limited to 50 emails/sec via batch processing)
 
 **Monitoring & Observability**
 - CloudWatch Logs with 30-day retention

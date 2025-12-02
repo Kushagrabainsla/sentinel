@@ -118,7 +118,7 @@ Sentinel employs a fully **Serverless Microservices Architecture** on AWS.
 **Messaging & Events:**
 - **Amazon SQS** for asynchronous email processing and rate limiting
 - **Amazon EventBridge Scheduler** for scheduled campaigns
-- **Amazon SES** for email delivery with DKIM, SPF, and DMARC
+- **Amazon SES** for email delivery with DKIM (rate-limited to 50 emails/sec via batch processing)
 
 ### 3.2 Architecture Diagram
 
@@ -169,10 +169,10 @@ User → API Gateway → generate_email Lambda → Secrets Manager (API key)
 ### 3.4 Scalability Design
 
 **Horizontal Scaling:**
-- **Lambda Concurrency:** Auto-scales to 1,000 concurrent executions per region (soft limit)
-- **DynamoDB:** On-demand billing mode scales automatically based on traffic
-- **SQS:** Unlimited throughput for email job queuing
-- **API Gateway:** Handles 10,000 requests per second (default limit)
+-   ⚡ **Optimized Concurrency** - Batch processing with controlled concurrency (50 emails/sec via 10×5 batches)
+-   **DynamoDB:** On-demand billing mode scales automatically based on traffic
+-   **SQS:** Unlimited throughput for email job queuing
+-   **API Gateway:** Handles 10,000 requests per second (default limit)
 
 **Performance Optimizations:**
 - **Lambda Cold Start Mitigation:** Lightweight Python runtime, minimal dependencies
@@ -243,11 +243,11 @@ User → API Gateway → generate_email Lambda → Secrets Manager (API key)
 - **Total Reserved:** 212 out of 1000 account limit
 - **Benefits:** Prevents one function from consuming all concurrency, ensures critical functions always have capacity
 
-*SES Rate Limiting (14 emails/sec):*
-- **Batch Processing:** SQS event source mapping configured with batch_size=7
-- **Concurrency Control:** scaling_config limits send_worker to 2 concurrent executions
-- **Throughput:** 2 concurrent × 7 emails/batch = 14 emails/sec (within 14/sec SES limit)
-- **Efficiency:** 86% reduction in Lambda invocations (143 vs 1000 per 1000 emails)
+*SES Rate Limiting (50 emails/sec):*
+- **Batch Processing:** SQS event source mapping configured with batch_size=5
+- **Concurrency Control:** scaling_config limits send_worker to 10 concurrent executions
+- **Throughput:** 10 concurrent × 5 emails/batch = 50 emails/sec
+- **Efficiency:** 80% reduction in Lambda invocations (200 vs 1000 per 1000 emails)
 - **Cost Savings:** ~$0.17 saved per 1000 emails in Lambda invocation costs
 - **Implementation:** Infrastructure-level enforcement via Terraform, no code changes required
 
