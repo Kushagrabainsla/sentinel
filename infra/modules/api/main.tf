@@ -347,7 +347,37 @@ resource "aws_apigatewayv2_stage" "default" {
     api_id      = aws_apigatewayv2_api.http.id
     name        = "$default"
     auto_deploy = true
+
+    # Throttling settings
+    default_route_settings {
+        throttling_rate_limit  = 1000  # Requests per second
+        throttling_burst_limit = 2000  # Burst capacity
+    }
+    
+    # Access logging
+    access_log_settings {
+        destination_arn = aws_cloudwatch_log_group.api_gateway.arn
+        format = jsonencode({
+            requestId      = "$context.requestId"
+            ip             = "$context.identity.sourceIp"
+            requestTime    = "$context.requestTime"
+            httpMethod     = "$context.httpMethod"
+            routeKey       = "$context.routeKey"
+            status         = "$context.status"
+            protocol       = "$context.protocol"
+            responseLength = "$context.responseLength"
+            errorMessage   = "$context.error.message"
+            integrationErrorMessage = "$context.integrationErrorMessage"
+        })
+    }
 }
+
+# CloudWatch Log Group for API Gateway access logs
+resource "aws_cloudwatch_log_group" "api_gateway" {
+    name              = "/aws/apigateway/${var.name}-http-api"
+    retention_in_days = 30
+}
+
 
 # Map custom domain to API Gateway stage
 resource "aws_apigatewayv2_api_mapping" "api_mapping" {
@@ -424,4 +454,14 @@ output "domain_validation_records" {
 output "api_domain_target" {
     description = "DNS target for CNAME record"
     value       = aws_apigatewayv2_domain_name.api_domain.domain_name_configuration[0].target_domain_name
+}
+
+output "api_id" {
+    description = "API Gateway ID for monitoring"
+    value       = aws_apigatewayv2_api.http.id
+}
+
+output "api_name" {
+    description = "API Gateway name for monitoring"
+    value       = aws_apigatewayv2_api.http.name
 }

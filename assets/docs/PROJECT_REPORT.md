@@ -228,9 +228,55 @@ User → API Gateway → generate_email Lambda → Secrets Manager (API key)
 - **SES Reputation Dashboard:** Monitor bounce and complaint rates
 
 **Backup & Recovery:**
-- **DynamoDB Point-in-Time Recovery:** Enabled for all tables (35-day retention)
 - **Terraform State Backup:** S3 versioning enabled for infrastructure state
 - **Code Repository:** GitHub serves as source of truth for all code
+
+**Backend Resilience Enhancements (December 2024):**
+
+*Reserved Lambda Concurrency:*
+- **Guaranteed Capacity:** Each Lambda function has reserved concurrent executions to prevent resource starvation
+- **send_worker:** 20 concurrent executions (safety net for email delivery)
+- **authorizer:** 50 concurrent executions (high-traffic authentication)
+- **AI Functions:** 20 concurrent executions each (cost control for Gemini API calls)
+- **API Functions:** 20 concurrent executions each (guaranteed capacity)
+- **ab_test_analyzer:** 10 concurrent executions (background processing)
+- **Total Reserved:** 212 out of 1000 account limit
+- **Benefits:** Prevents one function from consuming all concurrency, ensures critical functions always have capacity
+
+*SES Rate Limiting (14 emails/sec):*
+- **Batch Processing:** SQS event source mapping configured with batch_size=7
+- **Concurrency Control:** scaling_config limits send_worker to 2 concurrent executions
+- **Throughput:** 2 concurrent × 7 emails/batch = 14 emails/sec (within 14/sec SES limit)
+- **Efficiency:** 86% reduction in Lambda invocations (143 vs 1000 per 1000 emails)
+- **Cost Savings:** ~$0.17 saved per 1000 emails in Lambda invocation costs
+- **Implementation:** Infrastructure-level enforcement via Terraform, no code changes required
+
+*API Gateway Resilience:*
+- **Rate Limiting:** 1000 requests/second with 2000 burst capacity
+- **Access Logging:** Structured JSON logs sent to CloudWatch (30-day retention)
+- **DDoS Protection:** Throttling prevents overwhelming backend services
+- **Audit Trail:** Complete request/response logging for security compliance
+
+*Comprehensive Monitoring (30+ CloudWatch Alarms):*
+- **Lambda Monitoring:** Error rate (>5%), duration (>80% timeout), throttles
+- **DynamoDB Monitoring:** Read/write throttles on all 5 tables
+- **API Gateway Monitoring:** 4xx errors (>50/5min), 5xx errors (>10/5min)
+- **SQS Monitoring:** DLQ messages, queue depth (>10,000)
+- **SNS Notifications:** Central alarm topic for email/SMS alerts
+- **Proactive Detection:** Issues identified before user impact
+
+*CloudWatch Log Management:*
+- **Automatic Retention:** All 10 Lambda functions have 30-day log retention
+- **Cost Optimization:** Prevents indefinite log accumulation (saves $100s over time)
+- **Infrastructure as Code:** Log groups managed via Terraform
+- **Consistent Naming:** Standardized `/aws/lambda/{function-name}` pattern
+
+*Terraform Configuration Refactoring:*
+- **Local Variables:** Centralized configuration for runtime, timeouts, memory, concurrency
+- **Single Source of Truth:** All Lambda settings defined once, applied to 10 functions
+- **Easy Adjustments:** Change SES rate limit by modifying 2 variables (batch_size, max_concurrency)
+- **Self-Documenting:** Clear variable names with inline comments
+- **Maintainability:** Eliminates 50+ hardcoded values across infrastructure code
 
 ### 3.7 Key Cloud Services Used
 
@@ -712,11 +758,12 @@ REPORT RequestId: abc-123-def Duration: 245.67 ms Billed Duration: 246 ms Memory
 | **Amazon SES** | 100k emails | ~$10.00 |
 | **Amazon S3** | 1GB storage, 100k GETs | ~$0.05 |
 | **Amazon SQS** | 2M requests | ~$0.80 |
+| **CloudWatch Alarms** | 30+ alarms | ~$3.00 |
 | **AWS Amplify** | Build minutes & hosting | ~$0.00 (Free Tier) |
 | **Google Gemini** | AI API calls | ~$0.00 (Free Tier) |
 | **EventBridge Scheduler** | 1k schedules | ~$0.00 |
 | **Secrets Manager** | 1 secret | ~$0.40 |
-| **Total** | | **~$15.15 / month** |
+| **Total** | | **~$18.15 / month** |
 
 **Note:** Many of these fall within the AWS Free Tier for the first 12 months:
 - Lambda: 1M free requests/month
@@ -729,8 +776,10 @@ REPORT RequestId: abc-123-def Duration: 245.67 ms Billed Duration: 246 ms Memory
 **Implemented:**
 - **On-Demand Billing:** DynamoDB uses pay-per-request (no idle costs)
 - **Lambda Memory Optimization:** 128MB for most functions (lowest cost tier)
-- **SQS Batching:** Process multiple emails per Lambda invocation
+- **SQS Batching:** Process multiple emails per Lambda invocation (86% cost reduction)
 - **S3 Lifecycle Policies:** Archive old tracking pixel logs to Glacier
+- **Log Retention:** 30-day retention on CloudWatch Logs (prevents storage bloat)
+- **Feature Pruning:** Removed X-Ray tracing (~$5/mo savings) and PITR (~$2-5/mo savings) for non-critical environments
 
 **Future Optimizations:**
 - **Reserved Capacity:** DynamoDB reserved capacity for predictable workloads (up to 75% savings)

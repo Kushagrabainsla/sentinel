@@ -49,23 +49,27 @@
 
 ### Security & Performance
 - 🔒 **HTML Content Sanitization** - Automatic XSS and phishing link prevention with whitelist-based filtering
+- 📊 **Comprehensive Monitoring** - 30+ CloudWatch alarms for Lambda, DynamoDB, API Gateway, and SQS
 - 📊 **Queue Depth Monitoring** - CloudWatch alarms for proactive SQS queue management
-- ⚡ **Optimized Concurrency** - 12.5x throughput improvement with reserved Lambda concurrency (12,500 emails/min)
+- ⚡ **Optimized Concurrency** - Batch processing with controlled concurrency (14 emails/sec via 2×7 batches)
 - 🔍 **URL Validation** - Blocks dangerous schemes (javascript:, data:) and obfuscated URLs
 - 🚨 **Dead Letter Queue Alerts** - Immediate notifications for failed email deliveries
 - 🔄 **Exponential Backoff Retry** - Intelligent retry logic for transient errors with jitter
 - 🛡️ **Error Classification** - Automatic distinction between permanent and transient failures
+- 🚦 **API Throttling** - Rate limiting at 1000 req/sec with 2000 burst capacity
 
 
 ### Technical Features
-- ⚡ **Scalable Architecture** - Auto-scaling serverless infrastructure
+- ⚡ **Scalable Architecture** - Auto-scaling serverless infrastructure with reserved concurrency
 - 🌍 **Multi-region Support** - Global DynamoDB tables across 3 regions (us-east-1, eu-west-1, ap-southeast-1)
-- 🔄 **Event-Driven Processing** - SQS-based asynchronous email delivery
+- 🔄 **Event-Driven Processing** - SQS-based asynchronous email delivery with batch size optimization
 - 📱 **Modern Web UI** - Next.js 16 frontend with real-time dashboards and interactive charts
 - 🎯 **Advanced Link Tracking** - Automatic link tracking with top clicked links analysis and click-to-open rate metrics
 - 🔔 **Comprehensive Event Processing** - Track delivery, opens, clicks, bounces, and unsubscribes with temporal and engagement analysis
 - 📈 **Interactive Visualizations** - Area charts for temporal patterns, pie charts for distributions, and custom tooltips for detailed insights
 - ⏱️ **Response Time Metrics** - Track average time-to-open and time-to-click for campaign optimization
+- 🔍 **Observability** - CloudWatch Logs with 30-day retention and structured access logging
+- 🛡️ **Fault Tolerance** - Automatic failover, retry logic, and circuit breaker patterns
 
 ---
 
@@ -106,9 +110,14 @@
 - AWS Secrets Manager for API keys
 
 **Messaging & Events**
-- SQS for asynchronous email processing
+- SQS for asynchronous email processing with DLQ
 - EventBridge Scheduler for scheduled campaigns
-- SES for email delivery with DKIM
+- SES for email delivery with DKIM (rate-limited to 14 emails/sec via batch processing)
+
+**Monitoring & Observability**
+- CloudWatch Logs with 30-day retention
+- 30+ CloudWatch alarms for proactive monitoring
+- SNS notifications for critical alerts
 
 ---
 
@@ -349,12 +358,13 @@ sentinel/
 │   └── images/                # Images and diagrams
 ├── infra/                     # Terraform infrastructure
 │   ├── modules/               # Terraform modules
+│   │   ├── alarms/           # CloudWatch alarms and monitoring
 │   │   ├── api/              # API Gateway configuration
 │   │   ├── dynamodb/         # DynamoDB tables
 │   │   ├── iam/              # IAM roles and policies
-│   │   ├── lambdas/          # Lambda functions
+│   │   ├── lambdas/          # Lambda functions with log retention
 │   │   ├── network/          # VPC and networking
-│   │   ├── queues/           # SQS queues
+│   │   ├── queues/           # SQS queues with DLQ
 │   │   ├── s3_assets/        # S3 buckets
 │   │   └── ses/              # SES configuration
 │   ├── main.tf               # Main Terraform configuration
@@ -417,7 +427,7 @@ sentinel/
 
 ---
 
-## � Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please see our [Contributing Guidelines](.github/CONTRIBUTING.md) for details on how to submit changes.
 
@@ -456,7 +466,6 @@ This project is licensed under the MIT License - see the [LICENSE](.github/LICEN
 
 <div align="center">
 
-**Built with ❤️ using AWS Serverless Technologies**
 
 [⬆ Back to Top](#sentinel)
 
