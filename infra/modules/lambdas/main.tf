@@ -58,7 +58,6 @@ resource "aws_lambda_function" "generate_email" {
     source_code_hash = filebase64sha256("${path.module}/.artifacts/generate_email.zip")
     timeout          = local.timeout_medium
     memory_size      = local.memory_high
-    reserved_concurrent_executions = local.concurrency_ai
     
     environment {
         variables = {}
@@ -76,7 +75,6 @@ resource "aws_lambda_function" "generate_insights" {
     source_code_hash = filebase64sha256("${path.module}/.artifacts/generate_insights.zip")
     timeout          = local.timeout_long
     memory_size      = local.memory_high
-    reserved_concurrent_executions = local.concurrency_ai
     
     environment {
         variables = {}
@@ -94,7 +92,6 @@ resource "aws_lambda_function" "start_campaign" {
     filename         = "${path.module}/.artifacts/start_campaign.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/start_campaign.zip")
     timeout          = local.timeout_long
-    reserved_concurrent_executions = local.concurrency_api
     
     environment {
         variables = {
@@ -161,7 +158,6 @@ resource "aws_lambda_function" "tracking_api" {
     filename         = "${path.module}/.artifacts/tracking_api.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/tracking_api.zip")
     timeout          = local.timeout_medium
-    reserved_concurrent_executions = local.concurrency_api
     
     environment {
         variables = {
@@ -185,7 +181,6 @@ resource "aws_lambda_function" "segments_api" {
     filename         = "${path.module}/.artifacts/segments_api.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/segments_api.zip")
     timeout          = local.timeout_medium
-    reserved_concurrent_executions = local.concurrency_api
     
     environment {
         variables = {
@@ -206,7 +201,6 @@ resource "aws_lambda_function" "authorizer" {
     filename         = "${path.module}/.artifacts/authorizer.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/authorizer.zip")
     timeout          = local.timeout_short
-    reserved_concurrent_executions = local.concurrency_auth
     
     environment {
         variables = {
@@ -225,7 +219,6 @@ resource "aws_lambda_function" "auth_api" {
     filename         = "${path.module}/.artifacts/auth_api.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/auth_api.zip")
     timeout          = local.timeout_medium
-    reserved_concurrent_executions = local.concurrency_api
     
     environment {
         variables = {
@@ -244,7 +237,6 @@ resource "aws_lambda_function" "campaigns_api" {
     filename         = "${path.module}/.artifacts/campaigns_api.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/campaigns_api.zip")
     timeout          = local.timeout_medium
-    reserved_concurrent_executions = local.concurrency_api
     
     environment {
         variables = {
@@ -267,7 +259,6 @@ resource "aws_lambda_function" "ab_test_analyzer" {
     filename         = "${path.module}/.artifacts/ab_test_analyzer.zip"
     source_code_hash = filebase64sha256("${path.module}/.artifacts/ab_test_analyzer.zip")
     timeout          = local.timeout_long
-    reserved_concurrent_executions = local.concurrency_analyzer
     
     environment {
         variables = {
