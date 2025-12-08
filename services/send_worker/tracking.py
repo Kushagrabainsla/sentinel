@@ -118,8 +118,8 @@ def generate_tracking_data(campaign_id, recipient_id, email, cta_links=None, bas
     if not base_url:
         base_url = os.environ.get("TRACKING_BASE_URL", "https://api.thesentinel.site")
     
-    # Open tracking pixel
-    pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.png?email={base64.urlsafe_b64encode(email.encode()).decode()}"
+    # Open tracking pixel - using .gif for better email client compatibility
+    pixel_url = f"{base_url}/track/open/{campaign_id}/{recipient_id}.gif?email={base64.urlsafe_b64encode(email.encode()).decode()}"
     if variation_id:
         pixel_url += f"&variation_id={variation_id}"
     tracking_pixel = f'<img src="{pixel_url}" width="1" height="1" style="display:none;" alt="">'

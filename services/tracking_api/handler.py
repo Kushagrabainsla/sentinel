@@ -129,10 +129,11 @@ def get_link_mapping(tracking_id):
         return None
 
 def generate_1x1_pixel():
-    """Generate a 1x1 transparent PNG pixel"""
-    # Base64 encoded 1x1 transparent PNG
+    """Generate a 1x1 transparent GIF (better for email tracking than PNG)"""
+    # Base64 encoded 1x1 transparent GIF (43 bytes)
+    # This is a single-pixel transparent GIF that bypasses more caches than PNG
     pixel_data = base64.b64decode(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     )
     return pixel_data
 
@@ -273,16 +274,17 @@ def handle_open_tracking(path, headers, query_params):
             print(f"❌ Failed to fetch logo from S3: {e}")
             # Fallback to pixel
     
-    # Fallback: return 1x1 transparent pixel if S3 fetch fails
+    # Fallback: return 1x1 transparent GIF if S3 fetch fails
     pixel_data = generate_1x1_pixel()
     
     return {
         'statusCode': 200,
         'headers': {
-            'Content-Type': 'image/png',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Content-Type': 'image/gif',
+            'Cache-Control': 'no-cache, no-store, must-revalidate, private',
             'Pragma': 'no-cache',
-            'Expires': '0'
+            'Expires': '0',
+            'X-Robots-Tag': 'noindex'
         },
         'body': base64.b64encode(pixel_data).decode('utf-8'),
         'isBase64Encoded': True
