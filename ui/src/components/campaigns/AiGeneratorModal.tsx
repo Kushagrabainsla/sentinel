@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { Sparkles, X, Loader2, Plus, Trash2 } from 'lucide-react';
 import { generateEmail } from '@/services/generate_email';
+import { toast } from 'sonner';
 
 interface AiGeneratorModalProps {
-    onGenerate: (subject: string, content: string) => void;
+    onGenerate: (subject: string, content: string, variations?: Array<{ subject: string, content: string, tone: string }>) => void;
+    mode?: 'single' | 'ab_test';
 }
 
 const GOAL_OPTIONS = [
@@ -29,7 +31,7 @@ interface LinkItem {
     text: string;
 }
 
-export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
+export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorModalProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -44,6 +46,7 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
     // Other State
     const [keyPoints, setKeyPoints] = useState('');
     const [tone, setTone] = useState('Professional');
+    const [selectedTones, setSelectedTones] = useState<string[]>([]);
 
     // Links State
     const [links, setLinks] = useState<LinkItem[]>([]);
@@ -52,7 +55,10 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
 
     const handleAddLink = () => {
         if (newLinkUrl && newLinkText) {
-            setLinks([...links, { url: newLinkUrl, text: newLinkText }]);
+            const newLinks = [...links, { url: newLinkUrl, text: newLinkText }];
+            console.log('➕ Adding link:', { url: newLinkUrl, text: newLinkText });
+            console.log('📋 Updated links array:', newLinks);
+            setLinks(newLinks);
             setNewLinkUrl('');
             setNewLinkText('');
         }
@@ -70,6 +76,16 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
         }
     };
 
+    const toggleTone = (t: string) => {
+        if (selectedTones.includes(t)) {
+            setSelectedTones(selectedTones.filter(x => x !== t));
+        } else {
+            if (selectedTones.length < 3) {
+                setSelectedTones([...selectedTones, t]);
+            }
+        }
+    };
+
     const handleGenerate = async () => {
         const finalGoal = selectedGoal === 'Other' ? customGoal : selectedGoal;
         const finalAudiences = [...selectedAudiences];
@@ -77,21 +93,35 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
 
         if (!finalGoal || finalAudiences.length === 0) return;
 
+        // Auto-add pending link if user forgot to click add
+        let finalLinks = [...links];
+        if (newLinkUrl && newLinkText) {
+            console.log('⚠️ User forgot to click add link, auto-adding:', { url: newLinkUrl, text: newLinkText });
+            finalLinks.push({ url: newLinkUrl, text: newLinkText });
+        }
+
+        console.log('🔗 Links in modal state before generation:', finalLinks);
+
         setIsGenerating(true);
 
         try {
             const data = await generateEmail({
-                tone,
+                tone: mode === 'single' ? tone : undefined,
+                tones: mode === 'ab_test' ? selectedTones : undefined,
                 finalGoal,
                 audiences: finalAudiences,
                 keyPoints,
-                links
+                links: finalLinks
             });
-            onGenerate(data.subject, data.content);
+            console.log('🤖 AI Response:', data);
+            onGenerate(data.subject, data.content, data.variations);
             setIsOpen(false);
-        } catch (error) {
+            // Reset pending link fields
+            setNewLinkUrl('');
+            setNewLinkText('');
+        } catch (error: any) {
             console.error('Generation error:', error);
-            // You might want to add a toast error here
+            toast.error(error.response?.data?.message || 'Failed to generate content. Please try again.');
         } finally {
             setIsGenerating(false);
         }
@@ -253,17 +283,36 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
 
                     {/* Tone */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Tone</label>
-                        <select
-                            value={tone}
-                            onChange={(e) => setTone(e.target.value)}
-                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        >
-                            <option value="Professional">Professional</option>
-                            <option value="Friendly">Friendly</option>
-                            <option value="Urgent">Urgent</option>
-                            <option value="Exciting">Exciting</option>
-                        </select>
+                        <label className="text-sm font-medium">
+                            {mode === 'ab_test' ? 'Select 3 Tones' : 'Tone'}
+                        </label>
+
+                        {mode === 'single' ? (
+                            <select
+                                value={tone}
+                                onChange={(e) => setTone(e.target.value)}
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                                <option value="Professional">Professional</option>
+                                <option value="Friendly">Friendly</option>
+                                <option value="Urgent">Urgent</option>
+                                <option value="Exciting">Exciting</option>
+                            </select>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                                {["Professional", "Friendly", "Urgent", "Exciting"].map(t => (
+                                    <label key={t} className={`flex items-center gap-2 p-2 border rounded-md cursor-pointer ${selectedTones.includes(t) ? 'bg-purple-50 border-purple-200' : 'border-border hover:bg-muted/50'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedTones.includes(t)}
+                                            onChange={() => toggleTone(t)}
+                                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-600"
+                                        />
+                                        <span className="text-sm">{t}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -276,7 +325,7 @@ export function AiGeneratorModal({ onGenerate }: AiGeneratorModalProps) {
                     </button>
                     <button
                         onClick={handleGenerate}
-                        disabled={(!selectedGoal && !customGoal) || (selectedAudiences.length === 0 && !customAudience) || isGenerating}
+                        disabled={(!selectedGoal && !customGoal) || (selectedAudiences.length === 0 && !customAudience) || isGenerating || (mode === 'ab_test' && selectedTones.length !== 3)}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isGenerating ? (

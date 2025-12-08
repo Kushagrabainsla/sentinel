@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from tracking import generate_tracking_data
 
 # Import common utilities and enums
-from common import DeliveryStatus, EventType
+from common import DeliveryStatus, EventType, exponential_backoff_retry, is_retryable_error
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -139,7 +139,9 @@ def lambda_handler(event, _context):
         body = json.loads(rec["body"])
         campaign_id = body["campaign_id"]
         recipient_id = body["recipient_id"]
+        recipient_id = body["recipient_id"]
         email = body["email"]
+        variation_id = body.get("variation_id")
 
         try:
             # Get template data from the message
@@ -159,7 +161,8 @@ def lambda_handler(event, _context):
                 campaign_id=campaign_id, 
                 recipient_id=recipient_id, 
                 email=email,
-                cta_links=cta_links
+                cta_links=cta_links,
+                variation_id=variation_id
             )
             
             # Replace original CTA links with tracking links in HTML
@@ -200,22 +203,26 @@ def lambda_handler(event, _context):
             if tracking_data.get("unsubscribe_url"):
                 text_content += f"\n\nUnsubscribe: {tracking_data['unsubscribe_url']}"
             
-            # Send email via SES with enhanced tracking
-            ses_response = ses.send_email(
-                Source=f"{msg_template_data.get('from_name', 'Sentinel')} <{msg_template_data.get('from_email', FROM)}>",
-                Destination={"ToAddresses": [email]},
-                Message={
-                    "Subject": {"Data": template_data["subject"]},
-                    "Body": {
-                        "Html": {"Data": html_content},
-                        "Text": {"Data": text_content}
-                    }
-                },
-                Tags=[
-                    {"Name": "campaign_id", "Value": str(campaign_id)},
-                    {"Name": "recipient_id", "Value": str(recipient_id)},
-                    {"Name": "cta_count", "Value": str(len(cta_links))}
-                ]
+            # Send email via SES with enhanced tracking and retry logic
+            ses_response = exponential_backoff_retry(
+                lambda: ses.send_email(
+                    Source=f"{msg_template_data.get('from_name', 'Sentinel')} <{msg_template_data.get('from_email', FROM)}>",
+                    Destination={"ToAddresses": [email]},
+                    Message={
+                        "Subject": {"Data": template_data["subject"]},
+                        "Body": {
+                            "Html": {"Data": html_content},
+                            "Text": {"Data": text_content}
+                        }
+                    },
+                    Tags=[
+                        {"Name": "campaign_id", "Value": str(campaign_id)},
+                        {"Name": "recipient_id", "Value": str(recipient_id)},
+                        {"Name": "cta_count", "Value": str(len(cta_links))}
+                    ]
+                ),
+                max_retries=3,
+                base_delay=1.0
             )
             
             message_id = ses_response.get("MessageId", "unknown")
@@ -227,7 +234,13 @@ def lambda_handler(event, _context):
             
         except Exception as e:
             status = DeliveryStatus.FAILED.value
-            print(f"❌ Failed to send email to {email}: {e}")
+            
+            # Classify error type for better debugging
+            error_type = "PERMANENT" if not is_retryable_error(e) else "TRANSIENT"
+            error_code = getattr(e, 'response', {}).get('Error', {}).get('Code', type(e).__name__)
+            
+            print(f"❌ [{error_type}] Failed to send email to {email}: {error_code} - {str(e)}")
+
 
         # Record email send status in events table
         update_email_status_in_events(campaign_id, email, status)

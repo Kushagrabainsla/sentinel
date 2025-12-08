@@ -11,6 +11,10 @@ variable "generate_email_lambda_arn" {
     type = string
     description = "ARN for the generate_email Lambda"
 }
+variable "generate_insights_lambda_arn" {
+    type = string
+    description = "ARN for the insights API Lambda"
+}
 
 # Custom domain configuration
 variable "domain_name" { 
@@ -343,7 +347,37 @@ resource "aws_apigatewayv2_stage" "default" {
     api_id      = aws_apigatewayv2_api.http.id
     name        = "$default"
     auto_deploy = true
+
+    # Throttling settings
+    default_route_settings {
+        throttling_rate_limit  = 1000  # Requests per second
+        throttling_burst_limit = 2000  # Burst capacity
+    }
+    
+    # Access logging
+    access_log_settings {
+        destination_arn = aws_cloudwatch_log_group.api_gateway.arn
+        format = jsonencode({
+            requestId      = "$context.requestId"
+            ip             = "$context.identity.sourceIp"
+            requestTime    = "$context.requestTime"
+            httpMethod     = "$context.httpMethod"
+            routeKey       = "$context.routeKey"
+            status         = "$context.status"
+            protocol       = "$context.protocol"
+            responseLength = "$context.responseLength"
+            errorMessage   = "$context.error.message"
+            integrationErrorMessage = "$context.integrationErrorMessage"
+        })
+    }
 }
+
+# CloudWatch Log Group for API Gateway access logs
+resource "aws_cloudwatch_log_group" "api_gateway" {
+    name              = "/aws/apigateway/${var.name}-http-api"
+    retention_in_days = 30
+}
+
 
 # Map custom domain to API Gateway stage
 resource "aws_apigatewayv2_api_mapping" "api_mapping" {
@@ -375,6 +409,29 @@ resource "aws_lambda_permission" "api_invoke_generate_email" {
     source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
 }
 
+resource "aws_apigatewayv2_integration" "generate_insights" {
+    api_id                 = aws_apigatewayv2_api.http.id
+    integration_type       = "AWS_PROXY"
+    integration_uri        = var.generate_insights_lambda_arn
+    payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "generate_insights" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/generate-insights"
+    target    = "integrations/${aws_apigatewayv2_integration.generate_insights.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_lambda_permission" "api_invoke_generate_insights" {
+    statement_id  = "AllowAPIGatewayInvokeGenerateInsights"
+    action        = "lambda:InvokeFunction"
+    function_name = var.generate_insights_lambda_arn
+    principal     = "apigateway.amazonaws.com"
+    source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
+}
+
 output "invoke_url" {
     value = aws_apigatewayv2_api.http.api_endpoint
 }
@@ -397,4 +454,14 @@ output "domain_validation_records" {
 output "api_domain_target" {
     description = "DNS target for CNAME record"
     value       = aws_apigatewayv2_domain_name.api_domain.domain_name_configuration[0].target_domain_name
+}
+
+output "api_id" {
+    description = "API Gateway ID for monitoring"
+    value       = aws_apigatewayv2_api.http.id
+}
+
+output "api_name" {
+    description = "API Gateway name for monitoring"
+    value       = aws_apigatewayv2_api.http.name
 }

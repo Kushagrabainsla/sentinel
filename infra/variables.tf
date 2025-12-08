@@ -23,5 +23,3 @@ variable "global_table_regions" {
 variable "ses_from_address" {
     type = string
 }
-
-

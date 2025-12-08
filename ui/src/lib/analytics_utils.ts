@@ -10,6 +10,9 @@ export function calculateTemporalAnalytics(events: CampaignEvent[]): TemporalAna
     const clickEvents: number[] = [];
     const sentEvents: Record<string, number> = {};
 
+    // Create a map to track events by timestamp for timeline view
+    const timelineMap: Record<number, { opens: number; clicks: number; timestamp: number }> = {};
+
     events.forEach(event => {
         const date = new Date(event.created_at * 1000);
         const hour = date.getHours();
@@ -24,21 +27,36 @@ export function calculateTemporalAnalytics(events: CampaignEvent[]): TemporalAna
             hourly_opens[hour]++;
             daily_opens[adjustedDay]++;
             openEvents.push(event.created_at);
+
+            // Add to timeline
+            if (!timelineMap[event.created_at]) {
+                timelineMap[event.created_at] = { opens: 0, clicks: 0, timestamp: event.created_at };
+            }
+            timelineMap[event.created_at].opens++;
         } else if (event.type === 'click') {
             hourly_clicks[hour]++;
             daily_clicks[adjustedDay]++;
             clickEvents.push(event.created_at);
+
+            // Add to timeline
+            if (!timelineMap[event.created_at]) {
+                timelineMap[event.created_at] = { opens: 0, clicks: 0, timestamp: event.created_at };
+            }
+            timelineMap[event.created_at].clicks++;
         } else if (event.type === 'sent' && event.email) {
             sentEvents[event.email] = event.created_at;
         }
     });
 
-    const engagement_by_hour = hourly_opens.map((opens, hour) => ({
-        hour,
-        opens,
-        clicks: hourly_clicks[hour],
-        engagement_score: opens + (hourly_clicks[hour] * 2)
-    }));
+    // Convert timeline map to sorted array
+    const engagement_by_hour = Object.values(timelineMap)
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .map(item => ({
+            hour: item.timestamp, // Using timestamp instead of hour number
+            opens: item.opens,
+            clicks: item.clicks,
+            engagement_score: item.opens + (item.clicks * 2)
+        }));
 
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const engagement_by_day = daily_opens.map((opens, i) => ({
@@ -48,8 +66,9 @@ export function calculateTemporalAnalytics(events: CampaignEvent[]): TemporalAna
         engagement_score: opens + (daily_clicks[i] * 2)
     }));
 
-    // Peak hours
-    const peak_hours = [...engagement_by_hour]
+    // Peak hours (still using hourly aggregation for this metric)
+    const hourlyAggregation = hourly_opens.map((opens, hour) => ({ hour, opens }));
+    const peak_hours = [...hourlyAggregation]
         .sort((a, b) => b.opens - a.opens)
         .slice(0, 3)
         .filter(h => h.opens > 0)

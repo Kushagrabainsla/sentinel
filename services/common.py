@@ -42,6 +42,7 @@ class CampaignType(Enum):
     """Campaign execution timing types"""
     IMMEDIATE = "I"  # Immediate execution
     SCHEDULED = "S"  # Scheduled execution
+    AB_TEST = "AB"   # A/B Testing
 
 class CampaignDeliveryType(Enum):
     """Campaign delivery mechanism types"""
@@ -526,4 +527,376 @@ def parse_user_agent(user_agent):
         'is_mobile': is_mobile,
         'is_tablet': is_tablet,
         'is_desktop': is_desktop
+    }
+
+# ================================
+# HTML SANITIZATION UTILITIES
+# ================================
+
+# Allowed HTML tags for email content (safe subset)
+ALLOWED_HTML_TAGS = {
+    'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'center', 'cite', 'code',
+    'col', 'colgroup', 'dd', 'div', 'dl', 'dt', 'em', 'h1', 'h2', 'h3', 'h4',
+    'h5', 'h6', 'hr', 'i', 'img', 'li', 'ol', 'p', 'pre', 'q', 's', 'small',
+    'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot',
+    'th', 'thead', 'tr', 'u', 'ul'
+}
+
+# Dangerous URL schemes
+DANGEROUS_URL_SCHEMES = {
+    'javascript:', 'data:', 'vbscript:', 'file:', 'about:'
+}
+
+# Suspicious patterns that might indicate phishing or XSS
+SUSPICIOUS_HTML_PATTERNS = [
+    r'onclick\s*=',
+    r'onerror\s*=',
+    r'onload\s*=',
+    r'<script',
+    r'<iframe',
+    r'<object',
+    r'<embed',
+    r'<applet',
+    r'document\.cookie',
+    r'window\.location',
+    r'eval\(',
+]
+
+def sanitize_html_content(html_content):
+    """
+    Sanitize HTML content to prevent XSS and injection attacks
+    
+    Args:
+        html_content: Raw HTML string to sanitize
+    
+    Returns:
+        dict with keys:
+            - is_valid: bool indicating if content is safe
+            - sanitized_html: cleaned HTML string
+            - warnings: list of warning messages
+            - blocked_elements: list of blocked elements
+    """
+    if not html_content:
+        return {
+            "is_valid": True,
+            "sanitized_html": "",
+            "warnings": [],
+            "blocked_elements": []
+        }
+    
+    warnings = []
+    blocked_elements = []
+    
+    # Step 1: Detect suspicious patterns
+    for pattern in SUSPICIOUS_HTML_PATTERNS:
+        if re.search(pattern, html_content, re.IGNORECASE):
+            warnings.append(f"Suspicious pattern detected: {pattern}")
+            blocked_elements.append(f"Pattern: {pattern}")
+    
+    # Step 2: Remove dangerous tags
+    dangerous_tags = ['script', 'iframe', 'object', 'embed', 'applet', 'form', 'input', 'button']
+    for tag in dangerous_tags:
+        pattern = rf'<{tag}[^>]*>.*?</{tag}>|<{tag}[^>]*/?>'
+        if re.search(pattern, html_content, re.IGNORECASE | re.DOTALL):
+            warnings.append(f"Removed dangerous tag: <{tag}>")
+            blocked_elements.append(f"<{tag}>")
+        html_content = re.sub(pattern, '', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Step 3: Remove event handlers
+    event_handlers = [
+        'onclick', 'ondblclick', 'onmousedown', 'onmouseup', 'onmouseover',
+        'onmousemove', 'onmouseout', 'onkeypress', 'onkeydown', 'onkeyup',
+        'onload', 'onunload', 'onerror', 'onabort', 'onblur', 'onchange',
+        'onfocus', 'onreset', 'onselect', 'onsubmit'
+    ]
+    
+    for handler in event_handlers:
+        pattern = rf'{handler}\s*=\s*["\'][^"\']*["\']'
+        if re.search(pattern, html_content, re.IGNORECASE):
+            warnings.append(f"Removed event handler: {handler}")
+        html_content = re.sub(pattern, '', html_content, flags=re.IGNORECASE)
+    
+    # Step 4: Sanitize dangerous URLs
+    def check_and_remove_dangerous_url(match):
+        full_tag = match.group(0)
+        url = match.group(1)
+        
+        if not url:
+            return full_tag
+        
+        url_lower = url.strip().lower()
+        
+        # Check for dangerous schemes
+        for scheme in DANGEROUS_URL_SCHEMES:
+            if url_lower.startswith(scheme):
+                warnings.append(f"Blocked dangerous URL scheme: {scheme}")
+                blocked_elements.append(f"URL: {url[:50]}...")
+                return full_tag.replace(f'href="{url}"', '').replace(f"href='{url}'", '')
+        
+        # Check for obfuscated URLs
+        if re.search(r'%00|%0[ad]|\\x|\\u', url, re.IGNORECASE):
+            warnings.append("Blocked obfuscated URL")
+            blocked_elements.append(f"Obfuscated URL: {url[:50]}...")
+            return full_tag.replace(f'href="{url}"', '').replace(f"href='{url}'", '')
+        
+        return full_tag
+    
+    # Sanitize href attributes
+    html_content = re.sub(
+        r'<a\s+[^>]*href\s*=\s*["\']([^"\']+)["\'][^>]*>',
+        check_and_remove_dangerous_url,
+        html_content,
+        flags=re.IGNORECASE
+    )
+    
+    # Sanitize src attributes (for images)
+    def check_and_remove_dangerous_src(match):
+        full_tag = match.group(0)
+        url = match.group(1)
+        
+        if not url:
+            return full_tag
+        
+        url_lower = url.strip().lower()
+        
+        # Check for data URIs (only allow images)
+        if url_lower.startswith('data:'):
+            if not url_lower.startswith('data:image/'):
+                warnings.append("Blocked non-image data URI")
+                blocked_elements.append(f"Data URI: {url[:50]}...")
+                return full_tag.replace(f'src="{url}"', '').replace(f"src='{url}'", '')
+        
+        return full_tag
+    
+    html_content = re.sub(
+        r'<img\s+[^>]*src\s*=\s*["\']([^"\']+)["\'][^>]*>',
+        check_and_remove_dangerous_src,
+        html_content,
+        flags=re.IGNORECASE
+    )
+    
+    # Determine if content is valid (no blocked elements)
+    is_valid = len(blocked_elements) == 0
+    
+    return {
+        "is_valid": is_valid,
+        "sanitized_html": html_content,
+        "warnings": warnings,
+        "blocked_elements": blocked_elements
+    }
+
+# ================================
+# RETRY UTILITIES WITH EXPONENTIAL BACKOFF
+# ================================
+
+import time
+import random
+
+# Transient errors that should be retried
+RETRYABLE_ERROR_CODES = {
+    'Throttling',
+    'ThrottlingException', 
+    'RequestLimitExceeded',
+    'ServiceUnavailable',
+    'RequestTimeout',
+    'InternalServerError',
+    'InternalError',
+    'ProvisionedThroughputExceededException',
+    'TooManyRequestsException',
+}
+
+# Permanent errors that should NOT be retried
+PERMANENT_ERROR_CODES = {
+    'InvalidParameterValue',
+    'ValidationError',
+    'AccessDenied',
+    'UnauthorizedOperation',
+    'InvalidClientTokenId',
+    'MessageRejected',  # SES: Invalid email address
+    'MailFromDomainNotVerified',  # SES: Domain not verified
+}
+
+def is_retryable_error(error):
+    """
+    Determine if an error should be retried
+    
+    Args:
+        error: Exception object (typically botocore.exceptions.ClientError)
+    
+    Returns:
+        bool: True if error is transient and should be retried
+    """
+    if not hasattr(error, 'response'):
+        # Non-AWS errors (network issues, etc.) - retry
+        return True
+    
+    error_code = error.response.get('Error', {}).get('Code', '')
+    
+    # Don't retry permanent errors
+    if error_code in PERMANENT_ERROR_CODES:
+        return False
+    
+    # Retry known transient errors
+    if error_code in RETRYABLE_ERROR_CODES:
+        return True
+    
+    # Check HTTP status code
+    status_code = error.response.get('ResponseMetadata', {}).get('HTTPStatusCode', 0)
+    
+    # Retry on 5xx server errors and 429 rate limiting
+    if status_code >= 500 or status_code == 429:
+        return True
+    
+    # Don't retry 4xx client errors (except 429)
+    if 400 <= status_code < 500:
+        return False
+    
+    # Default: retry unknown errors
+    return True
+
+def exponential_backoff_retry(
+    func,
+    max_retries=3,
+    base_delay=1.0,
+    max_delay=60.0,
+    exponential_base=2,
+    jitter=True,
+    retryable_exceptions=(Exception,)
+):
+    """
+    Execute a function with exponential backoff retry logic
+    
+    Args:
+        func: Callable to execute
+        max_retries: Maximum number of retry attempts (default: 3)
+        base_delay: Initial delay in seconds (default: 1.0)
+        max_delay: Maximum delay in seconds (default: 60.0)
+        exponential_base: Base for exponential calculation (default: 2)
+        jitter: Add random jitter to prevent thundering herd (default: True)
+        retryable_exceptions: Tuple of exception types to retry (default: all)
+    
+    Returns:
+        Result of func() if successful
+    
+    Raises:
+        Last exception if all retries exhausted
+    
+    Example:
+        result = exponential_backoff_retry(
+            lambda: ses.send_email(**params),
+            max_retries=3
+        )
+    """
+    last_exception = None
+    
+    for attempt in range(max_retries + 1):  # +1 because first attempt is not a retry
+        try:
+            return func()
+        
+        except retryable_exceptions as e:
+            last_exception = e
+            
+            # Check if this error should be retried
+            if not is_retryable_error(e):
+                print(f"❌ Permanent error, not retrying: {e}")
+                raise
+            
+            # If this was the last attempt, raise the error
+            if attempt >= max_retries:
+                print(f"❌ Max retries ({max_retries}) exhausted")
+                raise
+            
+            # Calculate delay with exponential backoff
+            delay = min(base_delay * (exponential_base ** attempt), max_delay)
+            
+            # Add jitter to prevent thundering herd problem
+            if jitter:
+                delay = delay * (0.5 + random.random())  # Random between 50% and 150% of delay
+            
+            # Log retry attempt
+            error_code = getattr(e, 'response', {}).get('Error', {}).get('Code', type(e).__name__)
+            print(f"⏳ Retry {attempt + 1}/{max_retries} after {delay:.2f}s due to {error_code}")
+            
+            # Wait before retrying
+            time.sleep(delay)
+    
+    # Should never reach here, but just in case
+    if last_exception:
+        raise last_exception
+
+def retry_with_backoff(max_retries=3, base_delay=1.0):
+    """
+    Decorator for adding exponential backoff retry to functions
+    
+    Usage:
+        @retry_with_backoff(max_retries=3, base_delay=1.0)
+        def send_email(params):
+            return ses.send_email(**params)
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            return exponential_backoff_retry(
+                lambda: func(*args, **kwargs),
+                max_retries=max_retries,
+                base_delay=base_delay
+            )
+        return wrapper
+    return decorator
+
+# ================================
+# BATCH PROCESSING UTILITIES
+# ================================
+
+def process_in_batches(items, batch_size, processor_func, continue_on_error=True):
+    """
+    Process items in batches with error handling
+    
+    Args:
+        items: List of items to process
+        batch_size: Number of items per batch
+        processor_func: Function to process each batch (receives list of items)
+        continue_on_error: If True, continue processing remaining batches on error
+    
+    Returns:
+        dict with keys:
+            - successful: Number of successfully processed items
+            - failed: Number of failed items
+            - errors: List of error messages
+    
+    Example:
+        result = process_in_batches(
+            emails,
+            batch_size=25,
+            processor_func=lambda batch: send_batch_to_sqs(batch)
+        )
+    """
+    successful = 0
+    failed = 0
+    errors = []
+    
+    # Split items into batches
+    batches = [items[i:i + batch_size] for i in range(0, len(items), batch_size)]
+    
+    print(f"📦 Processing {len(items)} items in {len(batches)} batches of {batch_size}")
+    
+    for batch_num, batch in enumerate(batches, 1):
+        try:
+            processor_func(batch)
+            successful += len(batch)
+            print(f"✅ Batch {batch_num}/{len(batches)}: {len(batch)} items processed")
+        
+        except Exception as e:
+            failed += len(batch)
+            error_msg = f"Batch {batch_num}/{len(batches)} failed: {str(e)}"
+            errors.append(error_msg)
+            print(f"❌ {error_msg}")
+            
+            if not continue_on_error:
+                raise
+    
+    return {
+        "successful": successful,
+        "failed": failed,
+        "errors": errors,
+        "total_batches": len(batches)
     }

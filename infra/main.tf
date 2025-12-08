@@ -91,6 +91,69 @@ module "api" {
     auth_api_arn                    = module.lambdas.auth_api_arn
     campaigns_api_arn               = module.lambdas.campaigns_api_arn
     generate_email_lambda_arn       = module.lambdas.generate_email_arn
+    generate_insights_lambda_arn    = module.lambdas.generate_insights_arn
+}
+
+# Monitoring & Alarms
+module "alarms" {
+    source = "./modules/alarms"
+    name   = local.name
+    
+    lambda_functions = {
+        generate_email = {
+            function_name = "${local.name}-generate-email"
+            timeout       = 30
+        }
+        generate_insights = {
+            function_name = "${local.name}-generate-insights"
+            timeout       = 60
+        }
+        start_campaign = {
+            function_name = "${local.name}-start-campaign"
+            timeout       = 60
+        }
+        send_worker = {
+            function_name = "${local.name}-send-worker"
+            timeout       = 60
+        }
+        tracking_api = {
+            function_name = "${local.name}-tracking-api"
+            timeout       = 30
+        }
+        segments_api = {
+            function_name = "${local.name}-segments-api"
+            timeout       = 30
+        }
+        authorizer = {
+            function_name = "${local.name}-authorizer"
+            timeout       = 10
+        }
+        auth_api = {
+            function_name = "${local.name}-auth-api"
+            timeout       = 30
+        }
+        campaigns_api = {
+            function_name = "${local.name}-campaigns-api"
+            timeout       = 30
+        }
+        ab_test_analyzer = {
+            function_name = "${local.name}-ab-test-analyzer"
+            timeout       = 60
+        }
+    }
+    
+    dynamodb_tables = [
+        module.dynamodb.users_table,
+        module.dynamodb.campaigns_table,
+        module.dynamodb.segments_table,
+        module.dynamodb.events_table,
+        module.dynamodb.link_mappings_table
+    ]
+    
+    api_gateway_id   = module.api.api_id
+    api_gateway_name = module.api.api_name
+    sqs_queue_name   = "${local.name}-send-queue"
+    dlq_name         = "${local.name}-dlq"
 }
 
 # Events (EventBridge Scheduler only - SES events not configured)
