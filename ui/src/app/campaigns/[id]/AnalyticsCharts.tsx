@@ -267,13 +267,25 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 />
                 <InsightCard
                     title="Engagement Score"
-                    value={Number(data.summary?.unique_clicks*250/ data.summary?.unique_opens).toFixed(0)}
+                    value={
+                        data?.summary?.unique_clicks != null && data?.summary?.unique_opens != null && data.summary.unique_opens > 0
+                            ? Number(
+                                ((data.summary.unique_clicks * 250) / data.summary.unique_opens).toFixed(0)
+                              )
+                            : 0
+                    }
                     icon={Zap}
                     subtext="Quality of interactions"
                 />
                 <InsightCard
                     title="Click-to-Open Rate"
-                    value={`${Number(data.summary?.unique_clicks * 100/data.summary?.unique_opens).toFixed(1)}%`}
+                    value={
+                        data?.summary?.unique_clicks != null && data?.summary?.unique_opens != null && data.summary.unique_opens > 0
+                            ? Number(
+                                ((data.summary.unique_clicks * 100) / data.summary.unique_opens).toFixed(1)
+                              )
+                            : 0
+                    }
                     icon={MousePointerClick}
                     subtext="Effectiveness of content"
                 />
