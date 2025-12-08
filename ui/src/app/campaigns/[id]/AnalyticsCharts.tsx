@@ -108,6 +108,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
 
                 const response = await api.get(`/campaigns/${campaignId}/events`, { params });
                 const { distributions, events } = response.data;
+                console.log(response.data)
 
                 // Calculate metrics client-side if not provided by backend
                 let temporal_analytics = response.data.temporal_analytics;
@@ -266,13 +267,13 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 />
                 <InsightCard
                     title="Engagement Score"
-                    value={data.engagement.engagement_quality_score}
+                    value={Number(data.summary?.unique_clicks*250/ data.summary?.unique_opens).toFixed(0)}
                     icon={Zap}
                     subtext="Quality of interactions"
                 />
                 <InsightCard
                     title="Click-to-Open Rate"
-                    value={`${Number(data.engagement.click_to_open_rate).toFixed(1)}%`}
+                    value={`${Number(data.summary?.unique_clicks * 100/data.summary?.unique_opens).toFixed(1)}%`}
                     icon={MousePointerClick}
                     subtext="Effectiveness of content"
                 />
