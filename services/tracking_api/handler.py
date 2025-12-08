@@ -148,7 +148,7 @@ def lambda_handler(event, context):
     ip_address = headers.get('x-forwarded-for', headers.get('X-Forwarded-For', '')).split(',')[0].strip() or headers.get('x-real-ip', headers.get('X-Real-IP', 'unknown'))
     
     # Log enhanced request info for debugging
-    print(f"🌐 Request Info: IP={ip_address}, UA={user_agent[:50]}...")
+    print(f"🌐 Request Info: IP={ip_address}, UA={user_agent}")
     
     try:
         # Route based on path
