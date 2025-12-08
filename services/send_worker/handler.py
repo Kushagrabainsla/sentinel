@@ -191,8 +191,14 @@ def lambda_handler(event, _context):
             # Add tracking pixel to HTML content
             html_content = template_data["html_body"]
             if tracking_data.get("tracking_pixel"):
-                html_content += tracking_data["tracking_pixel"]
-                print(f"📊 Added open tracking pixel: {tracking_data.get('pixel_url')}")
+                footer_html = f'''
+                <div style="margin-top: 40px; padding: 20px; text-align: center; border-top: 1px solid #e1e5e9; font-family: Arial, sans-serif;">
+                    <img src="{tracking_data['tracking_pixel']}" alt="Sentinel" style="width: 32px; height: 32px; margin-bottom: 10px;">
+                    <p style="font-size: 12px; color: #6c757d; margin: 5px 0;">Powered by Sentinel</p>
+                </div>
+                '''
+                html_content += footer_html
+                print(f"📊 Added branded footer with tracking pixel: {tracking_data.get('tracking_pixel')}")
             
             # Generate plain text content from HTML (fallback)
             import re
