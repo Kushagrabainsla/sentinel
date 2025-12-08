@@ -24,6 +24,29 @@ def get_country_code_from_ip(ip_address):
         pass
     return 'US'  # Default to US on failure
 
+def is_bot(user_agent):
+    """Detect if the request is from a bot based on user agent"""
+    if not user_agent:
+        return False
+    
+    user_agent_lower = user_agent.lower()
+    
+    # Common bot indicators
+    bot_patterns = [
+        'bot', 'crawler', 'spider', 'scraper', 'curl', 'wget',
+        'python-requests', 'java', 'apache-httpclient', 'php',
+        'monitoring', 'scanner', 'check', 'test', 'validator',
+        'feedfetcher', 'slurp', 'mediapartners', 'adsbot',
+        'facebookexternalhit', 'twitterbot', 'linkedinbot',
+        'slackbot', 'telegrambot', 'whatsapp', 'discordbot'
+    ]
+    
+    for pattern in bot_patterns:
+        if pattern in user_agent_lower:
+            return True
+    
+    return False
+
 def get_analytics_metadata(headers, query_params=None):
     """Extract comprehensive analytics metadata from request"""
     user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
@@ -206,15 +229,18 @@ def handle_open_tracking(path, headers, query_params):
             print(f"❌ Failed to decode email: {e}")
             email = 'unknown'
         
-        print(f"📧 Recording open event - Campaign: {campaign_id}, Recipient: {recipient_id}, Email: {email}")
-        
-        record_tracking_event(
-            campaign_id=campaign_id,
-            recipient_id=recipient_id,
-            email=email,
-            event_type=EventType.OPEN.value,
-            metadata=metadata
-        )
+        # Check if request is from a bot
+        user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
+        if is_bot(user_agent):
+            print(f"🤖 Bot detected, skipping open event - Campaign: {campaign_id}, UA: {user_agent}")
+        else:
+            record_tracking_event(
+                campaign_id=campaign_id,
+                recipient_id=recipient_id,
+                email=email,
+                event_type=EventType.OPEN.value,
+                metadata=metadata
+            )
 
     # Serve the S3 logo directly (fetch and return the image data)
     sentinel_logo_url = os.environ.get('SENTINEL_LOGO_URL')
@@ -295,13 +321,18 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
                 'variation_id': variation_id
             })
             
-            record_tracking_event(
-                campaign_id=campaign_id,
-                recipient_id=recipient_id,
-                email=link_mapping.get('email', 'unknown'),
-                event_type=EventType.CLICK.value,
-                metadata=metadata
-            )
+            # Check if request is from a bot
+            user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
+            if is_bot(user_agent):
+                print(f"🤖 Bot detected, skipping click event - Campaign: {campaign_id}, UA: {user_agent}")
+            else:
+                record_tracking_event(
+                    campaign_id=campaign_id,
+                    recipient_id=recipient_id,
+                    email=link_mapping.get('email', 'unknown'),
+                    event_type=EventType.CLICK.value,
+                    metadata=metadata
+                )
 
             # Redirect to original URL
             return {
