@@ -629,14 +629,6 @@ These URLs don't require authentication and are used for email tracking:
 - **Link clicks:** `GET /track/click/{tracking_id}`
 - **Unsubscribe:** `GET /unsubscribe/{tracking_id}`
 
-### 🤖 Bot Detection
-
-The tracking API automatically detects and filters bot traffic from analytics:
-- Bot requests are identified via user-agent pattern matching (crawlers, spiders, monitoring tools, etc.)
-- Bot events are **not recorded** in analytics to ensure data accuracy
-- Content/redirects are still served to bots for compatibility
-- This prevents inflated metrics from automated traffic
-
 ---
 
 ## 📚 Quick Reference

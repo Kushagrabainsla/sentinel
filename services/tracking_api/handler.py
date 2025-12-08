@@ -24,35 +24,6 @@ def get_country_code_from_ip(ip_address):
         pass
     return 'US'  # Default to US on failure
 
-def is_bot(user_agent):
-    """Detect if the request is from a bot based on user agent
-    
-    Filters out automated bots, crawlers, and prefetch services while allowing
-    legitimate email client requests
-    """
-    if not user_agent:
-        return False
-    
-    user_agent_lower = user_agent.lower()
-    
-    # Common bot indicators
-    bot_patterns = [
-        'bot', 'crawler', 'spider', 'scraper', 'curl', 'wget',
-        'python-requests', 'java', 'apache-httpclient', 'php',
-        'monitoring', 'scanner', 'check', 'test', 'validator',
-        'feedfetcher', 'slurp', 'mediapartners', 'adsbot',
-        'facebookexternalhit', 'twitterbot', 'linkedinbot',
-        'slackbot', 'telegrambot', 'discordbot',
-        'headless', 'phantom', 'selenium',
-        'googleimageproxy', 'proxy', 'prefetch', 'prerender'
-    ]
-    
-    for pattern in bot_patterns:
-        if pattern in user_agent_lower:
-            return True
-    
-    return False
-
 def get_analytics_metadata(headers, query_params=None):
     """Extract comprehensive analytics metadata from request"""
     user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
@@ -129,11 +100,10 @@ def get_link_mapping(tracking_id):
         return None
 
 def generate_1x1_pixel():
-    """Generate a 1x1 transparent GIF (better for email tracking than PNG)"""
-    # Base64 encoded 1x1 transparent GIF (43 bytes)
-    # This is a single-pixel transparent GIF that bypasses more caches than PNG
+    """Generate a 1x1 transparent PNG pixel"""
+    # Base64 encoded 1x1 transparent PNG
     pixel_data = base64.b64decode(
-        'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
     )
     return pixel_data
 
@@ -236,18 +206,15 @@ def handle_open_tracking(path, headers, query_params):
             print(f"❌ Failed to decode email: {e}")
             email = 'unknown'
         
-        # Check if request is from a bot
-        user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
-        if is_bot(user_agent):
-            print(f"🤖 Bot detected, skipping open event - Campaign: {campaign_id}, UA: {user_agent}")
-        else:
-            record_tracking_event(
-                campaign_id=campaign_id,
-                recipient_id=recipient_id,
-                email=email,
-                event_type=EventType.OPEN.value,
-                metadata=metadata
-            )
+        print(f"📧 Recording open event - Campaign: {campaign_id}, Recipient: {recipient_id}, Email: {email}")
+        
+        record_tracking_event(
+            campaign_id=campaign_id,
+            recipient_id=recipient_id,
+            email=email,
+            event_type=EventType.OPEN.value,
+            metadata=metadata
+        )
 
     # Serve the S3 logo directly (fetch and return the image data)
     sentinel_logo_url = os.environ.get('SENTINEL_LOGO_URL')
@@ -274,17 +241,16 @@ def handle_open_tracking(path, headers, query_params):
             print(f"❌ Failed to fetch logo from S3: {e}")
             # Fallback to pixel
     
-    # Fallback: return 1x1 transparent GIF if S3 fetch fails
+    # Fallback: return 1x1 transparent pixel if S3 fetch fails
     pixel_data = generate_1x1_pixel()
     
     return {
         'statusCode': 200,
         'headers': {
-            'Content-Type': 'image/gif',
-            'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+            'Content-Type': 'image/png',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
-            'Expires': '0',
-            'X-Robots-Tag': 'noindex'
+            'Expires': '0'
         },
         'body': base64.b64encode(pixel_data).decode('utf-8'),
         'isBase64Encoded': True
@@ -329,18 +295,13 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
                 'variation_id': variation_id
             })
             
-            # Check if request is from a bot
-            user_agent = headers.get('user-agent', headers.get('User-Agent', ''))
-            if is_bot(user_agent):
-                print(f"🤖 Bot detected, skipping click event - Campaign: {campaign_id}, UA: {user_agent}")
-            else:
-                record_tracking_event(
-                    campaign_id=campaign_id,
-                    recipient_id=recipient_id,
-                    email=link_mapping.get('email', 'unknown'),
-                    event_type=EventType.CLICK.value,
-                    metadata=metadata
-                )
+            record_tracking_event(
+                campaign_id=campaign_id,
+                recipient_id=recipient_id,
+                email=link_mapping.get('email', 'unknown'),
+                event_type=EventType.CLICK.value,
+                metadata=metadata
+            )
 
             # Redirect to original URL
             return {
