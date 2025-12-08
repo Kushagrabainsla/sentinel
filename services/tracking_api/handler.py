@@ -38,7 +38,8 @@ def is_bot(user_agent):
         'monitoring', 'scanner', 'check', 'test', 'validator',
         'feedfetcher', 'slurp', 'mediapartners', 'adsbot',
         'facebookexternalhit', 'twitterbot', 'linkedinbot',
-        'slackbot', 'telegrambot', 'whatsapp', 'discordbot'
+        'slackbot', 'telegrambot', 'whatsapp', 'discordbot',
+        'proxy', 'prefetch', 'prerender'
     ]
     
     for pattern in bot_patterns:

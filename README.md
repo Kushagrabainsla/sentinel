@@ -49,6 +49,7 @@
 
 ### Security & Performance
 - 🔒 **HTML Content Sanitization** - Automatic XSS and phishing link prevention with whitelist-based filtering
+- 🤖 **Bot Detection & Filtering** - Intelligent user-agent analysis filters bot traffic from analytics while serving content
 - 📊 **Comprehensive Monitoring** - 30+ CloudWatch alarms for Lambda, DynamoDB, API Gateway, and SQS
 - 📊 **Queue Depth Monitoring** - CloudWatch alarms for proactive SQS queue management
 - ⚡ **Optimized Concurrency** - Batch processing with controlled concurrency (14 emails/sec via 2×7 batches)

@@ -195,6 +195,7 @@ Security is a first-class citizen in Sentinel, implemented at every layer of the
 
 **Input Validation & Sanitization:**
 - **HTML Sanitization:** All email content is sanitized to prevent XSS and injection attacks. We strip dangerous tags (`<script>`, `<iframe>`) and validate URLs.
+- **Bot Detection & Filtering:** Intelligent user-agent analysis filters bot traffic (crawlers, spiders, monitoring tools) from analytics while serving content.
 - **Schema Validation:** API Gateway validates request bodies against defined JSON schemas before they reach Lambda.
 
 ### 3.6 Reliability
@@ -273,6 +274,7 @@ Sentinel is optimized for low latency and high throughput.
 - ✅ **AI-Powered Analytics Insights:** Automated campaign performance analysis with recommendations
 - ✅ **Email Sending:** High-volume sending via SES with rate limiting
 - ✅ **Tracking:** Invisible pixel tracking for opens and redirect tracking for link clicks
+- ✅ **Bot Detection:** Automatic filtering of bot traffic from analytics via user-agent pattern matching
 - ✅ **Advanced Analytics Dashboard:** Comprehensive real-time analytics
 
 **Analytics Features:**
@@ -849,6 +851,13 @@ To take Sentinel from a prototype to a production-ready SaaS product, the follow
 - ✅ URL validation (blocks `javascript:`, `data:`, obfuscated URLs)
 - ✅ Event handler removal (strips `onclick`, `onerror`, etc.)
 - ✅ Integrated into campaigns API with automatic validation
+
+**Bot Detection & Analytics Accuracy:**
+- ✅ User-agent pattern matching in tracking API
+- ✅ Filters crawlers, spiders, monitoring tools, social media bots
+- ✅ Bot events excluded from analytics (opens, clicks)
+- ✅ Content/redirects still served to bots for compatibility
+- ✅ Prevents inflated engagement metrics from automated traffic
 
 **SQS Queue Depth Management:**
 - ✅ CloudWatch alarm for queue depth (threshold: 10,000 messages)
