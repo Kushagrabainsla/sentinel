@@ -1,0 +1,11 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /profile/
+
+# Sitemap location
+Sitemap: https://thesentinel.site/sitemap.xml

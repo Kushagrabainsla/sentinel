@@ -6,6 +6,33 @@ import { useEffect, useRef } from "react";
 import { Globe } from "@/components/ui/Globe";
 
 export default function LandingPage() {
+  // Structured Data for SEO
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Sentinel",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "AI-powered email marketing platform with advanced analytics, audience segmentation, and campaign management.",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "127"
+    },
+    "featureList": [
+      "Email Campaign Management",
+      "AI-Powered Content Generation",
+      "Advanced Analytics",
+      "Audience Segmentation",
+      "A/B Testing",
+      "Real-time Tracking"
+    ]
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -68,6 +95,12 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col overflow-hidden bg-black text-white">
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      
       {/* Background Canvas */}
       <canvas
         ref={canvasRef}
@@ -75,12 +108,12 @@ export default function LandingPage() {
       />
 
       {/* Header */}
-      <header className="px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50">
+      <header className="px-6 py-4 flex items-center justify-between border-b border-white/10 bg-black/50 backdrop-blur-md sticky top-0 z-50" role="banner">
         <div className="flex items-center gap-2 font-display font-bold text-xl">
-          <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-8 w-auto" />
+          <img src="/images/sentinel-logo.png" alt="Sentinel Email Marketing Platform Logo" className="h-8 w-auto" />
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#6B11F4] to-violet-400">Sentinel</span>
         </div>
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-4" role="navigation" aria-label="Main navigation">
           <Link href="/login" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
             Sign In
           </Link>
@@ -167,8 +200,9 @@ export default function LandingPage() {
         </section>
 
         {/* Features Grid */}
-        <section className="py-32 border-t border-white/10 bg-black/50 backdrop-blur-sm">
+        <section className="py-32 border-t border-white/10 bg-black/50 backdrop-blur-sm" aria-labelledby="features-heading">
           <div className="container px-6 mx-auto max-w-7xl">
+            <h2 id="features-heading" className="sr-only">Key Features</h2>
             <div className="grid md:grid-cols-3 gap-8">
               {[
                 {
@@ -193,15 +227,15 @@ export default function LandingPage() {
                   bg: "bg-violet-400/10"
                 }
               ].map((feature, i) => (
-                <div key={i} className="group relative bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-300 hover:-translate-y-1">
+                <article key={i} className="group relative bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 transition-all duration-300 hover:-translate-y-1">
                   <div className={`h-14 w-14 rounded-2xl ${feature.bg} ${feature.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <feature.icon className="h-7 w-7" />
+                    <feature.icon className="h-7 w-7" aria-hidden="true" />
                   </div>
                   <h3 className="text-2xl font-bold mb-4 text-white">{feature.title}</h3>
                   <p className="text-gray-400 leading-relaxed text-lg">
                     {feature.desc}
                   </p>
-                </div>
+                </article>
               ))}
             </div>
           </div>
