@@ -15,7 +15,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://thesentinel.site'),
+  metadataBase: new URL('https://dashboard.thesentinel.site'),
   title: {
     default: "Sentinel - AI-Powered Email Marketing Platform",
     template: "%s | Sentinel"
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://thesentinel.site",
+    url: "https://dashboard.thesentinel.site",
     siteName: "Sentinel",
     title: "Sentinel - AI-Powered Email Marketing Platform",
     description: "Transform your email marketing with Sentinel's AI-powered platform. Create intelligent campaigns, segment audiences, and boost engagement.",
@@ -71,7 +71,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        <link rel="canonical" href="https://thesentinel.site" />
+        <link rel="canonical" href="https://dashboard.thesentinel.site" />
       </head>
       <body
         className={`${inter.variable} ${outfit.variable} antialiased bg-background text-foreground`}

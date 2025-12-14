@@ -8,4 +8,4 @@ Disallow: /dashboard/
 Disallow: /profile/
 
 # Sitemap location
-Sitemap: https://thesentinel.site/sitemap.xml
+Sitemap: https://dashboard.thesentinel.site/sitemap.xml
