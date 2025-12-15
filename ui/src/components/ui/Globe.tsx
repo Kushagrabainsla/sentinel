@@ -25,13 +25,50 @@ export function Globe({ selectedCountry = 'all', onSelectCountry, availableCount
     }));
 
     const allLocations = [
-        { name: 'US', location: [40, -100], size: 0.1 },
-        { name: 'UK', location: [51.5, -0.1], size: 0.05 },
-        { name: 'CA', location: [60, -100], size: 0.1 },
-        { name: 'DE', location: [51, 10], size: 0.05 },
-        { name: 'FR', location: [46, 2], size: 0.05 },
-        { name: 'AU', location: [-25, 133], size: 0.1 },
-        { name: 'IN', location: [20, 77], size: 0.1 },
+        // North America
+        { name: 'US', location: [37.0902, -95.7129], size: 0.1 },
+        { name: 'CA', location: [56.1304, -106.3468], size: 0.08 },
+        { name: 'MX', location: [23.6345, -102.5528], size: 0.07 },
+        
+        // South America
+        { name: 'BR', location: [-14.2350, -51.9253], size: 0.08 },
+        { name: 'AR', location: [-38.4161, -63.6167], size: 0.06 },
+        { name: 'CL', location: [-35.6751, -71.5430], size: 0.05 },
+        
+        // Europe
+        { name: 'UK', location: [55.3781, -3.4360], size: 0.06 },
+        { name: 'DE', location: [51.1657, 10.4515], size: 0.06 },
+        { name: 'FR', location: [46.2276, 2.2137], size: 0.06 },
+        { name: 'ES', location: [40.4637, -3.7492], size: 0.06 },
+        { name: 'IT', location: [41.8719, 12.5674], size: 0.06 },
+        { name: 'NL', location: [52.1326, 5.2913], size: 0.04 },
+        { name: 'SE', location: [60.1282, 18.6435], size: 0.05 },
+        { name: 'PL', location: [51.9194, 19.1451], size: 0.05 },
+        { name: 'CH', location: [46.8182, 8.2275], size: 0.04 },
+        
+        // Asia
+        { name: 'IN', location: [20.5937, 78.9629], size: 0.1 },
+        { name: 'CN', location: [35.8617, 104.1954], size: 0.1 },
+        { name: 'JP', location: [36.2048, 138.2529], size: 0.07 },
+        { name: 'KR', location: [35.9078, 127.7669], size: 0.05 },
+        { name: 'SG', location: [1.3521, 103.8198], size: 0.04 },
+        { name: 'TH', location: [15.8700, 100.9925], size: 0.05 },
+        { name: 'ID', location: [-0.7893, 113.9213], size: 0.07 },
+        { name: 'PH', location: [12.8797, 121.7740], size: 0.05 },
+        { name: 'VN', location: [14.0583, 108.2772], size: 0.05 },
+        { name: 'MY', location: [4.2105, 101.9758], size: 0.05 },
+        { name: 'AE', location: [23.4241, 53.8478], size: 0.04 },
+        { name: 'IL', location: [31.0461, 34.8516], size: 0.04 },
+        
+        // Oceania
+        { name: 'AU', location: [-25.2744, 133.7751], size: 0.08 },
+        { name: 'NZ', location: [-40.9006, 174.8860], size: 0.05 },
+        
+        // Africa
+        { name: 'ZA', location: [-30.5595, 22.9375], size: 0.06 },
+        { name: 'NG', location: [9.0820, 8.6753], size: 0.06 },
+        { name: 'EG', location: [26.8206, 30.8025], size: 0.05 },
+        { name: 'KE', location: [-0.0236, 37.9062], size: 0.04 },
     ];
 
     const locations = availableCountries

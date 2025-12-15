@@ -287,6 +287,31 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
         );
     };
 
+    const EmptyPieChart = ({ message }: { message: string }) => (
+        <PieChart>
+            <Pie
+                data={[{ name: 'empty', value: 1 }]}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={80}
+                dataKey="value"
+                stroke="none"
+                fill="#374151"
+                opacity={0.15}
+            />
+            <text
+                x="50%"
+                y="50%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="fill-muted-foreground text-sm"
+            >
+                {message}
+            </text>
+        </PieChart>
+    );
+
     // Prepare user segments data
     const segmentsData = [
         { name: 'Highly Engaged', value: data.insights.engagement_segments.highly_engaged.count },
@@ -492,9 +517,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                                 <Legend content={renderCustomLegend} />
                             </PieChart>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                                No click data available
-                            </div>
+                            <EmptyPieChart message="No click data available" />
                         )}
                     </ChartCard>
                     <ChartCard title="Browser Distribution" subtitle="Click source by browser application">
@@ -518,9 +541,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                                 <Legend content={renderCustomLegend} />
                             </PieChart>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                                No click data available
-                            </div>
+                            <EmptyPieChart message="No click data available" />
                         )}
                     </ChartCard>
                     <ChartCard title="OS Distribution" subtitle="Click source by operating system">
@@ -544,9 +565,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                                 <Legend content={renderCustomLegend} />
                             </PieChart>
                         ) : (
-                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                                No click data available
-                            </div>
+                            <EmptyPieChart message="No click data available" />
                         )}
                     </ChartCard>
                 </div>
