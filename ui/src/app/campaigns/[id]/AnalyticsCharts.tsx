@@ -53,10 +53,15 @@ const formatDuration = (seconds: number): string => {
 
 export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', country = 'all', variationFilter, onAvailableCountriesChange, onDataLoaded }: AnalyticsChartsProps) {
     const [data, setData] = useState<{
-        os: DistributionItem[];
-        device: DistributionItem[];
-        browser: DistributionItem[];
-        geo: DistributionItem[];
+        openData: {
+            country: DistributionItem[];
+        };
+        clickData: {
+            os: DistributionItem[];
+            device: DistributionItem[];
+            browser: DistributionItem[];
+            country: DistributionItem[];
+        };
         temporal: TemporalAnalytics;
         engagement: EngagementMetrics;
         insights: RecipientInsights;
@@ -108,7 +113,8 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
 
                 const response = await api.get(`/campaigns/${campaignId}/events`, { params });
                 const { distributions, events } = response.data;
-                console.log(response.data)
+                console.log('Full response:', response.data);
+                console.log('Distributions:', distributions);
 
                 // Calculate metrics client-side if not provided by backend
                 let temporal_analytics = response.data.temporal_analytics;
@@ -123,21 +129,40 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 }
 
                 if (distributions) {
+                    const openData = {
+                        country: distributions.open_data?.country_distribution || []
+                    };
+                    
+                    const clickData = {
+                        os: distributions.click_data?.os_distribution || [],
+                        device: distributions.click_data?.device_distribution || [],
+                        browser: distributions.click_data?.browser_distribution || [],
+                        country: distributions.click_data?.country_distribution || []
+                    };
+
+                    console.log('Open data:', openData);
+                    console.log('Click data:', clickData);
+
                     setData({
-                        os: distributions.os_distribution,
-                        device: distributions.device_distribution,
-                        browser: distributions.browser_distribution,
-                        geo: distributions.ip_distribution,
+                        openData,
+                        clickData,
                         temporal: temporal_analytics,
                         engagement: engagement_metrics,
                         insights: recipient_insights,
                         summary: response.data.summary
                     });
 
-                    // Extract available countries
-                    if (distributions.country_distribution && onAvailableCountriesChange) {
-                        const countries = distributions.country_distribution.map((d: any) => d.name);
-                        onAvailableCountriesChange(countries);
+                    // Extract available countries from both click and open data
+                    if (onAvailableCountriesChange) {
+                        const clickCountries = distributions.click_data?.country_distribution?.map((d: any) => d.name) || [];
+                        const openCountries = distributions.open_data?.country_distribution?.map((d: any) => d.name) || [];
+                        
+                        // Combine both, preferring click data but including open data as fallback
+                        const allCountries = [...new Set([...clickCountries, ...openCountries])].filter(c => c && c !== 'Unknown');
+                        
+                        if (allCountries.length > 0) {
+                            onAvailableCountriesChange(allCountries);
+                        }
                     }
 
                     // Pass summary data to parent
@@ -447,92 +472,94 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 </div>
             )}
 
-            {/* Distribution Charts Row 2 */}
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-                <ChartCard title="Device Distribution">
-                    <PieChart>
-                        <Pie
-                            data={data.device}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {data.device.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend content={renderCustomLegend} />
-                    </PieChart>
-                </ChartCard>
-                <ChartCard title="Browser Distribution">
-                    <PieChart>
-                        <Pie
-                            data={data.browser}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {data.browser.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend content={renderCustomLegend} />
-                    </PieChart>
-                </ChartCard>
-                <ChartCard title="OS Distribution">
-                    <PieChart>
-                        <Pie
-                            data={data.os}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {data.os.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip content={<CustomTooltip />} />
-                        <Legend content={renderCustomLegend} />
-                    </PieChart>
-                </ChartCard>
+            {/* Click Analytics - Device/Browser/OS Distribution */}
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm mb-6">
+                <div className="mb-4">
+                    <h3 className="text-lg font-semibold">Click Analytics</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Device, browser, and OS data from link clicks</p>
+                </div>
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+                    <ChartCard title="Device Distribution">
+                        {data.clickData.device.length > 0 ? (
+                            <PieChart>
+                                <Pie
+                                    data={data.clickData.device}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {data.clickData.device.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend content={renderCustomLegend} />
+                            </PieChart>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                                No click data available
+                            </div>
+                        )}
+                    </ChartCard>
+                    <ChartCard title="Browser Distribution">
+                        {data.clickData.browser.length > 0 ? (
+                            <PieChart>
+                                <Pie
+                                    data={data.clickData.browser}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {data.clickData.browser.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend content={renderCustomLegend} />
+                            </PieChart>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                                No click data available
+                            </div>
+                        )}
+                    </ChartCard>
+                    <ChartCard title="OS Distribution">
+                        {data.clickData.os.length > 0 ? (
+                            <PieChart>
+                                <Pie
+                                    data={data.clickData.os}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {data.clickData.os.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend content={renderCustomLegend} />
+                            </PieChart>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                                No click data available
+                            </div>
+                        )}
+                    </ChartCard>
+                </div>
             </div>
 
-            {/* IP Distribution Section */}
-            {data.geo && data.geo.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                        <Globe className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-semibold">IP Address Distribution</h3>
-                    </div>
-                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                        {data.geo.map((item, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
-                                <div className="flex items-center gap-2">
-                                    <Monitor className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm font-medium text-foreground">{item.name}</span>
-                                </div>
-                                <span className="text-xs font-bold bg-muted px-2 py-1 rounded-md text-muted-foreground">
-                                    {item.value}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
         </div >
     );
 }

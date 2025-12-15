@@ -795,11 +795,16 @@ def get_campaign_events(event):
         
         # Calculate summary statistics
         event_counts = {}
-        os_distribution = {}
-        device_distribution = {}
-        browser_distribution = {}
-        ip_distribution = {}
-        country_distribution = {}
+        
+        # Separate distributions for opens and clicks
+        # Opens come through proxies, so device/browser/OS data is not reliable
+        # Only clicks provide accurate device information
+        open_country_distribution = {}
+        
+        click_os_distribution = {}
+        click_device_distribution = {}
+        click_browser_distribution = {}
+        click_country_distribution = {}
         
         for event in events:
             # Event type counts
@@ -812,19 +817,23 @@ def get_campaign_events(event):
             if event_type == EventType.SENT.value:
                 continue
 
-            # Extract device info from raw_data
-            ip_address = raw_data.get('ip_address', 'Unknown')
-            os_info = raw_data.get('os', 'Unknown')
-            device_info = raw_data.get('device_type', 'Unknown')
-            browser_info = raw_data.get('browser', 'Unknown')
+            # Extract metadata
             country_info = raw_data.get('country_code', 'Unknown')
             
-            # Update distributions
-            os_distribution[os_info] = os_distribution.get(os_info, 0) + 1
-            device_distribution[device_info] = device_distribution.get(device_info, 0) + 1
-            browser_distribution[browser_info] = browser_distribution.get(browser_info, 0) + 1
-            country_distribution[country_info] = country_distribution.get(country_info, 0) + 1
-            ip_distribution[ip_address] = ip_distribution.get(ip_address, 0) + 1
+            # Only track device/browser/OS for clicks (reliable data)
+            if event_type == EventType.CLICK.value:
+                os_info = raw_data.get('os', 'Unknown')
+                device_info = raw_data.get('device_type', 'Unknown')
+                browser_info = raw_data.get('browser', 'Unknown')
+                
+                click_os_distribution[os_info] = click_os_distribution.get(os_info, 0) + 1
+                click_device_distribution[device_info] = click_device_distribution.get(device_info, 0) + 1
+                click_browser_distribution[browser_info] = click_browser_distribution.get(browser_info, 0) + 1
+                click_country_distribution[country_info] = click_country_distribution.get(country_info, 0) + 1
+            
+            # Track country for opens (still useful for geographic distribution)
+            elif event_type == EventType.OPEN.value:
+                open_country_distribution[country_info] = open_country_distribution.get(country_info, 0) + 1
         
         # Format distributions for frontend charts
         def format_distribution(distribution_dict, max_items=10):
@@ -880,11 +889,15 @@ def get_campaign_events(event):
                 'avg_time_to_click': calculate_avg_time_to_click(events)
             },
             "distributions": {
-                "os_distribution": format_distribution(os_distribution),
-                "device_distribution": format_distribution(device_distribution),
-                "browser_distribution": format_distribution(browser_distribution),
-                "ip_distribution": format_distribution(ip_distribution, max_items=15),
-                "country_distribution": format_distribution(country_distribution)
+                "open_data": {
+                    "country_distribution": format_distribution(open_country_distribution)
+                },
+                "click_data": {
+                    "os_distribution": format_distribution(click_os_distribution),
+                    "device_distribution": format_distribution(click_device_distribution),
+                    "browser_distribution": format_distribution(click_browser_distribution),
+                    "country_distribution": format_distribution(click_country_distribution)
+                }
             },
             "has_more": 'LastEvaluatedKey' in events_response
         })

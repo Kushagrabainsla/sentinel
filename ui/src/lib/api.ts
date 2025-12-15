@@ -159,16 +159,21 @@ export interface CampaignEventsResponse {
         };
         unique_opens: number;
         unique_clicks: number;
+        unique_recipients?: number;
         top_clicked_links?: any[];
         avg_time_to_open: number | null;
         avg_time_to_click: number | null;
     };
     distributions: {
-        os_distribution: DistributionItem[];
-        device_distribution: DistributionItem[];
-        browser_distribution: DistributionItem[];
-        ip_distribution: DistributionItem[];
-        country_distribution?: DistributionItem[];
+        open_data?: {
+            country_distribution: DistributionItem[];
+        };
+        click_data?: {
+            os_distribution: DistributionItem[];
+            device_distribution: DistributionItem[];
+            browser_distribution: DistributionItem[];
+            country_distribution: DistributionItem[];
+        };
     };
     temporal_analytics: TemporalAnalytics;
     engagement_metrics: EngagementMetrics;
