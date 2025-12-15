@@ -20,19 +20,22 @@ interface AnalyticsChartsProps {
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#06b6d4'];
 
-// Helper function to format timestamp to date and time
-const formatTime = (timestamp: number): string => {
+// Helper function to format timestamp to date and time with user timezone
+const formatTime = (timestamp: number, timezone?: string): string => {
     const date = new Date(timestamp * 1000);
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const h = hours % 12 || 12;
-    const period = hours < 12 ? 'AM' : 'PM';
-    const m = minutes.toString().padStart(2, '0');
-    return `${month} ${day}, ${year} ${h}:${m} ${period}`;
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+    
+    return formatter.format(date);
 };
 
 // Helper function to format hour in 12-hour format with AM/PM (for peak hours display)
@@ -68,12 +71,23 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
         summary?: CampaignEventsResponse['summary'];
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
+                // Get user timezone preference
+                try {
+                    const userResponse = await api.get('/auth/me');
+                    if (userResponse.data?.user?.timezone) {
+                        setUserTimezone(userResponse.data.user.timezone);
+                    }
+                } catch (error) {
+                    console.log('Could not fetch user timezone, using browser default');
+                }
+
                 // Simulate network delay
                 await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -215,7 +229,9 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <div className="mb-6">
                 <h3 className="text-lg font-semibold">{title}</h3>
-                {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+                <div className="h-[20px]">
+                    {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+                </div>
             </div>
             <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -228,7 +244,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             // Format the label - if it's a large number (timestamp), use formatTime, otherwise use formatHour
-            const formattedLabel = label > 100 ? formatTime(label) : formatHour(label);
+            const formattedLabel = label > 100 ? formatTime(label, userTimezone) : formatHour(label);
 
             return (
                 <div className="bg-popover border border-border p-3 rounded-lg shadow-lg">
@@ -389,7 +405,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 <div className="lg:col-span-2">
                     <ChartCard
                         title="Hourly Engagement Pattern"
-                        subtitle={`Times shown in ${Intl.DateTimeFormat().resolvedOptions().timeZone} timezone`}
+                        subtitle={`Times shown in ${userTimezone} timezone`}
                     >
                         <AreaChart data={data.temporal.hourly_engagement.engagement_by_hour}>
                             <defs>
@@ -421,7 +437,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                     </ChartCard>
                 </div>
                 <div>
-                    <ChartCard title="User Segmentation">
+                    <ChartCard title="User Segmentation" subtitle="Engagement levels based on interaction patterns">
 
 
                         <PieChart>
@@ -446,40 +462,16 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 </div>
             </div>
 
-            {/* Top Clicked Links Section */}
-            {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                    <div className="flex items-center gap-2 mb-6">
-                        <LinkIcon className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-semibold">Top Clicked Links</h3>
-                    </div>
-                    <div className="space-y-4">
-                        {data.summary.top_clicked_links.map((link: any, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
-                                <div className="flex-1 min-w-0 mr-4">
-                                    <p className="text-sm font-medium truncate text-foreground" title={link.url}>
-                                        {link.url}
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                                        {link.clicks} {link.clicks === 1 ? 'click' : 'clicks'}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             {/* Click Analytics - Device/Browser/OS Distribution */}
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm mb-6">
-                <div className="mb-4">
+                <div className="mb-6">
                     <h3 className="text-lg font-semibold">Click Analytics</h3>
                     <p className="text-sm text-muted-foreground mt-1">Device, browser, and OS data from link clicks</p>
                 </div>
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
-                    <ChartCard title="Device Distribution">
+
+                {/* Device/Browser/OS Distribution */}
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-3 mb-6">
+                    <ChartCard title="Device Distribution" subtitle="Click source by device type">
                         {data.clickData.device.length > 0 ? (
                             <PieChart>
                                 <Pie
@@ -505,7 +497,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             </div>
                         )}
                     </ChartCard>
-                    <ChartCard title="Browser Distribution">
+                    <ChartCard title="Browser Distribution" subtitle="Click source by browser application">
                         {data.clickData.browser.length > 0 ? (
                             <PieChart>
                                 <Pie
@@ -531,7 +523,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             </div>
                         )}
                     </ChartCard>
-                    <ChartCard title="OS Distribution">
+                    <ChartCard title="OS Distribution" subtitle="Click source by operating system">
                         {data.clickData.os.length > 0 ? (
                             <PieChart>
                                 <Pie
@@ -558,6 +550,37 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                         )}
                     </ChartCard>
                 </div>
+
+                {/* Separator */}
+                {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 && (
+                    <div className="border-t border-border my-6"></div>
+                )}
+
+                {/* Top Clicked Links */}
+                {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-4">
+                            <LinkIcon className="h-5 w-5 text-primary" />
+                            <h4 className="text-md font-semibold">Top Clicked Links</h4>
+                        </div>
+                        <div className="space-y-3">
+                            {data.summary.top_clicked_links.map((link: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
+                                    <div className="flex-1 min-w-0 mr-4">
+                                        <p className="text-sm font-medium truncate text-foreground" title={link.url}>
+                                            {link.url}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                                            {link.clicks} {link.clicks === 1 ? 'click' : 'clicks'}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
         </div >
