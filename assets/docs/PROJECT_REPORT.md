@@ -278,6 +278,11 @@ Sentinel is optimized for low latency and high throughput.
 **Analytics Features:**
 - **Temporal Analysis:** Hourly and daily engagement patterns with peak time identification
 - **User Segmentation:** Engagement-based recipient categorization (highly engaged, moderately engaged, low engagement)
+- **Proxy Open Detection:** Intelligent classification of email client prefetch opens vs. actual human opens
+  - First open per campaign+email combination = proxy open (email client image prefetch)
+  - Subsequent opens = actual human opens
+  - Separate tracking and visualization of proxy opens (shown as dashed gray line in charts)
+  - Accurate engagement metrics by filtering proxy opens from calculations
 - **Multi-dimensional Metrics:** Device, browser, OS, and geographic distribution analysis
 - **Link Performance:** Top clicked links tracking with detailed click counts
 - **Response Time Analytics:** Average time-to-open and time-to-click metrics

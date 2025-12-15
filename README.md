@@ -43,6 +43,7 @@
 - 🛡️ **Enhanced Authentication Guard** - Client-side route protection with automatic redirects for authenticated and unauthenticated users
 - 📧 **Email Campaign Management** - Create, schedule, and track email campaigns
 - 📊 **Advanced Real-time Analytics** - Comprehensive analytics dashboard with temporal patterns, user segmentation, device/browser/OS distribution, geographic insights, and link performance tracking
+- 🎯 **Proxy Open Detection** - Intelligent classification of email client prefetch opens vs. actual human opens for accurate engagement metrics
 - 👥 **Segment Management** - Organize recipients into targeted segments
 - 🤖 **AI-Powered Content Generation** - Generate email content using Google Gemini AI
 - 📈 **AI Campaign Insights** - AI-generated analytics and actionable performance recommendations

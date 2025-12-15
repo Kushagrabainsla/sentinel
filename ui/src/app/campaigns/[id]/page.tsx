@@ -156,14 +156,14 @@ export default function CampaignDetailsPage() {
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                     <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Opened</h3>
+                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Opens</h3>
                         <MailOpen className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="text-2xl font-bold">{stats?.event_counts?.open || 0}</div>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                     <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Clicked</h3>
+                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Clicks</h3>
                         <MousePointerClick className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="text-2xl font-bold">{stats?.event_counts?.click || 0}</div>

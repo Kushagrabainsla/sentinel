@@ -425,6 +425,28 @@ The Campaign Events API provides comprehensive analytics data perfect for buildi
 - **spam** - Email marked as spam
 - **delivered** - Email successfully delivered
 
+### Proxy Open Detection & Classification
+
+Sentinel includes intelligent open event classification to distinguish between email client prefetch opens and actual human opens:
+
+**How It Works:**
+- **First open** per campaign+email combination = **Proxy Open** (email client image prefetch)
+  - Email clients (Gmail, Outlook, Apple Mail) automatically prefetch images when emails arrive
+  - This happens before the user actually opens the email
+  - Used for malware scanning and privacy protection
+- **Subsequent opens** = **Human Opens** (actual user engagement)
+  - These represent real user interactions with your email
+
+**Benefits:**
+- **Accurate Metrics:** Engagement calculations exclude proxy opens for true performance measurement
+- **Full Transparency:** Both proxy and human opens are tracked and visualized separately
+- **Better Insights:** Understand when users actually engage with your content vs. automated prefetch
+
+**Visualization:**
+- Human opens are shown in **blue (solid line)** in charts
+- Proxy opens are shown in **gray (dashed line)** for clear distinction
+- Metrics and statistics use human opens for accurate engagement rates
+
 ### Distribution Analytics
 
 #### 1. Operating System Distribution

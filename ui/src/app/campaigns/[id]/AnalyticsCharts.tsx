@@ -434,9 +434,17 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                     >
                         <AreaChart data={data.temporal.hourly_engagement.engagement_by_hour}>
                             <defs>
+                                <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                </linearGradient>
                                 <linearGradient id="colorOpens" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
                                     <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                                </linearGradient>
+                                <linearGradient id="colorProxyOpens" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
                                 </linearGradient>
                                 <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
@@ -456,7 +464,9 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             />
                             <Tooltip content={<CustomTooltip />} />
                             <Legend />
-                            <Area type="monotone" dataKey="opens" stroke="#2563eb" fillOpacity={1} fill="url(#colorOpens)" name="Opens" />
+                            <Area type="monotone" dataKey="sent" stroke="#10b981" fillOpacity={1} fill="url(#colorSent)" name="Sent" />
+                            <Area type="monotone" dataKey="opens" stroke="#2563eb" fillOpacity={1} fill="url(#colorOpens)" name="Human Opens" />
+                            <Area type="monotone" dataKey="proxy_opens" stroke="#94a3b8" fillOpacity={1} fill="url(#colorProxyOpens)" name="Proxy Opens" strokeDasharray="5 5" />
                             <Area type="monotone" dataKey="clicks" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorClicks)" name="Clicks" />
                         </AreaChart>
                     </ChartCard>
