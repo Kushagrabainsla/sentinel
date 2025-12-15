@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from tracking import generate_tracking_data
 
 # Import common utilities and enums
-from common import DeliveryStatus, EventType, exponential_backoff_retry, is_retryable_error
+from common import DeliveryStatus, EventType, exponential_backoff_retry, is_retryable_error, add_dynamic_image
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -176,6 +176,21 @@ def lambda_handler(event, _context):
             
             # Optimize HTML for better deliverability
             processed_html = optimize_html_for_deliverability(processed_html)
+            
+            # Add dynamic image if campaign specifies one
+            dynamic_image_url = msg_template_data.get("dynamic_image_url")
+            if dynamic_image_url:
+                dynamic_image_position = msg_template_data.get("dynamic_image_position", "top")
+                processed_html = add_dynamic_image(
+                    processed_html,
+                    dynamic_image_url,
+                    alt_text=msg_template_data.get("dynamic_image_alt", "Dynamic Content"),
+                    position=dynamic_image_position,
+                    campaign_id=campaign_id,
+                    recipient_id=recipient_id,
+                    email=email
+                )
+                print(f"🖼️ Added dynamic image: {dynamic_image_url}")
             
             # Prepare template data for SES
             template_data = {

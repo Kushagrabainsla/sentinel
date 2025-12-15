@@ -175,46 +175,88 @@ def lambda_handler(event, context):
         }
 
 def handle_open_tracking(path, headers, query_params):
-    """Handle email open tracking pixel requests - redirect to S3 asset"""
+    """
+    Handle email open tracking with redirect pattern for dynamic images.
     
-    # Parse path: /track/open/{campaign_id}/{recipient_id}.png
+    Routes:
+    - /track/open/{campaign_id}/{recipient_id}.gif → Records event, returns 302 redirect
+    - /track/open/{campaign_id}/{recipient_id}/render.gif → Returns actual image
+    
+    The redirect pattern bypasses Gmail's image caching for dynamic content.
+    """
+    
+    # Parse path
     path_parts = path.strip('/').split('/')
+    
+    # Check if this is the render endpoint
+    is_render = 'render' in path or (len(path_parts) > 4 and 'render' in path_parts[4])
     
     if len(path_parts) >= 4:
         campaign_id = path_parts[2]
-        recipient_file = path_parts[3]  # "recipient_id.png"
-        recipient_id = recipient_file.split('.')[0]  # Remove .png extension
+        recipient_file = path_parts[3]  # "recipient_id.png" or "recipient_id"
+        recipient_id = recipient_file.split('.')[0]  # Remove .png/.gif extension
         
-        # Record open event with comprehensive analytics
-        metadata = get_analytics_metadata(headers, query_params)
+        # Route 1: Initial tracking request - return redirect with fresh timestamp
+        if not is_render:
+            # Generate fresh timestamp for redirect
+            fresh_timestamp = int(time.time() * 1000)
+            
+            # Build redirect URL with fresh timestamp
+            redirect_params = []
+            if query_params.get('email'):
+                redirect_params.append(f"email={query_params['email']}")
+            if query_params.get('variation_id'):
+                redirect_params.append(f"variation_id={query_params['variation_id']}")
+            redirect_params.append(f"t={fresh_timestamp}")
+            
+            # Build redirect URL
+            base_url = headers.get('host', headers.get('Host', 'api.thesentinel.site'))
+            protocol = 'https' if headers.get('x-forwarded-proto') == 'https' else 'http'
+            redirect_url = f"{protocol}://{base_url}/track/open/{campaign_id}/{recipient_id}/render.gif?{'&'.join(redirect_params)}"
+            
+            print(f"🔄 Redirecting tracking pixel to: {redirect_url}")
+            
+            return {
+                'statusCode': 302,
+                'headers': {
+                    'Location': redirect_url,
+                    'Cache-Control': 'public, max-age=31536000',  # Cache redirect for 1 year
+                },
+                'body': ''
+            }
         
-        # Add open-specific metadata
-        metadata.update({
-            'event_type': EventType.OPEN.value,
-            'campaign_id': campaign_id,
-            'recipient_id': recipient_id,
-            'variation_id': query_params.get('variation_id')
-        })
-        
-        # Decode email from query params
-        email_encoded = query_params.get('email', '')
-        try:
-            # Fix padding if needed (some clients strip trailing =)
-            email_encoded += '=' * (-len(email_encoded) % 4)
-            email = base64.urlsafe_b64decode(email_encoded).decode('utf-8') if email_encoded else 'unknown'
-        except Exception as e:
-            print(f"❌ Failed to decode email: {e}")
-            email = 'unknown'
-        
-        print(f"📧 Recording open event - Campaign: {campaign_id}, Recipient: {recipient_id}, Email: {email}")
-        
-        record_tracking_event(
-            campaign_id=campaign_id,
-            recipient_id=recipient_id,
-            email=email,
-            event_type=EventType.OPEN.value,
-            metadata=metadata
-        )
+        # Route 2: Render endpoint - record event and return image
+        else:
+            # Record open event with comprehensive analytics
+            metadata = get_analytics_metadata(headers, query_params)
+            
+            # Add open-specific metadata
+            metadata.update({
+                'event_type': EventType.OPEN.value,
+                'campaign_id': campaign_id,
+                'recipient_id': recipient_id,
+                'variation_id': query_params.get('variation_id')
+            })
+            
+            # Decode email from query params
+            email_encoded = query_params.get('email', '')
+            try:
+                # Fix padding if needed (some clients strip trailing =)
+                email_encoded += '=' * (-len(email_encoded) % 4)
+                email = base64.urlsafe_b64decode(email_encoded).decode('utf-8') if email_encoded else 'unknown'
+            except Exception as e:
+                print(f"❌ Failed to decode email: {e}")
+                email = 'unknown'
+            
+            print(f"📧 Recording open event - Campaign: {campaign_id}, Recipient: {recipient_id}, Email: {email}")
+            
+            record_tracking_event(
+                campaign_id=campaign_id,
+                recipient_id=recipient_id,
+                email=email,
+                event_type=EventType.OPEN.value,
+                metadata=metadata
+            )
 
     # Serve the S3 logo directly (fetch and return the image data)
     sentinel_logo_url = os.environ.get('SENTINEL_LOGO_URL')
@@ -231,7 +273,7 @@ def handle_open_tracking(path, headers, query_params):
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'image/png',
-                    'Cache-Control': 'public, max-age=3600',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',  # Don't cache rendered image
                     'Content-Length': str(len(logo_data))
                 },
                 'body': base64.b64encode(logo_data).decode('utf-8'),

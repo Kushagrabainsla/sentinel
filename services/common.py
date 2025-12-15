@@ -900,3 +900,95 @@ def process_in_batches(items, batch_size, processor_func, continue_on_error=True
         "errors": errors,
         "total_batches": len(batches)
     }
+
+
+# ================================
+# EMAIL UTILITIES
+# ================================
+
+def add_dynamic_image(html_content, image_url, alt_text="Dynamic Content", position="top", 
+                     campaign_id=None, recipient_id=None, email=None):
+    """
+    Adds a dynamic image to email HTML content using redirect pattern.
+    
+    Uses HTTP 302 redirect to bypass Gmail's image caching:
+    1. Email contains base URL
+    2. Server returns redirect with fresh timestamp
+    3. Each open follows redirect to new URL
+    4. Image reflects actual open time
+    
+    Args:
+        html_content: The HTML email content
+        image_url: Base URL that returns 302 redirect
+        alt_text: Alt text for the image
+        position: Where to insert ('top', 'bottom', or 'replace_placeholder')
+        campaign_id: Campaign ID for tracking
+        recipient_id: Recipient ID (makes URL unique per recipient)
+        email: Recipient email (alternative to recipient_id)
+    
+    Returns:
+        Modified HTML with dynamic image
+    """
+    import hashlib
+    
+    # Build URL parameters
+    params = []
+    
+    # Add recipient ID to make URL unique per recipient
+    if recipient_id:
+        params.append(f"rid={recipient_id}")
+    elif email:
+        # Hash email for privacy
+        email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
+        params.append(f"rid={email_hash}")
+    
+    if campaign_id:
+        params.append(f"cid={campaign_id}")
+    
+    # Combine base URL with parameters
+    separator = '&' if '?' in image_url else '?'
+    dynamic_url = f"{image_url}{separator}{'&'.join(params)}" if params else image_url
+    
+    img_tag = f'''
+    <div style="text-align: center; margin: 20px 0;">
+        <img src="{dynamic_url}" 
+             alt="{alt_text}" 
+             style="max-width: 100%; height: auto; display: block; margin: 0 auto;"
+             loading="eager" />
+    </div>
+    '''
+    
+    if position == "top":
+        # Insert after opening body tag
+        if '<body' in html_content:
+            html_content = html_content.replace('<body>', f'<body>{img_tag}', 1)
+        else:
+            html_content = img_tag + html_content
+    elif position == "bottom":
+        # Insert before closing body tag
+        if '</body>' in html_content:
+            html_content = html_content.replace('</body>', f'{img_tag}</body>', 1)
+        else:
+            html_content = html_content + img_tag
+    elif position == "replace_placeholder":
+        # Replace a placeholder like {{dynamic_image}}
+        html_content = html_content.replace('{{dynamic_image}}', img_tag)
+    
+    return html_content
+
+
+def create_tracking_pixel(campaign_id, subscriber_id, base_url):
+    """
+    Creates a 1x1 tracking pixel for email opens.
+    
+    Args:
+        campaign_id: Campaign identifier
+        subscriber_id: Subscriber identifier  
+        base_url: Base tracking URL
+    
+    Returns:
+        HTML img tag for tracking pixel
+    """
+    import time
+    pixel_url = f"{base_url}/track/open?cid={campaign_id}&sid={subscriber_id}&t={int(time.time())}"
+    return f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;" />'
