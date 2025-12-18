@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, AreaChart, Area, CartesianGrid } from 'recharts';
 import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem, CampaignEventsResponse, Campaign } from '@/lib/api';
-import { Loader2, Clock, Users, MousePointerClick, Zap, Globe, Monitor, Link as LinkIcon } from 'lucide-react';
+import { Loader2, Clock, Users, MousePointerClick, Zap, Globe, Monitor, Link as LinkIcon, Activity, MousePointer2 } from 'lucide-react';
 
 
 
@@ -24,7 +24,7 @@ const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#06b6d4'
 const formatTime = (timestamp: number, timezone?: string): string => {
     const date = new Date(timestamp * 1000);
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
+
     const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         year: 'numeric',
@@ -34,7 +34,7 @@ const formatTime = (timestamp: number, timezone?: string): string => {
         minute: '2-digit',
         hour12: true
     });
-    
+
     return formatter.format(date);
 };
 
@@ -146,7 +146,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                     const openData = {
                         country: distributions.open_data?.country_distribution || []
                     };
-                    
+
                     const clickData = {
                         os: distributions.click_data?.os_distribution || [],
                         device: distributions.click_data?.device_distribution || [],
@@ -170,10 +170,10 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                     if (onAvailableCountriesChange) {
                         const clickCountries = distributions.click_data?.country_distribution?.map((d: any) => d.name) || [];
                         const openCountries = distributions.open_data?.country_distribution?.map((d: any) => d.name) || [];
-                        
+
                         // Combine both, preferring click data but including open data as fallback
                         const allCountries = [...new Set([...clickCountries, ...openCountries])].filter(c => c && c !== 'Unknown');
-                        
+
                         if (allCountries.length > 0) {
                             onAvailableCountriesChange(allCountries);
                         }
@@ -213,24 +213,31 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
     }
 
     const InsightCard = ({ title, value, icon: Icon, subtext }: { title: string, value: string | number, icon: any, subtext?: string }) => (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex items-start justify-between">
-            <div>
-                <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                <h3 className="text-2xl font-bold mt-2">{value}</h3>
-                {subtext && <p className="text-xs text-muted-foreground mt-1">{subtext}</p>}
+        <div className="group rounded-[2rem] border border-border bg-card p-8 shadow-xl transition-all hover:border-primary/20 hover:-translate-y-1 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform">
+                <Icon className="h-20 w-20" />
             </div>
-            <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" />
+            <div className="flex items-start justify-between relative z-10">
+                <div className="space-y-4">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                        <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{title}</p>
+                        <h3 className="text-3xl font-black mt-1 tracking-tight">{value}</h3>
+                        {subtext && <p className="text-[10px] font-bold text-muted-foreground/60 mt-1 uppercase tracking-widest">{subtext}</p>}
+                    </div>
+                </div>
             </div>
         </div>
     );
 
-    const ChartCard = ({ title, subtitle, children }: { title: string, subtitle?: string, children: React.ReactNode }) => (
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold">{title}</h3>
-                <div className="h-[20px]">
-                    {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+    const ChartCard = ({ title, subtitle, children, className }: { title: string, subtitle?: string, children: React.ReactNode, className?: string }) => (
+        <div className={`group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20 ${className}`}>
+            <div className="mb-8 flex items-start justify-between">
+                <div>
+                    <h3 className="text-xl font-bold tracking-tight">{title}</h3>
+                    {subtitle && <p className="text-xs font-medium text-muted-foreground mt-1 uppercase tracking-widest opacity-60">{subtitle}</p>}
                 </div>
             </div>
             <div className="h-[300px] w-full">
@@ -243,47 +250,47 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
-            // Format the label - if it's a large number (timestamp), use formatTime, otherwise use formatHour
             const formattedLabel = label > 100 ? formatTime(label, userTimezone) : formatHour(label);
 
             return (
-                <div className="bg-popover border border-border p-3 rounded-lg shadow-lg">
-                    <p className="font-medium mb-2">{formattedLabel}</p>
-                    {payload.map((entry: any, index: number) => (
-                        <div key={index} className="flex items-center gap-2 text-sm">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                            <span className="text-muted-foreground capitalize">{entry.name}:</span>
-                            <span className="font-medium">{entry.value}</span>
-                        </div>
-                    ))}
+                <div className="bg-popover/90 backdrop-blur-xl border border-border p-4 rounded-2xl shadow-2xl min-w-[200px]">
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">{formattedLabel}</p>
+                    <div className="space-y-2">
+                        {payload.map((entry: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                                    <span className="font-bold text-foreground/80">{entry.name}</span>
+                                </div>
+                                <span className="font-black tabular-nums">{entry.value}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             );
         }
         return null;
     };
 
-    // Helper to calculate total for percentages
-    const calculateTotal = (data: any[]) => data.reduce((acc, item) => acc + item.value, 0);
-
     const renderCustomLegend = (props: any) => {
         const { payload } = props;
-        const total = payload.reduce((acc: number, entry: any) => acc + entry.payload.value, 0);
+        const total = payload.reduce((acc: number, entry: any) => acc + (entry.payload?.value || 0), 0);
 
         return (
-            <ul className="flex flex-wrap justify-center gap-4 mt-4">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 mt-8 pt-6 pb-2 border-t border-border/40">
                 {payload.map((entry: any, index: number) => {
-                    const percentage = ((entry.payload.value / total) * 100).toFixed(1);
+                    const percentage = total > 0 ? ((entry.payload.value / total) * 100).toFixed(1) : '0';
                     return (
-                        <li key={`item-${index}`} className="flex items-center gap-2 text-sm">
+                        <div key={`item-${index}`} className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                            <span className="text-muted-foreground">{entry.value}</span>
-                            <span className="font-medium">
-                                {entry.payload.value} ({percentage}%)
+                            <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{entry.value}</span>
+                            <span className="text-xs font-black tabular-nums">
+                                {entry.payload.value} <span className="text-muted-foreground ml-0.5 opacity-60">({percentage}%)</span>
                             </span>
-                        </li>
+                        </div>
                     );
                 })}
-            </ul>
+            </div>
         );
     };
 
@@ -297,123 +304,192 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 outerRadius={80}
                 dataKey="value"
                 stroke="none"
-                fill="#374151"
-                opacity={0.15}
+                fill="currentColor"
+                className="text-muted/10"
             />
             <text
                 x="50%"
                 y="50%"
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="fill-muted-foreground text-sm"
+                className="fill-muted-foreground font-black uppercase tracking-[0.2em] text-[10px]"
             >
                 {message}
             </text>
         </PieChart>
     );
 
-    // Prepare user segments data
     const segmentsData = [
-        { name: 'Highly Engaged', value: data.insights.engagement_segments.highly_engaged.count },
-        { name: 'Moderately Engaged', value: data.insights.engagement_segments.moderately_engaged.count },
-        { name: 'Low Engagement', value: data.insights.engagement_segments.low_engaged.count },
+        { name: 'Elite Engagers', value: data.insights.engagement_segments.highly_engaged.count },
+        { name: 'Active Participants', value: data.insights.engagement_segments.moderately_engaged.count },
+        { name: 'Passive Observers', value: data.insights.engagement_segments.low_engaged.count },
     ].filter(item => item.value > 0);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-12">
             {/* Key Insights Grid */}
-            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
                 <InsightCard
-                    title="Optimal Send Time"
+                    title="Optimal Send Window"
                     value={data.temporal.hourly_engagement.peak_hours.length > 0
                         ? `${formatHour(data.temporal.hourly_engagement.peak_hours[0])} - ${formatHour(data.temporal.hourly_engagement.peak_hours[0] + 1)}`
                         : 'N/A'}
                     icon={Clock}
-                    subtext="Based on open rates"
+                    subtext="Peak engagement detected"
                 />
                 <InsightCard
-                    title="Engagement Score"
+                    title="Interaction Score"
                     value={
                         data?.summary?.unique_clicks != null && data?.summary?.unique_opens != null && data.summary.unique_opens > 0
-                            ? Number(
-                                ((data.summary.unique_clicks * 250) / data.summary.unique_opens).toFixed(0)
-                              )
+                            ? Number(((data.summary.unique_clicks * 250) / data.summary.unique_opens).toFixed(0))
                             : 0
                     }
                     icon={Zap}
-                    subtext="Quality of interactions"
+                    subtext="Neural quality index"
                 />
                 <InsightCard
-                    title="Click-to-Open Rate"
+                    title="C-T-O Efficiency"
                     value={
                         data?.summary?.unique_clicks != null && data?.summary?.unique_opens != null && data.summary.unique_opens > 0
-                            ? Number(
-                                ((data.summary.unique_clicks * 100) / data.summary.unique_opens).toFixed(1)
-                              )
-                            : 0
+                            ? (data.summary.unique_clicks * 100 / data.summary.unique_opens).toFixed(1) + '%'
+                            : '0%'
                     }
                     icon={MousePointerClick}
-                    subtext="Effectiveness of content"
+                    subtext="Convergence performance"
                 />
                 <InsightCard
-                    title="Unique Recipients"
+                    title="Network Reach"
                     value={data.insights.unique_recipients}
                     icon={Users}
-                    subtext="Total reach"
+                    subtext="Unique active connections"
                 />
             </div>
 
-            {/* Summary Stats Section */}
+            {/* Advanced Charts Row 1 */}
+            <div className="grid gap-10 lg:grid-cols-3">
+                <ChartCard
+                    title="Temporal Engagement Matrix"
+                    subtitle={`Timezone: ${userTimezone}`}
+                    className="lg:col-span-2"
+                >
+                    <AreaChart data={data.temporal.hourly_engagement.engagement_by_hour}>
+                        <defs>
+                            <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorOpens" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorProxyOpens" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#f97316" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.1} />
+                        <XAxis
+                            dataKey="hour"
+                            stroke="#9ca3af"
+                            tick={false}
+                            axisLine={false}
+                        />
+                        <YAxis
+                            stroke="#9ca3af"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 10, fontWeight: 'bold' }}
+                            allowDecimals={false}
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 2 }} />
+                        <Legend
+                            verticalAlign="top"
+                            align="right"
+                            height={36}
+                            content={(props) => (
+                                <div className="flex justify-end gap-6 mb-4">
+                                    {props.payload?.map((entry: any, index: number) => (
+                                        <div key={index} className="flex items-center gap-2">
+                                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{entry.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        />
+                        <Area type="monotone" dataKey="sent" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorSent)" name="Emails Sent" />
+                        <Area type="monotone" dataKey="opens" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorOpens)" name="Human Opens" />
+                        <Area type="monotone" dataKey="proxy_opens" stroke="#f97316" strokeWidth={2} fillOpacity={1} fill="url(#colorProxyOpens)" name="Proxy Opens" />
+                        <Area type="monotone" dataKey="clicks" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorClicks)" name="Total Clicks" />
+                    </AreaChart>
+                </ChartCard>
+
+                <ChartCard title="Audience Segmentation" subtitle="Strategic engagement sectors">
+                    <PieChart>
+                        <Pie
+                            data={segmentsData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={70}
+                            outerRadius={95}
+                            paddingAngle={8}
+                            dataKey="value"
+                            stroke="none"
+                        >
+                            {segmentsData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend content={renderCustomLegend} />
+                    </PieChart>
+                </ChartCard>
+            </div>
+
+            {/* Campaign Summary Section */}
             {data.summary && (
-                <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold mb-4">Campaign Summary</h3>
-                    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Total Events</p>
-                            <p className="text-2xl font-bold">{data.summary.total_events}</p>
+                <div className="group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20">
+                    <div className="flex items-center gap-4 mb-10">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                            <Zap className="h-5 w-5" />
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Unique Opens</p>
-                            <p className="text-2xl font-bold">{data.summary.unique_opens}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Unique Clicks</p>
-                            <p className="text-2xl font-bold">{data.summary.unique_clicks}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Avg Time to Open</p>
-                            <p className="text-2xl font-bold">
-                                {data.summary.avg_time_to_open !== null
-                                    ? formatDuration(data.summary.avg_time_to_open)
-                                    : 'N/A'}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Avg Time to Click</p>
-                            <p className="text-2xl font-bold">
-                                {data.summary.avg_time_to_click !== null
-                                    ? formatDuration(data.summary.avg_time_to_click)
-                                    : 'N/A'}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Opens</p>
-                            <p className="text-2xl font-bold">{data.summary.event_counts.open || 0}</p>
+                        <div>
+                            <h3 className="text-2xl font-black tracking-tight">Transmission Summary</h3>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">Complete campaign telemetry</p>
                         </div>
                     </div>
 
-                    {/* Event Type Breakdown */}
+                    <div className="grid gap-8 grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-12">
+                        {[
+                            { label: 'Total Events', value: data.summary.total_events, icon: Activity },
+                            { label: 'Unique Opens', value: data.summary.unique_opens, icon: Globe },
+                            { label: 'Unique Clicks', value: data.summary.unique_clicks, icon: MousePointerClick },
+                            { label: 'Avg Time Open', value: data.summary.avg_time_to_open ? formatDuration(data.summary.avg_time_to_open) : 'N/A', icon: Clock },
+                            { label: 'Avg Time Click', value: data.summary.avg_time_to_click ? formatDuration(data.summary.avg_time_to_click) : 'N/A', icon: MousePointerClick },
+                            { label: 'Total Opens', value: data.summary.event_counts.open || 0, icon: Globe },
+                        ].map((stat, i) => (
+                            <div key={i} className="space-y-2 p-6 rounded-3xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+                                <p className="text-2xl font-black tabular-nums tracking-tighter">{stat.value}</p>
+                            </div>
+                        ))}
+                    </div>
+
                     {data.summary.event_types_breakdown && data.summary.event_types_breakdown.length > 0 && (
-                        <div className="mt-6">
-                            <h4 className="text-sm font-medium mb-3">Event Type Breakdown</h4>
-                            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+                        <div className="space-y-6 pt-10 border-t border-border/40">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Type Synchronicity</h4>
+                            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                                 {data.summary.event_types_breakdown.map((item) => (
-                                    <div key={item.event_type} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                                        <div>
-                                            <p className="text-sm font-medium capitalize">{item.event_type}</p>
-                                            <p className="text-xs text-muted-foreground">{item.percentage.toFixed(1)}%</p>
+                                    <div key={item.event_type} className="group/item flex items-center justify-between p-5 rounded-2xl bg-muted/20 border border-border/30 hover:border-primary/20 hover:bg-muted/40 transition-all">
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-black uppercase tracking-widest opacity-80">{item.event_type}</p>
+                                            <p className="text-[10px] font-bold text-primary">{item.percentage.toFixed(1)}%</p>
                                         </div>
-                                        <p className="text-lg font-bold">{item.count}</p>
+                                        <p className="text-2xl font-black tabular-nums">{item.count}</p>
                                     </div>
                                 ))}
                             </div>
@@ -422,196 +498,92 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 </div>
             )}
 
-
-
-
-            {/* Advanced Charts Row 1 */}
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-                <div className="lg:col-span-2">
-                    <ChartCard
-                        title="Hourly Engagement Pattern"
-                        subtitle={`Times shown in ${userTimezone} timezone`}
-                    >
-                        <AreaChart data={data.temporal.hourly_engagement.engagement_by_hour}>
-                            <defs>
-                                <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                </linearGradient>
-                                <linearGradient id="colorOpens" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                                </linearGradient>
-                                <linearGradient id="colorProxyOpens" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
-                                </linearGradient>
-                                <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" />
-                            <XAxis
-                                dataKey="hour"
-                                stroke="#9ca3af"
-                                tick={false}
-                                axisLine={true}
-                            />
-                            <YAxis
-                                stroke="#9ca3af"
-                                allowDecimals={false}
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend />
-                            <Area type="monotone" dataKey="sent" stroke="#10b981" fillOpacity={1} fill="url(#colorSent)" name="Sent" />
-                            <Area type="monotone" dataKey="opens" stroke="#2563eb" fillOpacity={1} fill="url(#colorOpens)" name="Human Opens" />
-                            <Area type="monotone" dataKey="proxy_opens" stroke="#94a3b8" fillOpacity={1} fill="url(#colorProxyOpens)" name="Proxy Opens" strokeDasharray="5 5" />
-                            <Area type="monotone" dataKey="clicks" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorClicks)" name="Clicks" />
-                        </AreaChart>
-                    </ChartCard>
-                </div>
-                <div>
-                    <ChartCard title="User Segmentation" subtitle="Engagement levels based on interaction patterns">
-
-
-                        <PieChart>
-                            <Pie
-                                data={segmentsData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                                stroke="none"
-                            >
-                                {segmentsData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip />} />
-                            <Legend content={renderCustomLegend} />
-                        </PieChart>
-                    </ChartCard>
-                </div>
-            </div>
-
-            {/* Click Analytics - Device/Browser/OS Distribution */}
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm mb-6">
-                <div className="mb-6">
-                    <h3 className="text-lg font-semibold">Click Analytics</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Device, browser, and OS data from link clicks</p>
+            {/* Click Analytics Distribution Section */}
+            <div className="group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20">
+                <div className="flex items-center gap-4 mb-10">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                        <MousePointer2 className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black tracking-tight">Environment Analytics</h3>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">Terminal and platform distribution</p>
+                    </div>
                 </div>
 
-                {/* Device/Browser/OS Distribution */}
-                <div className="grid gap-6 grid-cols-1 md:grid-cols-3 mb-6">
-                    <ChartCard title="Device Distribution" subtitle="Click source by device type">
-                        {data.clickData.device.length > 0 ? (
-                            <PieChart>
-                                <Pie
-                                    data={data.clickData.device}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {data.clickData.device.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                                <Legend content={renderCustomLegend} />
-                            </PieChart>
-                        ) : (
-                            <EmptyPieChart message="No click data available" />
-                        )}
-                    </ChartCard>
-                    <ChartCard title="Browser Distribution" subtitle="Click source by browser application">
-                        {data.clickData.browser.length > 0 ? (
-                            <PieChart>
-                                <Pie
-                                    data={data.clickData.browser}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {data.clickData.browser.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                                <Legend content={renderCustomLegend} />
-                            </PieChart>
-                        ) : (
-                            <EmptyPieChart message="No click data available" />
-                        )}
-                    </ChartCard>
-                    <ChartCard title="OS Distribution" subtitle="Click source by operating system">
-                        {data.clickData.os.length > 0 ? (
-                            <PieChart>
-                                <Pie
-                                    data={data.clickData.os}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    stroke="none"
-                                >
-                                    {data.clickData.os.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip content={<CustomTooltip />} />
-                                <Legend content={renderCustomLegend} />
-                            </PieChart>
-                        ) : (
-                            <EmptyPieChart message="No click data available" />
-                        )}
-                    </ChartCard>
+                <div className="grid gap-10 grid-cols-1 lg:grid-cols-3 mb-12">
+                    {[
+                        { title: 'Device Matrix', data: data.clickData.device, subtitle: 'Hardware distribution' },
+                        { title: 'Browser Matrix', data: data.clickData.browser, subtitle: 'Application distribution' },
+                        { title: 'OS Matrix', data: data.clickData.os, subtitle: 'System distribution' },
+                    ].map((chart, i) => (
+                        <div key={i} className="space-y-6">
+                            <div className="h-[320px]">
+                                {chart.data.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={chart.data}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={65}
+                                                outerRadius={85}
+                                                paddingAngle={6}
+                                                dataKey="value"
+                                                stroke="none"
+                                            >
+                                                {chart.data.map((entry: any, index: number) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip content={<CustomTooltip />} />
+                                            <Legend content={renderCustomLegend} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <EmptyPieChart message="Insufficient Data" />
+                                    </ResponsiveContainer>
+                                )}
+                            </div>
+                            <div className="text-center pt-2">
+                                <h4 className="text-sm font-bold uppercase tracking-widest">{chart.title}</h4>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">{chart.subtitle}</p>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-
-                {/* Separator */}
-                {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 && (
-                    <div className="border-t border-border my-6"></div>
-                )}
 
                 {/* Top Clicked Links */}
-                {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 && (
-                    <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <LinkIcon className="h-5 w-5 text-primary" />
-                            <h4 className="text-md font-semibold">Top Clicked Links</h4>
-                        </div>
-                        <div className="space-y-3">
+                <div className="pt-10 border-t border-border/40">
+                    <div className="flex items-center gap-3 mb-8">
+                        <LinkIcon className="h-4 w-4 text-primary" />
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">High-Interaction Links</h4>
+                    </div>
+                    {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 ? (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {data.summary.top_clicked_links.map((link: any, index: number) => (
-                                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
+                                <div key={index} className="group/link flex items-center justify-between p-6 rounded-2xl bg-muted/10 border border-border/40 hover:bg-muted/20 hover:border-primary/20 transition-all">
                                     <div className="flex-1 min-w-0 mr-4">
-                                        <p className="text-sm font-medium truncate text-foreground" title={link.url}>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Dest: {index + 1}</p>
+                                        <p className="text-sm font-bold truncate text-foreground group-hover/link:text-primary transition-colors" title={link.url}>
                                             {link.url}
                                         </p>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                                            {link.clicks} {link.clicks === 1 ? 'click' : 'clicks'}
-                                        </div>
+                                    <div className="shrink-0 text-right">
+                                        <p className="text-2xl font-black tabular-nums">{link.clicks}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Clicks</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-12 rounded-[2rem] bg-muted/5 border border-dashed border-border/50">
+                            <LinkIcon className="h-8 w-8 text-muted-foreground/30 mb-4" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">No Link Interaction Data Available</p>
+                        </div>
+                    )}
+                </div>
             </div>
-
-        </div >
+        </div>
     );
 }

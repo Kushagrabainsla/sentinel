@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
@@ -54,87 +54,109 @@ export default function NewSegmentPage() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/segments"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                </Link>
-                <div>
-                    <h1 className="text-3xl font-display font-bold tracking-tight">
-                        Create Segment
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Create a new list of contacts for your campaigns
-                    </p>
+        <div className="max-w-3xl mx-auto space-y-12 pb-24">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+                <div className="flex items-start gap-6">
+                    <Link
+                        href="/segments"
+                        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card border border-border shadow-sm hover:bg-primary/10 hover:text-primary transition-all group"
+                    >
+                        <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1" />
+                    </Link>
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-4 bg-primary rounded-full" />
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Segment Foundry</h2>
+                        </div>
+                        <h1 className="text-4xl font-display font-black tracking-tight text-foreground">
+                            Assemble New Segment
+                        </h1>
+                        <p className="text-muted-foreground font-medium">
+                            Synthesize targeted contact groups for your transmissions
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none" htmlFor="name">
-                            Segment Name
-                        </label>
-                        <input
-                            {...register('name')}
-                            id="name"
-                            placeholder="e.g. Newsletter Subscribers"
-                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-                        {errors.name && (
-                            <p className="text-sm text-destructive">{errors.name.message}</p>
-                        )}
+            <div className="group rounded-[2.5rem] bg-card border border-border p-10 shadow-xl transition-all hover:border-primary/20 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none transition-transform group-hover:scale-110">
+                    <Users className="h-32 w-32" />
+                </div>
+
+                <form onSubmit={handleSubmit(onSubmit)} className="relative space-y-10">
+                    <div className="space-y-8">
+                        <div className="grid gap-8">
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="name">
+                                    Segment Title
+                                </label>
+                                <input
+                                    {...register('name')}
+                                    id="name"
+                                    placeholder="e.g. Early Adopters / Q4 Cohort"
+                                    className="flex h-14 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 text-lg font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
+                                />
+                                {errors.name && (
+                                    <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                        <div className="w-1 h-3 bg-destructive rounded-full" /> {errors.name.message}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="description">
+                                    Strategic Context (Optional)
+                                </label>
+                                <textarea
+                                    {...register('description')}
+                                    id="description"
+                                    placeholder="Describe the intent behind this logical grouping..."
+                                    className="flex min-h-[100px] w-full rounded-2xl border border-border bg-background/50 px-5 py-4 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none resize-none"
+                                />
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="emails">
+                                        Initial Contact Nodes (Optional)
+                                    </label>
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider opacity-60 ml-1 mt-1">
+                                        Comma-separated email addresses for initial synchronization
+                                    </p>
+                                </div>
+                                <textarea
+                                    {...register('emails')}
+                                    id="emails"
+                                    placeholder="alpha@example.com, beta@example.com..."
+                                    className="flex min-h-[160px] w-full rounded-2xl border border-border bg-background/50 px-5 py-4 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none font-mono resize-none"
+                                />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none" htmlFor="description">
-                            Description (Optional)
-                        </label>
-                        <textarea
-                            {...register('description')}
-                            id="description"
-                            placeholder="What is this segment for?"
-                            className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium leading-none" htmlFor="emails">
-                            Initial Emails (Optional)
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                            Enter email addresses separated by commas
-                        </p>
-                        <textarea
-                            {...register('emails')}
-                            id="emails"
-                            placeholder="john@example.com, jane@example.com"
-                            className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-end gap-6 pt-10 border-t border-border/50">
                         <Link
                             href="/segments"
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+                            className="text-sm font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-6"
                         >
-                            Cancel
+                            Cancel Assembly
                         </Link>
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+                            className="w-full sm:w-auto inline-flex items-center justify-center rounded-2xl text-base font-black uppercase tracking-[0.1em] transition-all focus:ring-4 focus:ring-primary/20 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-2xl shadow-primary/30 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 h-16 px-12 group"
                         >
                             {isLoading ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Creating...
+                                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                                    Synthesizing...
                                 </>
                             ) : (
-                                'Create Segment'
+                                <>
+                                    Materialize Segment
+                                    <Plus className="ml-3 h-5 w-5 transition-transform group-hover:rotate-90" />
+                                </>
                             )}
                         </button>
                     </div>

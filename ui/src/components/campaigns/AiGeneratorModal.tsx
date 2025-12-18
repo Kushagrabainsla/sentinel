@@ -132,146 +132,166 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
             <button
                 type="button"
                 onClick={() => setIsOpen(true)}
-                className="flex items-center gap-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
+                className="group relative inline-flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-primary/10 text-primary hover:bg-primary transition-all duration-300 hover:text-primary-foreground hover:-translate-y-0.5 active:translate-y-0"
             >
-                <Sparkles className="h-4 w-4" />
-                Generate with AI
+                <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-0 group-hover:scale-100 transition-transform duration-500 opacity-0 group-hover:opacity-40" />
+                <Sparkles className="h-4 w-4 relative" />
+                <span className="text-xs font-black uppercase tracking-[0.2em] relative">Synthesize via AI</span>
             </button>
         );
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-            <div className="bg-card w-full max-w-2xl rounded-xl border border-border shadow-lg animate-in fade-in zoom-in duration-200 my-8">
-                <div className="flex items-center justify-between border-b border-border p-4">
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600">
-                            <Sparkles className="h-4 w-4" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/60 backdrop-blur-xl p-4 overflow-y-auto">
+            <div className="bg-card w-full max-w-2xl rounded-[2.5rem] border border-border shadow-2xl animate-in fade-in zoom-in slide-in-from-bottom-8 duration-500 my-8 overflow-hidden">
+                <div className="relative border-b border-border p-8 flex items-center justify-between bg-gradient-to-b from-primary/[0.03] to-transparent">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-inner">
+                            <Sparkles className="h-6 w-6" />
                         </div>
-                        <h3 className="font-semibold">Generate Campaign Content</h3>
+                        <div>
+                            <h3 className="text-2xl font-black tracking-tight">Intelligence Module</h3>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">AI Content Extraction & Synthesis</p>
+                        </div>
                     </div>
                     <button
                         onClick={() => setIsOpen(false)}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        className="h-10 w-10 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all group"
                     >
-                        <X className="h-4 w-4" />
+                        <X className="h-5 w-5 transition-transform group-hover:rotate-90" />
                     </button>
                 </div>
 
-                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="p-10 space-y-10 max-h-[65vh] overflow-y-auto custom-scrollbar">
                     {/* Goal Section */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-medium">Campaign Goal</label>
-                        <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1 h-4 bg-primary rounded-full transition-all group-hover:h-6" />
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Primary Objective</label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
                             {GOAL_OPTIONS.map(option => (
-                                <label key={option} className="flex items-center gap-2 p-2 border border-border rounded-md hover:bg-muted/50 cursor-pointer">
+                                <label key={option} className={`flex items-center gap-3 p-4 border rounded-2xl cursor-pointer transition-all hover:border-primary/30 ${selectedGoal === option ? 'bg-primary/5 border-primary shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'border-border hover:bg-muted/50'}`}>
                                     <input
                                         type="radio"
                                         name="goal"
                                         value={option}
                                         checked={selectedGoal === option}
                                         onChange={(e) => setSelectedGoal(e.target.value)}
-                                        className="text-purple-600 focus:ring-purple-600"
+                                        className="h-4 w-4 border-2 border-primary/20 text-primary focus:ring-primary/20"
                                     />
-                                    <span className="text-sm">{option}</span>
+                                    <span className={`text-sm font-bold ${selectedGoal === option ? 'text-primary' : 'text-muted-foreground'}`}>{option}</span>
                                 </label>
                             ))}
-                            <label className="flex items-center gap-2 p-2 border border-border rounded-md hover:bg-muted/50 cursor-pointer">
+                            <label className={`flex items-center gap-3 p-4 border rounded-2xl cursor-pointer transition-all hover:border-primary/30 ${selectedGoal === 'Other' ? 'bg-primary/5 border-primary shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'border-border hover:bg-muted/50'}`}>
                                 <input
                                     type="radio"
                                     name="goal"
                                     value="Other"
                                     checked={selectedGoal === 'Other'}
                                     onChange={(e) => setSelectedGoal(e.target.value)}
-                                    className="text-purple-600 focus:ring-purple-600"
+                                    className="h-4 w-4 border-2 border-primary/20 text-primary focus:ring-primary/20"
                                 />
-                                <span className="text-sm">Other</span>
+                                <span className={`text-sm font-bold ${selectedGoal === 'Other' ? 'text-primary' : 'text-muted-foreground'}`}>Custom...</span>
                             </label>
                         </div>
                         {selectedGoal === 'Other' && (
                             <input
                                 value={customGoal}
                                 onChange={(e) => setCustomGoal(e.target.value)}
-                                placeholder="Enter your custom goal"
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                placeholder="Specify objectives..."
+                                className="h-14 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 text-base font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                             />
                         )}
                     </div>
 
                     {/* Audience Section */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-medium">Target Audience</label>
-                        <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1 h-4 bg-primary rounded-full transition-all group-hover:h-6" />
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Target Nodes (Audience)</label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
                             {AUDIENCE_OPTIONS.map(option => (
-                                <label key={option} className="flex items-center gap-2 p-2 border border-border rounded-md hover:bg-muted/50 cursor-pointer">
+                                <label key={option} className={`flex items-center gap-3 p-4 border rounded-2xl cursor-pointer transition-all hover:border-primary/30 ${selectedAudiences.includes(option) ? 'bg-primary/5 border-primary shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'border-border hover:bg-muted/50'}`}>
                                     <input
                                         type="checkbox"
                                         checked={selectedAudiences.includes(option)}
                                         onChange={() => toggleAudience(option)}
-                                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-600"
+                                        className="h-4 w-4 rounded border-2 border-primary/20 text-primary focus:ring-primary/20"
                                     />
-                                    <span className="text-sm">{option}</span>
+                                    <span className={`text-sm font-bold ${selectedAudiences.includes(option) ? 'text-primary' : 'text-muted-foreground'}`}>{option}</span>
                                 </label>
                             ))}
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">Other:</span>
+                        <div className="flex items-center gap-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Supplemental:</span>
                             <input
                                 value={customAudience}
                                 onChange={(e) => setCustomAudience(e.target.value)}
-                                placeholder="Add custom audience"
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                placeholder="Additional criteria..."
+                                className="h-12 flex-1 rounded-xl border border-border bg-background/20 px-5 py-2 text-sm font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                             />
                         </div>
                     </div>
 
                     {/* Key Points */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Key Points (one per line)</label>
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-1 h-4 bg-primary rounded-full transition-all group-hover:h-6" />
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Core Payloads (Key Points)</label>
+                            </div>
+                        </div>
                         <textarea
                             value={keyPoints}
                             onChange={(e) => setKeyPoints(e.target.value)}
-                            placeholder="- 50% off all items&#10;- Valid until Friday&#10;- Free shipping"
-                            className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            placeholder="• Bulleted core message points...&#10;• Essential campaign details...&#10;• Value proposition..."
+                            className="flex min-h-[140px] w-full rounded-[1.5rem] border border-border bg-background/50 px-6 py-5 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none resize-none leading-relaxed"
                         />
                     </div>
 
                     {/* Links Section */}
-                    <div className="space-y-3">
-                        <label className="text-sm font-medium">Include Links</label>
-                        <div className="flex gap-2">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1 h-4 bg-primary rounded-full transition-all group-hover:h-6" />
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">Anchor Protocols (Links)</label>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-4">
                             <input
                                 value={newLinkText}
                                 onChange={(e) => setNewLinkText(e.target.value)}
-                                placeholder="Link Text (e.g. Visit Website)"
-                                className="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                placeholder="Protocol Label (Text)"
+                                className="h-14 flex-1 rounded-2xl border border-border bg-background/50 px-5 py-2 text-sm font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                             />
-                            <input
-                                value={newLinkUrl}
-                                onChange={(e) => setNewLinkUrl(e.target.value)}
-                                placeholder="URL (e.g. https://example.com)"
-                                className="flex h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleAddLink}
-                                disabled={!newLinkText || !newLinkUrl}
-                                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 w-9"
-                            >
-                                <Plus className="h-4 w-4" />
-                            </button>
+                            <div className="flex gap-2 flex-1">
+                                <input
+                                    value={newLinkUrl}
+                                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                                    placeholder="Source URI (URL)"
+                                    className="h-14 flex-1 rounded-2xl border border-border bg-background/50 px-5 py-2 text-sm font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleAddLink}
+                                    disabled={!newLinkText || !newLinkUrl}
+                                    className="h-14 w-14 rounded-2xl inline-flex items-center justify-center transition-all bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-30 disabled:pointer-events-none shadow-sm"
+                                >
+                                    <Plus className="h-6 w-6" />
+                                </button>
+                            </div>
                         </div>
                         {links.length > 0 && (
-                            <div className="space-y-2">
+                            <div className="grid gap-3 pt-2">
                                 {links.map((link, index) => (
-                                    <div key={index} className="flex items-center justify-between p-2 rounded-md bg-muted/50 border border-border">
-                                        <div className="flex flex-col text-sm">
-                                            <span className="font-medium">{link.text}</span>
-                                            <span className="text-xs text-muted-foreground">{link.url}</span>
+                                    <div key={index} className="group/link flex items-center justify-between p-5 rounded-2xl bg-muted/30 border border-border/50 hover:border-primary/20 transition-all hover:bg-muted/50">
+                                        <div className="flex flex-col text-sm min-w-0 pr-4">
+                                            <span className="font-black tracking-tight">{link.text}</span>
+                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate opacity-60">{link.url}</span>
                                         </div>
                                         <button
                                             onClick={() => handleRemoveLink(index)}
-                                            className="text-muted-foreground hover:text-destructive transition-colors"
+                                            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
@@ -282,61 +302,63 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
                     </div>
 
                     {/* Tone */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">
-                            {mode === 'ab_test' ? 'Select 3 Tones' : 'Tone'}
-                        </label>
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1 h-4 bg-primary rounded-full transition-all group-hover:h-6" />
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">
+                                {mode === 'ab_test' ? 'Emotional Spectra (Select 3)' : 'Identity Resonance (Tone)'}
+                            </label>
+                        </div>
 
                         {mode === 'single' ? (
-                            <select
-                                value={tone}
-                                onChange={(e) => setTone(e.target.value)}
-                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            >
-                                <option value="Professional">Professional</option>
-                                <option value="Friendly">Friendly</option>
-                                <option value="Urgent">Urgent</option>
-                                <option value="Exciting">Exciting</option>
-                            </select>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {["Professional", "Friendly", "Urgent", "Exciting"].map(t => (
-                                    <label key={t} className={`flex items-center gap-2 p-2 border rounded-md cursor-pointer ${selectedTones.includes(t) ? 'bg-purple-50 border-purple-200' : 'border-border hover:bg-muted/50'}`}>
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedTones.includes(t)}
-                                            onChange={() => toggleTone(t)}
-                                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-600"
-                                        />
-                                        <span className="text-sm">{t}</span>
-                                    </label>
+                                    <button
+                                        key={t}
+                                        onClick={() => setTone(t)}
+                                        className={`px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${tone === t ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' : 'bg-background/40 border-border hover:border-primary/30 hover:bg-muted'}`}
+                                    >
+                                        {t}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {["Professional", "Friendly", "Urgent", "Exciting"].map(t => (
+                                    <button
+                                        key={t}
+                                        onClick={() => toggleTone(t)}
+                                        className={`px-4 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${selectedTones.includes(t) ? 'bg-primary/10 text-primary border-primary font-black' : 'bg-background/40 border-border opacity-50 hover:opacity-100 hover:border-primary/20'}`}
+                                    >
+                                        {t}
+                                    </button>
                                 ))}
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-3 p-4 border-t border-border bg-muted/20 rounded-b-xl">
+                <div className="p-8 border-t border-border flex items-center justify-between bg-gradient-to-t from-primary/[0.03] to-transparent">
                     <button
                         onClick={() => setIsOpen(false)}
-                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-all"
                     >
-                        Cancel
+                        Deactivate Interface
                     </button>
                     <button
                         onClick={handleGenerate}
                         disabled={(!selectedGoal && !customGoal) || (selectedAudiences.length === 0 && !customAudience) || isGenerating || (mode === 'ab_test' && selectedTones.length !== 3)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="relative group inline-flex items-center justify-center rounded-2xl text-sm font-black uppercase tracking-[0.2em] transition-all focus:ring-4 focus:ring-primary/20 disabled:pointer-events-none disabled:opacity-40 bg-primary text-primary-foreground shadow-2xl shadow-primary/30 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 h-16 px-12 overflow-hidden"
                     >
                         {isGenerating ? (
                             <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Generating...
+                                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                                Extracting...
                             </>
                         ) : (
                             <>
-                                <Sparkles className="h-4 w-4" />
-                                Generate Content
+                                <Sparkles className="mr-3 h-5 w-5 group-hover:rotate-12 transition-transform" />
+                                Initiate Synthesis
                             </>
                         )}
                     </button>

@@ -50,67 +50,87 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
-            <div className="w-full max-w-md space-y-8">
-                <div className="text-center space-y-2">
-                    <div className="flex justify-center mb-4">
-                        <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-12 w-auto" />
+        <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden p-6">
+            {/* Ambient Background Glows */}
+            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
+
+            <div className="w-full max-w-lg space-y-12 relative z-10">
+                <div className="text-center space-y-4">
+                    <div className="flex justify-center mb-8">
+                        <div className="relative group">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-primary to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                            <div className="relative h-20 w-20 bg-card border border-border rounded-2xl flex items-center justify-center shadow-2xl">
+                                <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-12 w-auto" />
+                            </div>
+                        </div>
                     </div>
-                    <h1 className="text-4xl font-display font-bold tracking-tight text-foreground">
-                        Sentinel
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Sign in to your account to manage campaigns
-                    </p>
+                    <div className="space-y-2">
+                        <h1 className="text-5xl font-display font-black tracking-tighter text-foreground">
+                            Welcome Back
+                        </h1>
+                        <p className="text-muted-foreground font-medium text-lg">
+                            Sign in to access your email campaigns
+                        </p>
+                    </div>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="group rounded-[2.5rem] bg-card/60 backdrop-blur-xl border border-border p-10 shadow-2xl transition-all hover:border-primary/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform">
+                        <Lock className="h-24 w-24" />
+                    </div>
+
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 relative">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="email">
-                                Email
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="email">
+                                Email Address
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                 <input
                                     {...register('email')}
                                     id="email"
                                     type="email"
                                     placeholder="name@example.com"
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 pl-9 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="flex h-16 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 pl-14 text-base font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                                 />
                             </div>
                             {errors.email && (
-                                <p className="text-sm text-destructive">{errors.email.message}</p>
+                                <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                    <div className="w-1 h-3 bg-destructive rounded-full" /> {errors.email.message}
+                                </p>
                             )}
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" htmlFor="password">
+                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="password">
                                 Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                 <input
                                     {...register('password')}
                                     id="password"
                                     type="password"
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 pl-9 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="••••••••"
+                                    className="flex h-16 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 pl-14 text-base font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                                 />
                             </div>
                             {errors.password && (
-                                <p className="text-sm text-destructive">{errors.password.message}</p>
+                                <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                    <div className="w-1 h-3 bg-destructive rounded-full" /> {errors.password.message}
+                                </p>
                             )}
                         </div>
 
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 w-full"
+                            className="w-full inline-flex items-center justify-center rounded-2xl text-base font-black uppercase tracking-[0.2em] transition-all focus:ring-4 focus:ring-primary/20 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-2xl shadow-primary/30 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 h-16 px-12 group pt-1"
                         >
                             {isLoading ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
                                     Signing in...
                                 </>
                             ) : (
@@ -120,11 +140,13 @@ export default function LoginPage() {
                     </form>
                 </div>
 
-                <div className="text-center text-sm text-muted-foreground">
-                    Don&apos;t have an account?{' '}
-                    <Link href="/register" className="font-medium text-primary hover:underline">
-                        Create one
-                    </Link>
+                <div className="text-center">
+                    <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest opacity-80">
+                        Don't have an account?{' '}
+                        <Link href="/register" className="font-black text-primary hover:text-primary/80 transition-colors border-b-2 border-primary/20 hover:border-primary">
+                            Create Account
+                        </Link>
+                    </p>
                 </div>
             </div>
         </div>

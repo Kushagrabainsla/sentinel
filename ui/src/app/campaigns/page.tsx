@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, Campaign } from '@/lib/api';
-import { Plus, Mail, Trash2, Loader2, Calendar, Send } from 'lucide-react';
+import { Plus, Mail, Trash2, Loader2, Calendar, Send, Users, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function CampaignsPage() {
@@ -88,115 +88,131 @@ export default function CampaignsPage() {
     };
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
+        <div className="max-w-6xl mx-auto space-y-10 pb-20">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-3xl font-display font-bold tracking-tight">
+                    <h1 className="text-4xl font-display font-bold tracking-tight text-foreground">
                         Campaigns
                     </h1>
-                    <p className="text-muted-foreground">
-                        Manage and track your email campaigns
+                    <p className="text-muted-foreground mt-1">
+                        Manage and track your email marketing performance
                     </p>
                 </div>
                 <Link
                     href="/campaigns/new"
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+                    className="inline-flex items-center justify-center rounded-xl text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98] bg-primary text-primary-foreground shadow-lg h-12 px-8"
                 >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Campaign
+                    <Plus className="mr-2 h-5 w-5" />
+                    Create New Campaign
                 </Link>
             </div>
 
-            <div className="flex items-center border-b border-border">
+            {/* Tab Navigation */}
+            <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-2xl w-fit border border-border/50">
                 <button
                     onClick={() => setActiveTab('active')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'active'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    className={`px-6 py-2.5 text-sm font-bold rounded-xl transition-all ${activeTab === 'active'
+                        ? 'bg-background text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
-                    Active
+                    Active Campaigns
                 </button>
                 <button
                     onClick={() => setActiveTab('trash')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'trash'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    className={`px-6 py-2.5 text-sm font-bold rounded-xl transition-all ${activeTab === 'trash'
+                        ? 'bg-background text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
                         }`}
                 >
-                    Trash
+                    Archive / Trash
                 </button>
             </div>
 
             {isLoading ? (
-                <div className="flex justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary/40 mb-4" />
+                    <p className="text-muted-foreground font-medium">Fetching campaigns...</p>
                 </div>
             ) : filteredCampaigns.length === 0 ? (
-                <div className="rounded-xl border border-border bg-card p-12 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                        <Mail className="h-6 w-6 text-muted-foreground" />
+                <div className="rounded-3xl border border-dashed border-border bg-card/40 backdrop-blur-sm p-20 text-center">
+                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-muted/50 text-muted-foreground mb-6">
+                        <Mail className="h-10 w-10" />
                     </div>
-                    <h3 className="mt-4 text-lg font-semibold">No {activeTab} campaigns</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <h3 className="text-2xl font-bold text-foreground">No {activeTab} campaigns</h3>
+                    <p className="mt-2 text-muted-foreground max-w-xs mx-auto">
                         {activeTab === 'active'
-                            ? "Create a campaign to start reaching your audience."
-                            : "Your trash is empty."}
+                            ? "You haven't created any campaigns yet. Let's get started!"
+                            : "Your archive is currently empty."}
                     </p>
                     {activeTab === 'active' && (
                         <Link
                             href="/campaigns/new"
-                            className="mt-6 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+                            className="mt-8 inline-flex items-center justify-center rounded-xl text-sm font-bold transition-all bg-primary text-primary-foreground shadow-lg h-12 px-8"
                         >
-                            Create Campaign
+                            <Plus className="mr-2 h-5 w-5" />
+                            Launch First Campaign
                         </Link>
                     )}
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-6">
                     {filteredCampaigns.map((campaign) => (
                         <Link
                             key={campaign.id}
                             href={`/campaigns/${campaign.id}`}
-                            className="group relative rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md flex items-center justify-between block"
+                            className="group relative rounded-3xl border border-border bg-card/60 backdrop-blur-sm p-6 shadow-sm transition-all hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 block"
                         >
-                            <div className="flex items-center gap-4">
-                                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${getStatusColor(campaign.status)}`}>
-                                    {campaign.type === 'S' ? (
-                                        <Calendar className="h-6 w-6" />
-                                    ) : (
-                                        <Send className="h-6 w-6" />
-                                    )}
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-lg">{campaign.name}</h3>
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                                        <span className="flex items-center gap-1">
-                                            <Mail className="h-3 w-3" />
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                <div className="flex items-start gap-5">
+                                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-transform group-hover:scale-110 ${getStatusColor(campaign.status)}`}>
+                                        {campaign.type === 'S' ? (
+                                            <Calendar className="h-7 w-7" />
+                                        ) : (
+                                            <Send className="h-7 w-7" />
+                                        )}
+                                    </div>
+                                    <div className="space-y-1 min-w-0">
+                                        <div className="flex items-center gap-3">
+                                            <h3 className="font-bold text-xl text-foreground truncate">{campaign.name}</h3>
+                                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest border ${getStatusColor(campaign.status)}`}>
+                                                {getStatusLabel(campaign.status)}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                                            <Mail className="h-4 w-4 text-primary/60" />
                                             {campaign.email_subject}
-                                        </span>
-                                        <span>•</span>
-                                        <span>{campaign.recipient_count || 0} recipients</span>
-                                        <span>•</span>
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(campaign.status)}`}>
-                                            {getStatusLabel(campaign.status)}
-                                        </span>
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                                                <Users className="h-3.5 w-3.5" />
+                                                <span className="font-bold text-foreground">{campaign.recipient_count || 0}</span> recipients
+                                            </div>
+                                            {campaign.schedule_at && (
+                                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                                                    <Calendar className="h-3.5 w-3.5" />
+                                                    <span className="text-foreground">
+                                                        {new Date(campaign.schedule_at * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="flex items-center gap-2">
-                                {campaign.schedule_at && (
-                                    <div className="text-sm text-muted-foreground mr-4">
-                                        Scheduled for: {new Date(campaign.schedule_at * 1000).toLocaleString()}
+                                <div className="flex items-center justify-end gap-3 shrink-0">
+                                    <button
+                                        onClick={(e) => handleDelete(e, campaign)}
+                                        className="p-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all rounded-xl border border-transparent hover:border-destructive/20"
+                                        title={campaign.status === 'I' ? "Delete Permanently" : "Move to Trash"}
+                                    >
+                                        <Trash2 className="h-5 w-5" />
+                                    </button>
+                                    <div className="p-3 rounded-xl bg-muted/30 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-all border border-transparent group-hover:border-primary/10">
+                                        <ArrowRight className="h-6 w-6" />
                                     </div>
-                                )}
-                                <button
-                                    onClick={(e) => handleDelete(e, campaign)}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-muted-foreground hover:text-destructive z-10 relative"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </button>
+                                </div>
                             </div>
                         </Link>
                     ))}

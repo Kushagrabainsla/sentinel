@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, Segment } from '@/lib/api';
-import { ArrowLeft, Plus, Trash2, Loader2, Mail } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, Mail, Activity } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SegmentDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -104,53 +104,84 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
     }
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/segments"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                </Link>
-                <div>
-                    <h1 className="text-3xl font-display font-bold tracking-tight">
-                        {segment.name}
-                    </h1>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(segment.status)}`}>
-                            {getStatusLabel(segment.status)}
-                        </span>
-                        <span className="text-muted-foreground">•</span>
-                        <p className="text-muted-foreground">
-                            {segment.description || 'No description'}
-                        </p>
+        <div className="max-w-6xl mx-auto space-y-12 pb-24">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+                <div className="flex items-start gap-6">
+                    <Link
+                        href="/segments"
+                        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card border border-border shadow-sm hover:bg-primary/10 hover:text-primary transition-all group"
+                    >
+                        <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1" />
+                    </Link>
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-4 bg-primary rounded-full" />
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Segment Intelligence</h2>
+                        </div>
+                        <h1 className="text-4xl font-display font-black tracking-tight text-foreground">
+                            {segment.name}
+                        </h1>
+                        <div className="flex flex-wrap items-center gap-3 mt-2">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest border ${getStatusColor(segment.status)}`}>
+                                <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${segment.status === 'A' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                                {getStatusLabel(segment.status)}
+                            </span>
+                            <span className="text-muted-foreground/30">•</span>
+                            <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                <Activity className="h-4 w-4" />
+                                {segment.description || 'No strategic description provided'}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-[2fr,1fr]">
-                <div className="space-y-6">
-                    <div className="rounded-xl border border-border bg-card shadow-sm">
-                        <div className="p-6 border-b border-border">
-                            <h3 className="font-semibold">Subscribers ({emails.length})</h3>
+            <div className="grid gap-10 lg:grid-cols-3">
+                {/* Main Content: Subscriber Nodes */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="group rounded-[2.5rem] border border-border bg-card/60 backdrop-blur-sm shadow-xl overflow-hidden transition-all hover:border-primary/20">
+                        <div className="p-8 border-b border-border/50 bg-muted/30 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                                    <Mail className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold">Synchronized Contacts</h3>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Active nodes in segment</p>
+                                </div>
+                            </div>
+                            <div className="px-4 py-2 rounded-2xl bg-background border border-border shadow-sm">
+                                <span className="text-2xl font-black tabular-nums">{emails.length}</span>
+                                <span className="ml-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total</span>
+                            </div>
                         </div>
-                        <div className="divide-y divide-border">
+
+                        <div className="divide-y divide-border/50 max-h-[600px] overflow-y-auto custom-scrollbar">
                             {emails.length === 0 ? (
-                                <div className="p-6 text-center text-muted-foreground">
-                                    No emails in this segment yet.
+                                <div className="p-20 text-center space-y-4">
+                                    <div className="h-16 w-16 rounded-full bg-muted mx-auto flex items-center justify-center opacity-40">
+                                        <Mail className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                    <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">
+                                        No active nodes detected in this grouping
+                                    </p>
                                 </div>
                             ) : (
                                 emails.map((email) => (
-                                    <div key={email} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                    <div key={email} className="group/item flex items-center justify-between p-6 hover:bg-primary/5 transition-all">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-10 w-10 rounded-xl bg-background border border-border flex items-center justify-center text-muted-foreground group-hover/item:border-primary/30 group-hover/item:text-primary transition-all">
                                                 <Mail className="h-4 w-4" />
                                             </div>
-                                            <span className="text-sm font-medium">{email}</span>
+                                            <div>
+                                                <span className="text-base font-bold text-foreground block">{email}</span>
+                                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-60">Verified Identity</span>
+                                            </div>
                                         </div>
                                         <button
                                             onClick={() => handleRemoveEmail(email)}
-                                            className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                                            className="h-10 w-10 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all opacity-0 group-hover/item:opacity-100"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </button>
@@ -161,36 +192,66 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                        <h3 className="font-semibold mb-4">Add Subscribers</h3>
-                        <form onSubmit={handleAddEmails} className="space-y-4">
+                {/* Sidebar: Coordination */}
+                <div className="space-y-8">
+                    <div className="group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform">
+                            <Plus className="h-24 w-24" />
+                        </div>
+
+                        <div className="relative space-y-8">
                             <div className="space-y-2">
-                                <label className="text-sm text-muted-foreground">
-                                    Enter emails (comma separated)
-                                </label>
-                                <textarea
-                                    value={newEmails}
-                                    onChange={(e) => setNewEmails(e.target.value)}
-                                    placeholder="john@example.com, jane@example.com"
-                                    className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 font-mono"
-                                />
+                                <h3 className="text-xl font-bold">Inbound Link</h3>
+                                <p className="text-sm text-muted-foreground font-medium">Inject new identities into this segment logic</p>
                             </div>
-                            <button
-                                type="submit"
-                                disabled={isAdding || !newEmails.trim()}
-                                className="w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
-                            >
-                                {isAdding ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Adding...
-                                    </>
-                                ) : (
-                                    'Add Emails'
-                                )}
-                            </button>
-                        </form>
+
+                            <form onSubmit={handleAddEmails} className="space-y-6">
+                                <div className="space-y-3">
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">
+                                        Email Addresses
+                                    </label>
+                                    <textarea
+                                        value={newEmails}
+                                        onChange={(e) => setNewEmails(e.target.value)}
+                                        placeholder="user@domain.com, guest@domain.com..."
+                                        className="flex min-h-[160px] w-full rounded-2xl border border-border bg-background/50 px-5 py-4 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none font-mono resize-none"
+                                    />
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 px-1">
+                                        Use commas to separate multiple entries
+                                    </p>
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={isAdding || !newEmails.trim()}
+                                    className="w-full inline-flex items-center justify-center rounded-2xl text-sm font-black uppercase tracking-[0.1em] transition-all focus:ring-4 focus:ring-primary/20 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:shadow-primary/30 hover:-translate-y-1 active:translate-y-0 h-14 px-4 group"
+                                >
+                                    {isAdding ? (
+                                        <>
+                                            <Loader2 className="mr-3 h-4 w-4 animate-spin" />
+                                            Synchronizing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Inject Identities
+                                            <Plus className="ml-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {/* Insights Mini Card */}
+                    <div className="rounded-[2rem] border border-border bg-card/40 p-8 space-y-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">System Status</h4>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold">Deduplication</span>
+                            <span className="text-xs font-black text-emerald-500 uppercase">Active</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold">Auto-Validation</span>
+                            <span className="text-xs font-black text-emerald-500 uppercase">Active</span>
+                        </div>
                     </div>
                 </div>
             </div>

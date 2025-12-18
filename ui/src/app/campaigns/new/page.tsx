@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, ArrowLeft, Calendar as CalendarIcon, Users, Clock, Send, Activity, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { api, Segment } from '@/lib/api';
 import { Controller } from 'react-hook-form';
@@ -152,296 +152,362 @@ export default function NewCampaignPage() {
     };
 
     return (
-        <div className="max-w-3xl mx-auto space-y-8 pb-12">
-            <div className="flex items-center gap-4">
-                <Link
-                    href="/campaigns"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                </Link>
-                <div>
-                    <h1 className="text-3xl font-display font-bold tracking-tight">
-                        Create Campaign
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Design and schedule your new email campaign
-                    </p>
+        <div className="max-w-4xl mx-auto space-y-12 pb-24">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+                <div className="flex items-start gap-6">
+                    <Link
+                        href="/campaigns"
+                        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card border border-border shadow-sm hover:bg-primary/10 hover:text-primary transition-all group"
+                    >
+                        <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1" />
+                    </Link>
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-4 bg-primary rounded-full" />
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Campaign Architect</h2>
+                        </div>
+                        <h1 className="text-4xl font-display font-black tracking-tight text-foreground">
+                            Create New Campaign
+                        </h1>
+                        <p className="text-muted-foreground font-medium">
+                            Synthesize your message and target the right audience
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Campaign Details</h3>
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none" htmlFor="name">
-                                    Campaign Name
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+                {/* Section 1: Identity & Audience */}
+                <div className="group rounded-[2.5rem] bg-card border border-border p-10 shadow-xl transition-all hover:border-primary/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                        <Users className="h-24 w-24" />
+                    </div>
+
+                    <div className="relative space-y-8">
+                        <div className="flex items-center gap-4 border-b border-border/50 pb-6">
+                            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                                <Users className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold">Identity & Audience</h3>
+                                <p className="text-sm text-muted-foreground">Define who will receive this transmission</p>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-8 md:grid-cols-2">
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="name">
+                                    Internal Campaign Name
                                 </label>
                                 <input
                                     {...register('name')}
                                     id="name"
-                                    placeholder="e.g. Monthly Newsletter"
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder="e.g. Q4 Growth Acceleration"
+                                    className="flex h-14 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                                 />
                                 {errors.name && (
-                                    <p className="text-sm text-destructive">{errors.name.message}</p>
+                                    <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                        <div className="w-1 h-3 bg-destructive rounded-full" /> {errors.name.message}
+                                    </p>
                                 )}
                             </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none" htmlFor="segment_id">
-                                    Target Segment
+                            <div className="space-y-3">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="segment_id">
+                                    Target Recipient Segment
                                 </label>
-                                <select
-                                    {...register('segment_id')}
-                                    id="segment_id"
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    <option value="">Select a segment</option>
-                                    {segments.map((segment) => (
-                                        <option key={segment.id} value={segment.id}>
-                                            {segment.name} ({segment.contact_count} contacts)
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="relative group/select">
+                                    <select
+                                        {...register('segment_id')}
+                                        id="segment_id"
+                                        className="flex h-14 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none pr-10"
+                                    >
+                                        <option value="">Select a target group</option>
+                                        {segments.map((segment) => (
+                                            <option key={segment.id} value={segment.id}>
+                                                {segment.name} — {segment.contact_count} contacts
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none group-focus-within/select:text-primary transition-colors" />
+                                </div>
                                 {errors.segment_id && (
-                                    <p className="text-sm text-destructive">{errors.segment_id.message}</p>
+                                    <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                        <div className="w-1 h-3 bg-destructive rounded-full" /> {errors.segment_id.message}
+                                    </p>
                                 )}
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {scheduleType === 'ab_test' ? (
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold">A/B Test Variations</h3>
-                                <AiGeneratorModal
-                                    mode="ab_test"
-                                    onGenerate={(s, c, variations) => {
-                                        console.log('Received variations:', variations);
+                {/* Section 2: Creative & Content */}
+                <div className="group rounded-[2.5rem] bg-card border border-border p-10 shadow-xl transition-all hover:border-primary/20 overflow-hidden">
+                    <div className="space-y-8">
+                        <div className="flex items-center justify-between border-b border-border/50 pb-6">
+                            <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                                    <CalendarIcon className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold">Creative & Intelligence</h3>
+                                    <p className="text-sm text-muted-foreground">Draft your message or use AI synthesis</p>
+                                </div>
+                            </div>
+                            <AiGeneratorModal
+                                mode={scheduleType === 'ab_test' ? 'ab_test' : 'single'}
+                                onGenerate={(s, c, variations) => {
+                                    if (scheduleType === 'ab_test') {
                                         if (variations && variations.length > 0) {
-                                            // Take first 3 if more than 3
                                             const validVariations = variations.slice(0, 3);
                                             setValue('variations', validVariations, { shouldValidate: true });
-
-                                            if (validVariations.length === 3) {
-                                                toast.success('3 Variations generated!');
-                                            } else {
-                                                toast.warning(`Generated ${validVariations.length} variations. 3 are required for A/B testing.`);
-                                            }
-                                        } else {
-                                            toast.error('Failed to generate variations. Please try again.');
-                                            console.error('No variations received');
+                                            toast.success('AI synthesized 3 distinct variations!');
                                         }
-                                    }}
-                                />
-                            </div>
+                                    } else {
+                                        setValue('subject', s, { shouldValidate: true });
+                                        setValue('content', c, { shouldValidate: true });
+                                        toast.success('AI content masterfully generated!');
+                                    }
+                                }}
+                            />
+                        </div>
 
-                            {/* A/B Test Config */}
-                            <div className="grid grid-cols-2 gap-6 p-4 bg-muted/30 rounded-lg border border-border">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Test Percentage ({watch('test_percentage')}%)</label>
-                                    <input
-                                        type="range"
-                                        min="5"
-                                        max="90"
-                                        step="5"
-                                        {...register('test_percentage', { valueAsNumber: true })}
-                                        className="w-full"
-                                    />
-                                    <p className="text-xs text-muted-foreground">Percentage of users to test on (split 3 ways)</p>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Test Duration (Hours)</label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max="72"
-                                        {...register('decision_duration', { valueAsNumber: true })}
-                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                                    />
-                                    <p className="text-xs text-muted-foreground">Time to wait before declaring a winner</p>
-                                </div>
-                            </div>
-
-                            {/* Tabs */}
-                            <div className="space-y-4">
-                                <div className="flex gap-2 border-b border-border">
-                                    {[0, 1, 2].map((i) => (
-                                        <button
-                                            key={i}
-                                            type="button"
-                                            onClick={() => setActiveVariation(i as 0 | 1 | 2)}
-                                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeVariation === i
-                                                ? 'border-primary text-primary'
-                                                : 'border-transparent text-muted-foreground hover:text-foreground'
-                                                }`}
-                                        >
-                                            Variation {['A', 'B', 'C'][i]}
-                                            {watch(`variations.${i}.tone`) && <span className="ml-2 text-xs bg-muted px-1.5 py-0.5 rounded">{watch(`variations.${i}.tone`)}</span>}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="space-y-4 animate-in fade-in slide-in-from-left-2 duration-200" key={activeVariation}>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Subject Line ({['A', 'B', 'C'][activeVariation]})</label>
+                        {scheduleType === 'ab_test' ? (
+                            <div className="space-y-10">
+                                {/* A/B Test Config Slider */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 p-8 bg-primary/5 rounded-3xl border border-primary/10">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-sm font-bold uppercase tracking-widest text-primary">Test Pool</label>
+                                            <span className="text-lg font-black">{watch('test_percentage')}%</span>
+                                        </div>
                                         <input
-                                            {...register(`variations.${activeVariation}.subject`)}
-                                            placeholder={`Subject for Variation ${['A', 'B', 'C'][activeVariation]}`}
-                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                            type="range"
+                                            min="5"
+                                            max="90"
+                                            step="5"
+                                            {...register('test_percentage', { valueAsNumber: true })}
+                                            className="w-full h-2 bg-primary/20 rounded-lg appearance-none cursor-pointer accent-primary"
                                         />
-                                        {errors.variations?.[activeVariation]?.subject && (
-                                            <p className="text-sm text-destructive">{errors.variations[activeVariation]?.subject?.message}</p>
-                                        )}
+                                        <p className="text-xs text-muted-foreground font-medium">Portion of audience receiving variations before the winner is chosen.</p>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <label className="text-sm font-bold uppercase tracking-widest text-primary block px-1">Decision Horizon</label>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="72"
+                                                {...register('decision_duration', { valueAsNumber: true })}
+                                                className="flex h-12 w-full rounded-xl border border-primary/20 bg-background/50 px-4 py-2 text-base font-bold shadow-sm focus:ring-4 focus:ring-primary/10 outline-none"
+                                            />
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-primary/40 uppercase">Hours</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground font-medium">Statistical window for determining the highest engagement rate.</p>
+                                    </div>
+                                </div>
+
+                                {/* Variation Tabs */}
+                                <div className="space-y-6">
+                                    <div className="flex p-1.5 bg-muted rounded-2xl w-fit mx-auto">
+                                        {[0, 1, 2].map((i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => setActiveVariation(i as 0 | 1 | 2)}
+                                                className={`relative px-8 py-3 text-sm font-black rounded-xl transition-all ${activeVariation === i
+                                                    ? 'bg-card text-primary shadow-lg'
+                                                    : 'text-muted-foreground hover:text-foreground'
+                                                    }`}
+                                            >
+                                                VARIANT {['A', 'B', 'C'][i]}
+                                                {activeVariation === i && (
+                                                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                                                )}
+                                            </button>
+                                        ))}
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Content ({['A', 'B', 'C'][activeVariation]})</label>
-                                        <Controller
-                                            name={`variations.${activeVariation}.content`}
-                                            control={control}
-                                            render={({ field }) => (
+                                    <div className="space-y-6 bg-background/30 rounded-[2rem] p-8 border border-border/50 animate-in fade-in slide-in-from-bottom-2 duration-300" key={activeVariation}>
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Variation {['A', 'B', 'C'][activeVariation]} Subject</label>
+                                            <input
+                                                {...register(`variations.${activeVariation}.subject`)}
+                                                placeholder="Enter magnetic subject line..."
+                                                className="flex h-14 w-full rounded-2xl border border-border bg-background px-5 py-2 text-lg font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 outline-none"
+                                            />
+                                            {errors.variations?.[activeVariation]?.subject && (
+                                                <p className="text-xs font-bold text-destructive mt-1">{errors.variations[activeVariation]?.subject?.message}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Variation {['A', 'B', 'C'][activeVariation]} Content</label>
+                                            <Controller
+                                                name={`variations.${activeVariation}.content`}
+                                                control={control}
+                                                render={({ field }) => (
+                                                    <div className="rounded-3xl border border-border overflow-hidden bg-background">
+                                                        <RichTextEditor
+                                                            value={field.value || ''}
+                                                            onChange={field.onChange}
+                                                            placeholder="Compose the narrative for this variation..."
+                                                        />
+                                                    </div>
+                                                )}
+                                            />
+                                            {errors.variations?.[activeVariation]?.content && (
+                                                <p className="text-xs font-bold text-destructive mt-1">{errors.variations[activeVariation]?.content?.message}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-8">
+                                <div className="space-y-3">
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="subject">
+                                        Primary Subject Line
+                                    </label>
+                                    <input
+                                        {...register('subject')}
+                                        id="subject"
+                                        placeholder="Target the recipient's attention..."
+                                        className="flex h-14 w-full rounded-2xl border border-border bg-background px-5 py-2 text-lg font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 outline-none"
+                                    />
+                                    {errors.subject && (
+                                        <p className="text-xs font-bold text-destructive mt-1">{errors.subject.message}</p>
+                                    )}
+                                </div>
+                                <div className="space-y-3">
+                                    <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="content">
+                                        Transmission Content (HTML)
+                                    </label>
+                                    <Controller
+                                        name="content"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <div className="rounded-3xl border border-border overflow-hidden bg-background shadow-inner">
                                                 <RichTextEditor
                                                     value={field.value || ''}
                                                     onChange={field.onChange}
-                                                    placeholder={`Content for Variation ${['A', 'B', 'C'][activeVariation]}...`}
+                                                    placeholder="Construct your message logic and styling..."
                                                 />
-                                            )}
-                                        />
-                                        {errors.variations?.[activeVariation]?.content && (
-                                            <p className="text-sm text-destructive">{errors.variations[activeVariation]?.content?.message}</p>
+                                            </div>
                                         )}
-                                    </div>
+                                    />
+                                    {errors.content && (
+                                        <p className="text-xs font-bold text-destructive mt-1">{errors.content.message}</p>
+                                    )}
                                 </div>
                             </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Section 3: Scheduling Logic */}
+                <div className="group rounded-[2.5rem] bg-card border border-border p-10 shadow-xl transition-all hover:border-primary/20 overflow-hidden">
+                    <div className="space-y-8">
+                        <div className="flex items-center gap-4 border-b border-border/50 pb-6">
+                            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                                <Clock className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold">Execution Strategy</h3>
+                                <p className="text-sm text-muted-foreground">Determine the temporal logic for dispatch</p>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-semibold">Email Content</h3>
-                                <AiGeneratorModal
-                                    onGenerate={(subject, content) => {
-                                        setValue('subject', subject, { shouldValidate: true });
-                                        setValue('content', content, { shouldValidate: true });
-                                        toast.success('Content generated successfully!');
-                                    }}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none" htmlFor="subject">
-                                    Email Subject
-                                </label>
-                                <input
-                                    {...register('subject')}
-                                    id="subject"
-                                    placeholder="Enter a catchy subject line"
-                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                                {errors.subject && (
-                                    <p className="text-sm text-destructive">{errors.subject.message}</p>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none" htmlFor="content">
-                                    HTML Content
-                                </label>
-                                <Controller
-                                    name="content"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <RichTextEditor
-                                            value={field.value || ''}
-                                            onChange={field.onChange}
-                                            placeholder="Write your email content here..."
-                                        />
+
+                        <div className="grid gap-6 sm:grid-cols-3">
+                            {[
+                                { id: 'immediate', label: 'Real-time', desc: 'Instant dispatch', icon: Send },
+                                { id: 'scheduled', label: 'Temporal', desc: 'Futuristic timing', icon: CalendarIcon },
+                                { id: 'ab_test', label: 'Automated', desc: 'Neural optimization', icon: Activity },
+                            ].map((type) => (
+                                <label
+                                    key={type.id}
+                                    className={`relative flex flex-col items-center gap-4 p-6 rounded-3xl border-2 cursor-pointer transition-all ${scheduleType === type.id
+                                        ? 'border-primary bg-primary/5 shadow-lg'
+                                        : 'border-border bg-background hover:border-primary/30 hover:bg-muted/50'
+                                        }`}
+                                >
+                                    <input
+                                        type="radio"
+                                        value={type.id}
+                                        {...register('schedule_type')}
+                                        className="sr-only"
+                                    />
+                                    <div className={`p-3 rounded-2xl ${scheduleType === type.id ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-muted text-muted-foreground'}`}>
+                                        <type.icon className="h-6 w-6" />
+                                    </div>
+                                    <div className="text-center">
+                                        <div className={`font-black text-sm uppercase tracking-widest ${scheduleType === type.id ? 'text-primary' : 'text-foreground'}`}>
+                                            {type.label}
+                                        </div>
+                                        <div className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">
+                                            {type.desc}
+                                        </div>
+                                    </div>
+                                    {scheduleType === type.id && (
+                                        <div className="absolute top-3 right-3">
+                                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                        </div>
                                     )}
-                                />
-                                {errors.content && (
-                                    <p className="text-sm text-destructive">{errors.content.message}</p>
-                                )}
-                            </div>
+                                </label>
+                            ))}
                         </div>
-                    )}
 
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Schedule</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <label className="flex items-center gap-2 text-sm font-medium">
-                                    <input
-                                        type="radio"
-                                        value="immediate"
-                                        {...register('schedule_type')}
-                                        className="h-4 w-4 text-primary focus:ring-primary"
-                                    />
-                                    Send Immediately
+                        {scheduleType === 'scheduled' && (
+                            <div className="space-y-4 p-8 bg-muted/30 rounded-[2rem] border border-border/50 animate-in zoom-in-95 duration-200">
+                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="scheduled_time">
+                                    Temporal Dispatch Horizon
                                 </label>
-                                <label className="flex items-center gap-2 text-sm font-medium">
-                                    <input
-                                        type="radio"
-                                        value="scheduled"
-                                        {...register('schedule_type')}
-                                        className="h-4 w-4 text-primary focus:ring-primary"
-                                    />
-                                    Schedule for Later
-                                </label>
-                                <label className="flex items-center gap-2 text-sm font-medium">
-                                    <input
-                                        type="radio"
-                                        value="ab_test"
-                                        {...register('schedule_type')}
-                                        className="h-4 w-4 text-primary focus:ring-primary"
-                                    />
-                                    A/B Test Automation
-                                </label>
-                            </div>
-
-                            {scheduleType === 'scheduled' && (
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium leading-none" htmlFor="scheduled_time">
-                                        Date & Time
-                                    </label>
+                                <div className="relative max-w-sm">
                                     <input
                                         type="datetime-local"
                                         {...register('scheduled_time')}
                                         id="scheduled_time"
-                                        className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="flex h-14 w-full rounded-2xl border border-border bg-background px-5 py-2 text-base font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 outline-none"
                                     />
-                                    {errors.scheduled_time && (
-                                        <p className="text-sm text-destructive">{errors.scheduled_time.message}</p>
-                                    )}
                                 </div>
-                            )}
-                        </div>
+                                {errors.scheduled_time && (
+                                    <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                        <div className="w-1 h-3 bg-destructive rounded-full" /> {errors.scheduled_time.message}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
+                </div>
 
-                    <div className="flex justify-end gap-4 pt-4 border-t border-border">
-                        <Link
-                            href="/campaigns"
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-                        >
-                            Cancel
-                        </Link>
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
-                        >
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Creating...
-                                </>
-                            ) : (
-                                scheduleType === 'immediate' ? 'Send Now' : 'Schedule Campaign'
-                            )}
-                        </button>
-                    </div>
-                </form>
-            </div>
+                {/* Submit Section */}
+                <div className="flex flex-col sm:flex-row items-center justify-end gap-6 pt-10 border-t border-border">
+                    <Link
+                        href="/campaigns"
+                        className="text-sm font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-6"
+                    >
+                        Abort Draft
+                    </Link>
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full sm:w-auto inline-flex items-center justify-center rounded-2xl text-base font-black uppercase tracking-[0.1em] transition-all focus:ring-4 focus:ring-primary/20 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow-2xl shadow-primary/30 hover:shadow-primary/40 hover:-translate-y-1 active:translate-y-0 h-16 px-12 group"
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                                Processing Neural Logic...
+                            </>
+                        ) : (
+                            <>
+                                {scheduleType === 'immediate' ? 'Initiate Transmission' : 'Finalize Strategy'}
+                                <ArrowLeft className="ml-3 h-5 w-5 rotate-180 transition-transform group-hover:translate-x-1" />
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 }
