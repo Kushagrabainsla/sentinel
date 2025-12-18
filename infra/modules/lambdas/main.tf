@@ -114,6 +114,7 @@ resource "aws_lambda_function" "send_worker" {
 
     environment {
         variables = {
+            DYNAMODB_USERS_TABLE         = var.dynamodb_users_table
             DYNAMODB_CAMPAIGNS_TABLE     = var.dynamodb_campaigns_table
             DYNAMODB_SEGMENTS_TABLE      = var.dynamodb_segments_table
             DYNAMODB_EVENTS_TABLE        = var.dynamodb_events_table
