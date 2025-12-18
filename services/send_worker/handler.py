@@ -296,12 +296,12 @@ def get_campaign_owner(campaign_id):
         if not campaign:
             return None
             
-        user_id = campaign.get('user_id')
-        if not user_id:
+        owner_id = campaign.get('owner_id')
+        if not owner_id:
             return None
             
         users_table = get_users_table()
-        resp = users_table.get_item(Key={'id': user_id})
+        resp = users_table.get_item(Key={'id': owner_id})
         return resp.get('Item')
     except Exception as e:
         print(f"Error fetching campaign owner: {e}")
