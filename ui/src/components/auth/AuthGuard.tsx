@@ -15,7 +15,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
     // Define public routes that don't require authentication
-    const publicRoutes = ['/', '/login', '/register'];
+    const publicRoutes = ['/', '/login', '/register', '/privacy', '/terms'];
     const isPublicRoute = publicRoutes.includes(pathname);
 
     useEffect(() => {
