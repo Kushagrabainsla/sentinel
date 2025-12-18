@@ -4,12 +4,12 @@ import boto3
 import google.generativeai as genai
 
 def get_gemini_api_key():
-    secret_name = "sentinel_gemini_api_key"  # Hardcoded secret name
-    region_name = "us-east-1"            # Update to your AWS region
+    secret_name = "sentinel_config"  # Unified secret name
+    region_name = "us-east-1"
     client = boto3.client('secretsmanager', region_name=region_name)
     response = client.get_secret_value(SecretId=secret_name)
     secret = response['SecretString']
-    return json.loads(secret)['GEMINI_API_KEY']
+    return json.loads(secret).get('GEMINI_API_KEY')
 
 def lambda_handler(event, context):
     try:

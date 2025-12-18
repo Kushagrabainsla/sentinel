@@ -50,6 +50,9 @@ export interface User {
     status: string;
     timezone?: string;
     created_at?: number;
+    google_connected?: boolean;
+    google_email?: string;
+    gmail_enabled?: boolean;
 }
 
 export interface Segment {

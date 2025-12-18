@@ -12,6 +12,8 @@ import hashlib
 import hmac
 import secrets
 import re
+import urllib.request
+import urllib.parse
 from decimal import Decimal
 import boto3
 from botocore.exceptions import ClientError
@@ -289,6 +291,170 @@ def regenerate_api_key(event):
     except Exception as e:
         return _response(500, {"error": f"Failed to regenerate API key: {str(e)}"})
 
+def get_google_creds():
+    """Fetch Google credentials directly from Secrets Manager"""
+    try:
+        client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = client.get_secret_value(SecretId='sentinel_config')
+        return json.loads(response['SecretString'])
+    except Exception as e:
+        print(f"Error fetching sentinel_config: {e}")
+        return {}
+
+def get_google_auth_url(event):
+    """Generate Google OAuth authorization URL"""
+    creds = get_google_creds()
+    client_id = creds.get('GOOGLE_CLIENT_ID')
+    redirect_uri = creds.get('GOOGLE_REDIRECT_URI')
+    
+    if not client_id or not redirect_uri:
+        return _response(500, {"error": "Google OAuth configuration missing"})
+    
+    scopes = [
+        'openid',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/gmail.send'
+    ]
+    
+    auth_url = (
+        "https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={client_id}&"
+        f"redirect_uri={redirect_uri}&"
+        "response_type=code&"
+        f"scope={' '.join(scopes)}&"
+        "access_type=offline&"
+        "prompt=consent"
+    )
+    
+    return _response(200, {"url": auth_url})
+
+def google_callback(event):
+    """Handle Google OAuth callback and exchange code for tokens"""
+    api_key = get_api_key_from_event(event)
+    user = get_user_by_api_key(api_key)
+    if not user:
+        return _response(401, {"error": "Invalid API key"})
+    
+    try:
+        body = json.loads(event.get('body', '{}'))
+        code = body.get('code')
+        if not code:
+            return _response(400, {"error": "Authorization code is required"})
+            
+        creds = get_google_creds()
+        client_id = creds.get('GOOGLE_CLIENT_ID')
+        client_secret = creds.get('GOOGLE_CLIENT_SECRET')
+        redirect_uri = creds.get('GOOGLE_REDIRECT_URI')
+        
+        # Exchange code for tokens
+        token_data = urllib.parse.urlencode({
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code"
+        }).encode()
+        
+        token_req = urllib.request.Request("https://oauth2.googleapis.com/token", data=token_data)
+        try:
+            with urllib.request.urlopen(token_req) as response:
+                tokens = json.loads(response.read().decode())
+        except urllib.error.HTTPError as e:
+            return _response(e.code, {"error": "Failed to exchange code for tokens", "details": e.read().decode()})
+            
+        access_token = tokens.get('access_token')
+        refresh_token = tokens.get('refresh_token')
+        expires_in = tokens.get('expires_in')
+        
+        # Get user info from Google
+        user_info_req = urllib.request.Request(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        
+        with urllib.request.urlopen(user_info_req) as user_info_response:
+            google_user = json.loads(user_info_response.read().decode())
+        google_email = google_user.get('email')
+        
+        # Update user in DynamoDB
+        users_table = get_users_table()
+        update_expr = 'SET google_connected = :conn, google_email = :email, google_access_token = :at, google_token_expiry = :exp'
+        attr_vals = {
+            ':conn': True,
+            ':email': google_email,
+            ':at': access_token,
+            ':exp': int(time.time()) + expires_in
+        }
+        
+        if refresh_token:
+            update_expr += ', google_refresh_token = :rt'
+            attr_vals[':rt'] = refresh_token
+            
+        users_table.update_item(
+            Key={'id': user['id']},
+            UpdateExpression=update_expr,
+            ExpressionAttributeValues=attr_vals
+        )
+        
+        return _response(200, {"message": "Google account connected successfully"})
+        
+    except Exception as e:
+        print(f"Error in google_callback: {e}")
+        return _response(500, {"error": str(e)})
+
+def toggle_gmail(event):
+    """Toggle Gmail sending for the user"""
+    api_key = get_api_key_from_event(event)
+    user = get_user_by_api_key(api_key)
+    if not user:
+        return _response(401, {"error": "Invalid API key"})
+        
+    try:
+        body = json.loads(event.get('body', '{}'))
+        enabled = body.get('enabled', False)
+        
+        if enabled and not user.get('google_connected'):
+            return _response(400, {"error": "Connect Google account first"})
+            
+        users_table = get_users_table()
+        users_table.update_item(
+            Key={'id': user['id']},
+            UpdateExpression='SET gmail_enabled = :val',
+            ExpressionAttributeValues={':val': enabled}
+        )
+        
+        user['gmail_enabled'] = enabled
+        return _response(200, {"message": "Gmail status updated", "user": user})
+        
+    except Exception as e:
+        return _response(500, {"error": str(e)})
+
+def disconnect_google(event):
+    """Disconnect Google account"""
+    api_key = get_api_key_from_event(event)
+    user = get_user_by_api_key(api_key)
+    if not user:
+        return _response(401, {"error": "Invalid API key"})
+        
+    try:
+        users_table = get_users_table()
+        users_table.update_item(
+            Key={'id': user['id']},
+            UpdateExpression='REMOVE google_connected, google_email, google_access_token, google_refresh_token, google_token_expiry, gmail_enabled'
+        )
+        
+        # Remove fields from user object for response
+        for field in ['google_connected', 'google_email', 'google_access_token', 'google_refresh_token', 'google_token_expiry', 'gmail_enabled']:
+            user.pop(field, None)
+            
+        user['google_connected'] = False
+        user['gmail_enabled'] = False
+        
+        return _response(200, {"message": "Google account disconnected", "user": user})
+    except Exception as e:
+        return _response(500, {"error": str(e)})
+
 def lambda_handler(event, context):
     """Main handler for user authentication API"""
     print(f"Auth API Handler: {json.dumps(event, default=str)}")
@@ -324,6 +490,21 @@ def lambda_handler(event, context):
         elif path == '/auth/regenerate-key' or path == '/v1/auth/regenerate-key':
             if http_method == 'POST':
                 return regenerate_api_key(event)
+        
+        elif path == '/auth/google/url' or path == '/v1/auth/google/url':
+            return get_google_auth_url(event)
+            
+        elif path == '/auth/google/callback' or path == '/v1/auth/google/callback':
+            if http_method == 'POST':
+                return google_callback(event)
+                
+        elif path == '/auth/google/toggle-gmail' or path == '/v1/auth/google/toggle-gmail':
+            if http_method == 'POST':
+                return toggle_gmail(event)
+                
+        elif path == '/auth/google/disconnect' or path == '/v1/auth/google/disconnect':
+            if http_method == 'POST':
+                return disconnect_google(event)
         
         # Route not found
         return _response(404, {"error": "Route not found"})

@@ -21,6 +21,9 @@ import re
 import time
 import random
 import hashlib
+import base64
+import urllib.request
+import urllib.parse
 from decimal import Decimal
 from enum import Enum
 import boto3
@@ -615,38 +618,33 @@ PERMANENT_ERROR_CODES = {
 
 def is_retryable_error(error):
     """
-    Determine if an error should be retried
-    
-    Args:
-        error: Exception object (typically botocore.exceptions.ClientError)
-    
-    Returns:
-        bool: True if error is transient and should be retried
+    Determine if an error should be retried.
+    Handles AWS ClientError, urllib HTTPError, and general network exceptions.
     """
-    if not hasattr(error, 'response'):
-        # Non-AWS errors (network issues, etc.) - retry
-        return True
-    
-    error_code = error.response.get('Error', {}).get('Code', '')
-    
-    # Don't retry permanent errors
-    if error_code in PERMANENT_ERROR_CODES:
-        return False
-    
-    # Retry known transient errors
-    if error_code in RETRYABLE_ERROR_CODES:
-        return True
-    
-    # Check HTTP status code
-    status_code = error.response.get('ResponseMetadata', {}).get('HTTPStatusCode', 0)
-    
-    # Retry on 5xx server errors and 429 rate limiting
-    if status_code >= 500 or status_code == 429:
-        return True
-    
-    # Don't retry 4xx client errors (except 429)
-    if 400 <= status_code < 500:
-        return False
+    # 1. Handle urllib.error.HTTPError (from our new Gmail API calls)
+    if hasattr(error, 'code'):
+        status_code = getattr(error, 'code')
+        # Retry on 429 (rate limit) and 5xx (server errors)
+        return status_code == 429 or status_code >= 500
+
+    # 2. Handle botocore.exceptions.ClientError
+    if hasattr(error, 'response'):
+        error_code = error.response.get('Error', {}).get('Code', '')
+        
+        # Don't retry known permanent errors
+        if error_code in PERMANENT_ERROR_CODES:
+            return False
+        
+        # Retry known transient errors
+        if error_code in RETRYABLE_ERROR_CODES:
+            return True
+        
+        # Check HTTP status code in AWS response
+        status_code = error.response.get('ResponseMetadata', {}).get('HTTPStatusCode', 0)
+        return status_code >= 500 or status_code == 429
+
+    # 3. Default: Retry network errors / unknown exceptions (timeouts, connection issues)
+    return True
     
     # Default: retry unknown errors
     return True
@@ -887,3 +885,91 @@ def create_tracking_pixel(campaign_id, subscriber_id, base_url):
     """
     pixel_url = f"{base_url}/track/open?cid={campaign_id}&sid={subscriber_id}&t={int(time.time())}"
     return f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;" />'
+
+# ================================
+# GMAIL API UTILITIES
+# ================================
+
+def refresh_google_token(refresh_token):
+    """Refresh Google OAuth access token using standard urllib"""
+    try:
+        client = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
+        response = client.get_secret_value(SecretId='sentinel_config')
+        config = json.loads(response['SecretString'])
+        
+        client_id = config.get('GOOGLE_CLIENT_ID')
+        client_secret = config.get('GOOGLE_CLIENT_SECRET')
+        
+        if not refresh_token or not client_id or not client_secret:
+            return None
+            
+        data = urllib.parse.urlencode({
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token"
+        }).encode()
+        
+        req = urllib.request.Request("https://oauth2.googleapis.com/token", data=data)
+        with urllib.request.urlopen(req) as response:
+            res_data = json.loads(response.read().decode())
+            return {
+                "access_token": res_data.get('access_token'),
+                "expires_in": res_data.get('expires_in')
+            }
+    except Exception as e:
+        print(f"Error refreshing Google token: {e}")
+        return None
+
+def send_gmail(user_data, recipient_email, subject, html_body, text_body=None):
+    """Send email via Gmail API using raw message and standard libraries"""
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    access_token = user_data.get('google_access_token')
+    refresh_token = user_data.get('google_refresh_token')
+    expiry = user_data.get('google_token_expiry', 0)
+    
+    # Check if token is expired (with 1 min buffer)
+    if time.time() > (int(expiry) - 60):
+        print("Token expired, refreshing...")
+        new_token_data = refresh_google_token(refresh_token)
+        if new_token_data:
+            access_token = new_token_data['access_token']
+            # Note: The caller should ideally update the DB with the new token
+        else:
+            return False, "Failed to refresh Google token"
+
+    # Create message
+    message = MIMEMultipart("alternative")
+    message["Subject"] = subject
+    message["From"] = user_data.get('google_email', recipient_email)
+    message["To"] = recipient_email
+    
+    if text_body:
+        message.attach(MIMEText(text_body, "plain"))
+    if html_body:
+        message.attach(MIMEText(html_body, "html"))
+        
+    # Encode message
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+    
+    try:
+        url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
+        payload = json.dumps({"raw": raw_message}).encode()
+        
+        req = urllib.request.Request(
+            url, 
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
+        )
+        
+        with urllib.request.urlopen(req) as response:
+            res_data = json.loads(response.read().decode())
+            return True, res_data.get('id')
+            
+    except Exception as e:
+        return False, str(e)

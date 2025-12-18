@@ -1,7 +1,7 @@
 data "aws_caller_identity" "current" {}
-resource "aws_iam_policy" "lambda_gemini_secrets_access" {
-    name        = "lambda-gemini-secrets-access"
-    description = "Allow Lambda to read Gemini API key from Secrets Manager"
+resource "aws_iam_policy" "lambda_secrets_access" {
+    name        = "lambda-secrets-access"
+    description = "Allow Lambda to read Sentinel configuration from Secrets Manager"
     policy      = jsonencode({
         Version = "2012-10-17"
         Statement = [
@@ -10,15 +10,15 @@ resource "aws_iam_policy" "lambda_gemini_secrets_access" {
                 Action = [
                     "secretsmanager:GetSecretValue"
                 ]
-                Resource = "arn:aws:secretsmanager:us-east-1:${data.aws_caller_identity.current.account_id}:secret:sentinel_gemini_api_key*"
+                Resource = "arn:aws:secretsmanager:us-east-1:${data.aws_caller_identity.current.account_id}:secret:sentinel_config*"
             }
         ]
     })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_gemini_secrets_attach" {
+resource "aws_iam_role_policy_attachment" "lambda_secrets_attach" {
     role       = aws_iam_role.lambda_exec.name
-    policy_arn = aws_iam_policy.lambda_gemini_secrets_access.arn
+    policy_arn = aws_iam_policy.lambda_secrets_access.arn
 }
 variable "name" {
     type        = string

@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 from tracking import generate_tracking_data
 
 # Import common utilities and enums
-from common import DeliveryStatus, EventType, exponential_backoff_retry, is_retryable_error, add_dynamic_image
+from common import DeliveryStatus, EventType, exponential_backoff_retry, is_retryable_error, add_dynamic_image, get_users_table, get_campaigns_table, send_gmail
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -218,29 +218,54 @@ def lambda_handler(event, _context):
             if tracking_data.get("unsubscribe_url"):
                 text_content += f"\n\nUnsubscribe: {tracking_data['unsubscribe_url']}"
             
-            # Send email via SES with enhanced tracking and retry logic
-            ses_response = exponential_backoff_retry(
-                lambda: ses.send_email(
-                    Source=f"{msg_template_data.get('from_name', 'Sentinel')} <{msg_template_data.get('from_email', FROM)}>",
-                    Destination={"ToAddresses": [email]},
-                    Message={
-                        "Subject": {"Data": template_data["subject"]},
-                        "Body": {
-                            "Html": {"Data": html_content},
-                            "Text": {"Data": text_content}
-                        }
-                    },
-                    Tags=[
-                        {"Name": "campaign_id", "Value": str(campaign_id)},
-                        {"Name": "recipient_id", "Value": str(recipient_id)},
-                        {"Name": "cta_count", "Value": str(len(cta_links))}
-                    ]
-                ),
-                max_retries=3,
-                base_delay=1.0
-            )
+            # Check if we should use Gmail API
+            user_data = get_campaign_owner(campaign_id)
+            use_gmail = user_data and user_data.get('gmail_enabled') and user_data.get('google_connected')
             
-            message_id = ses_response.get("MessageId", "unknown")
+            if use_gmail:
+                print(f"📤 Sending via Gmail API for {email}")
+                
+                def _do_gmail_send():
+                    success, result = send_gmail(
+                        user_data=user_data,
+                        recipient_email=email,
+                        subject=template_data["subject"],
+                        html_body=html_content,
+                        text_body=text_content
+                    )
+                    if not success:
+                        raise Exception(f"Gmail Send Failed: {result}")
+                    return result
+
+                message_id = exponential_backoff_retry(
+                    _do_gmail_send,
+                    max_retries=3,
+                    base_delay=1.0
+                )
+                print(f"✅ Email sent successfully via Gmail API: {message_id}")
+            else:
+                # Send email via SES with enhanced tracking and retry logic
+                ses_response = exponential_backoff_retry(
+                    lambda: ses.send_email(
+                        Source=f"{msg_template_data.get('from_name', 'Sentinel')} <{msg_template_data.get('from_email', FROM)}>",
+                        Destination={"ToAddresses": [email]},
+                        Message={
+                            "Subject": {"Data": template_data["subject"]},
+                            "Body": {
+                                "Html": {"Data": html_content},
+                                "Text": {"Data": text_content}
+                            }
+                        },
+                        Tags=[
+                            {"Name": "campaign_id", "Value": str(campaign_id)},
+                            {"Name": "recipient_id", "Value": str(recipient_id)},
+                            {"Name": "cta_count", "Value": str(len(cta_links))}
+                        ]
+                    ),
+                    max_retries=3,
+                    base_delay=1.0
+                )
+                message_id = ses_response.get("MessageId", "unknown")
             status = DeliveryStatus.SENT.value
             
             print(f"✅ Email sent successfully to {email}")
@@ -261,3 +286,23 @@ def lambda_handler(event, _context):
         update_email_status_in_events(campaign_id, email, status)
 
     return {"statusCode": 200, "body": json.dumps({"processed": len(event.get('Records', []))})}
+
+def get_campaign_owner(campaign_id):
+    """Fetch user record for the campaign owner"""
+    try:
+        campaigns_table = get_campaigns_table()
+        resp = campaigns_table.get_item(Key={'id': str(campaign_id)})
+        campaign = resp.get('Item')
+        if not campaign:
+            return None
+            
+        user_id = campaign.get('user_id')
+        if not user_id:
+            return None
+            
+        users_table = get_users_table()
+        resp = users_table.get_item(Key={'id': user_id})
+        return resp.get('Item')
+    except Exception as e:
+        print(f"Error fetching campaign owner: {e}")
+        return None
