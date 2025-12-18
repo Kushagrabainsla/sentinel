@@ -26,13 +26,18 @@ export default function CampaignsPage() {
         fetchCampaigns();
     }, []);
 
-    const handleDelete = async (e: React.MouseEvent, id: string) => {
+    const handleDelete = async (e: React.MouseEvent, campaign: Campaign) => {
         e.preventDefault();
-        if (!confirm('Are you sure you want to delete this campaign?')) return;
+        const isTrash = campaign.status === 'I';
+        const message = isTrash
+            ? 'Are you sure you want to delete this campaign from trash? It will be permanently removed from your dashboard.'
+            : 'Are you sure you want to move this campaign to trash?';
+
+        if (!confirm(message)) return;
 
         try {
-            await api.delete(`/campaigns/${id}`);
-            toast.success('Campaign deleted');
+            await api.delete(`/campaigns/${campaign.id}`);
+            toast.success(isTrash ? 'Campaign deleted permanently' : 'Campaign moved to trash');
             fetchCampaigns();
         } catch (error) {
             console.error('Failed to delete campaign:', error);
@@ -40,15 +45,47 @@ export default function CampaignsPage() {
         }
     };
 
-    const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
+    const [activeTab, setActiveTab] = useState<'active' | 'trash'>('active');
 
     const filteredCampaigns = campaigns.filter(campaign => {
+        const status = (campaign.status || "").toLowerCase().trim();
         if (activeTab === 'active') {
-            return ['A'].includes(campaign.status);
+            // Show everything that isn't explicitly Trashed or Deleted
+            return status !== 'i' && status !== 'inactive' && status !== 'trash' && status !== 'd' && status !== 'deleted';
         } else {
-            return ['deleted'].includes(campaign.status);
+            // Show explicitly Trashed items
+            return status === 'i' || status === 'inactive' || status === 'trash';
         }
     });
+
+    const getStatusLabel = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        switch (s) {
+            case 'A':
+            case 'ACTIVE': return 'Active';
+            case 'I':
+            case 'INACTIVE':
+            case 'TRASH': return 'Trash';
+            case 'D':
+            case 'DELETED': return 'Deleted';
+            case 'COMPLETED': return 'Completed';
+            case 'SENDING': return 'Sending';
+            case 'SENT': return 'Sent';
+            case 'SCHEDULED':
+            case 'SC':
+            case 'S': return 'Scheduled';
+            default: return status;
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        if (['A', 'ACTIVE', 'COMPLETED', 'SENT'].includes(s)) return 'bg-green-500/10 text-green-500';
+        if (['SENDING', 'SCHEDULED', 'SC', 'S'].includes(s)) return 'bg-blue-500/10 text-blue-500';
+        if (['I', 'INACTIVE', 'TRASH'].includes(s)) return 'bg-yellow-500/10 text-yellow-500';
+        if (['D', 'DELETED'].includes(s)) return 'bg-red-500/10 text-red-500';
+        return 'bg-gray-500/10 text-gray-500';
+    };
 
     return (
         <div className="space-y-8">
@@ -81,13 +118,13 @@ export default function CampaignsPage() {
                     Active
                 </button>
                 <button
-                    onClick={() => setActiveTab('inactive')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'inactive'
+                    onClick={() => setActiveTab('trash')}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'trash'
                         ? 'border-primary text-primary'
                         : 'border-transparent text-muted-foreground hover:text-foreground'
                         }`}
                 >
-                    Inactive
+                    Trash
                 </button>
             </div>
 
@@ -104,7 +141,7 @@ export default function CampaignsPage() {
                     <p className="mt-2 text-sm text-muted-foreground">
                         {activeTab === 'active'
                             ? "Create a campaign to start reaching your audience."
-                            : "No past campaigns found."}
+                            : "Your trash is empty."}
                     </p>
                     {activeTab === 'active' && (
                         <Link
@@ -124,10 +161,7 @@ export default function CampaignsPage() {
                             className="group relative rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md flex items-center justify-between block"
                         >
                             <div className="flex items-center gap-4">
-                                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${campaign.status === 'completed' ? 'bg-green-500/10 text-green-500' :
-                                    campaign.type === 'S' ? 'bg-blue-500/10 text-blue-500' :
-                                        'bg-yellow-500/10 text-yellow-500'
-                                    }`}>
+                                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${getStatusColor(campaign.status)}`}>
                                     {campaign.type === 'S' ? (
                                         <Calendar className="h-6 w-6" />
                                     ) : (
@@ -144,7 +178,9 @@ export default function CampaignsPage() {
                                         <span>•</span>
                                         <span>{campaign.recipient_count || 0} recipients</span>
                                         <span>•</span>
-                                        <span className="capitalize">{campaign.status}</span>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(campaign.status)}`}>
+                                            {getStatusLabel(campaign.status)}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -156,7 +192,7 @@ export default function CampaignsPage() {
                                     </div>
                                 )}
                                 <button
-                                    onClick={(e) => handleDelete(e, campaign.id)}
+                                    onClick={(e) => handleDelete(e, campaign)}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-muted-foreground hover:text-destructive z-10 relative"
                                 >
                                     <Trash2 className="h-4 w-4" />

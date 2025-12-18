@@ -211,16 +211,20 @@ def list_segments(event):
         query_params = {
             'IndexName': 'owner_index',
             'KeyConditionExpression': Key('owner_id').eq(user['id']),
-            'Limit': limit
+            'Limit': 100,
+            'ScanIndexForward': False  # Most recent first
         }
         
-        # Only add FilterExpression if we have a filter
-        if status_filter:
-            query_params['FilterExpression'] = filter_expression
-        
+        # Query user's segments using owner_id index
         response = segments_table.query(**query_params)
+        all_segments = convert_decimals(response.get('Items', []))
         
-        segments = convert_decimals(response.get('Items', []))
+        # Filter by status in Python for better reliability
+        if status_filter:
+            segments = [s for s in all_segments if s.get('status') == status_filter]
+        else:
+            # Exclude DELETED items, include everything else
+            segments = [s for s in all_segments if (s.get('status') or "").upper() not in [SegmentStatus.DELETED.value, "DELETED"]]
         
         # Sort by updated_at (most recent first)
         segments.sort(key=lambda x: x.get('updated_at', 0), reverse=True)
@@ -311,7 +315,7 @@ def update_segment(event):
         return _response(500, {"error": f"Failed to update segment: {str(e)}"})
 
 def delete_segment(event):
-    """Delete a segment"""
+    """Delete a segment (soft delete by setting status to 'inactive' then 'deleted')"""
     user = event['user']  # User already authenticated in handler
     segment_id = event['pathParameters']['id']
     
@@ -335,12 +339,32 @@ def delete_segment(event):
         return _response(500, {"error": f"Failed to check segment existence: {str(e)}"})
 
     try:
-        segments_table.delete_item(Key={'id': segment_id})
+        # Two-stage delete: 
+        # 1. Any Active state -> Inactive (Trash)
+        # 2. Inactive (Trash) -> Deleted (DB-only)
+        current_status = (segment.get('status') or "").upper()
         
-        # TODO: Also remove segment_id from contacts table if needed
-        # This could be done as a background job for large datasets
+        # If it's anything other than INACTIVE (I) or DELETED (D), move to trash first
+        if current_status not in [SegmentStatus.INACTIVE.value, SegmentStatus.DELETED.value]:
+            new_status = SegmentStatus.INACTIVE.value
+            message = "Segment moved to trash"
+        else:
+            # Already in Trash or Deleted
+            new_status = SegmentStatus.DELETED.value
+            message = "Segment deleted permanently"
+
+        # Update status instead of deleting the item
+        segments_table.update_item(
+            Key={'id': segment_id},
+            UpdateExpression="SET #status = :status, updated_at = :updated_at",
+            ExpressionAttributeNames={'#status': 'status'},
+            ExpressionAttributeValues={
+                ':status': new_status,
+                ':updated_at': int(time.time())
+            }
+        )
         
-        return _response(200, {"message": f"Segment '{segment_id}' deleted successfully"})
+        return _response(200, {"message": message, "status": new_status})
         
     except Exception as e:
         return _response(500, {"error": f"Failed to delete segment: {str(e)}"})

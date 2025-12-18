@@ -27,13 +27,22 @@ export default function DashboardPage() {
                 ]);
 
                 const campaigns = campaignsRes.data.campaigns || [];
+                const activeCampaigns = campaigns.filter((c: Campaign) => {
+                    const s = (c.status || "").toLowerCase().trim();
+                    return s !== 'i' && s !== 'inactive' && s !== 'trash' && s !== 'd' && s !== 'deleted';
+                });
+
                 const segments = segmentsRes.data.segments || [];
+                const activeSegments = segments.filter((s: Segment) => {
+                    const st = (s.status || "").toLowerCase().trim();
+                    return st !== 'i' && st !== 'inactive' && st !== 'trash' && st !== 'd' && st !== 'deleted';
+                });
 
                 setStats({
-                    campaigns: campaigns.length,
-                    segments: segments.length,
+                    campaigns: activeCampaigns.length,
+                    segments: activeSegments.length,
                     emailsSent: campaigns.reduce((acc: number, curr: Campaign) =>
-                        curr.status === 'completed' ? acc + (curr.recipient_count || 0) : acc, 0)
+                        curr.status === 'completed' || curr.status === 'sent' || curr.status === 'D' ? acc + (curr.recipient_count || 0) : acc, 0)
                 });
 
                 setRecentCampaigns(campaigns.slice(0, 5));
@@ -46,6 +55,35 @@ export default function DashboardPage() {
 
         fetchData();
     }, []);
+
+    const getStatusLabel = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        switch (s) {
+            case 'A':
+            case 'ACTIVE': return 'Active';
+            case 'I':
+            case 'INACTIVE':
+            case 'TRASH': return 'Trash';
+            case 'D':
+            case 'DELETED': return 'Deleted';
+            case 'COMPLETED': return 'Completed';
+            case 'SENDING': return 'Sending';
+            case 'SENT': return 'Sent';
+            case 'SCHEDULED':
+            case 'SC':
+            case 'S': return 'Scheduled';
+            default: return status;
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        if (['A', 'ACTIVE', 'COMPLETED', 'SENT'].includes(s)) return 'bg-green-500/10 text-green-500';
+        if (['SENDING', 'SCHEDULED', 'SC', 'S'].includes(s)) return 'bg-blue-500/10 text-blue-500';
+        if (['I', 'INACTIVE', 'TRASH'].includes(s)) return 'bg-yellow-500/10 text-yellow-500';
+        if (['D', 'DELETED'].includes(s)) return 'bg-red-500/10 text-red-500';
+        return 'bg-gray-500/10 text-gray-500';
+    };
 
     return (
         <div className="space-y-8">
@@ -72,14 +110,14 @@ export default function DashboardPage() {
             <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                     <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Total Campaigns</h3>
+                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Active Campaigns</h3>
                         <Mail className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="text-2xl font-bold">{stats.campaigns}</div>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
                     <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Total Segments</h3>
+                        <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Active Segments</h3>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div className="text-2xl font-bold">{stats.segments}</div>
@@ -122,11 +160,8 @@ export default function DashboardPage() {
                                         <tr key={campaign.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                             <td className="p-4 align-middle font-medium">{campaign.name}</td>
                                             <td className="p-4 align-middle">
-                                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${campaign.status === 'completed' ? 'bg-green-500/10 text-green-500' :
-                                                    campaign.status === 'scheduled' ? 'bg-blue-500/10 text-blue-500' :
-                                                        'bg-yellow-500/10 text-yellow-500'
-                                                    }`}>
-                                                    {campaign.status}
+                                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${getStatusColor(campaign.status)}`}>
+                                                    {getStatusLabel(campaign.status)}
                                                 </span>
                                             </td>
                                             <td className="p-4 align-middle">{campaign.recipient_count || 0}</td>

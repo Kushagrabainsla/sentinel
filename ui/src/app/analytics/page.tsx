@@ -80,9 +80,17 @@ export default function AnalyticsPage() {
         const fetchCampaigns = async () => {
             try {
                 const response = await api.get('/campaigns');
-                setCampaigns(response.data.campaigns);
-                if (response.data.campaigns.length > 0) {
-                    setSelectedCampaignId(response.data.campaigns[0].id);
+                const allCampaigns = response.data.campaigns || [];
+
+                // Filter out Trash (I) and Deleted (D)
+                const activeAndLive = allCampaigns.filter((c: Campaign) => {
+                    const s = (c.status || "").toUpperCase();
+                    return s !== 'I' && s !== 'D' && s !== 'INACTIVE' && s !== 'DELETED' && s !== 'TRASH';
+                });
+
+                setCampaigns(activeAndLive);
+                if (activeAndLive.length > 0) {
+                    setSelectedCampaignId(activeAndLive[0].id);
                 }
             } catch (error) {
                 console.error('Failed to fetch campaigns:', error);

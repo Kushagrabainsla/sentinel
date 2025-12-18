@@ -67,12 +67,16 @@ def list_campaigns(event):
             'ScanIndexForward': False  # Most recent first
         }
         
-        # Add status filter if provided
-        if status_filter:
-            query_params['FilterExpression'] = Attr('status').eq(status_filter)
-        
+        # Query user's campaigns using owner_id index
         response = campaigns_table.query(**query_params)
-        campaigns = convert_decimals(response.get('Items', []))
+        all_campaigns = convert_decimals(response.get('Items', []))
+        
+        # Filter by status in Python for better reliability (handles missing attributes)
+        if status_filter:
+            campaigns = [c for c in all_campaigns if c.get('status') == status_filter]
+        else:
+            # Exclude DELETED items, include everything else
+            campaigns = [c for c in all_campaigns if (c.get('status') or "").upper() not in [CampaignStatus.DELETED.value, "DELETED"]]
         
         # Sort by created_at (most recent first)
         campaigns.sort(key=lambda x: x.get('created_at', 0), reverse=True)
@@ -529,7 +533,7 @@ def update_campaign(event):
         return _response(500, {"error": f"Failed to update campaign: {str(e)}"})
 
 def delete_campaign(event):
-    """Delete campaign (soft delete by setting status to 'deleted')"""
+    """Delete campaign (soft delete by setting status to 'inactive' then 'deleted')"""
     try:
         user = event['user']  # User already authenticated in handler
         campaign_id = event['pathParameters']['id']
@@ -549,18 +553,33 @@ def delete_campaign(event):
         if campaign.get('status') == 'sending':
             return _response(400, {"error": "Cannot delete campaigns that are currently sending"})
         
+        # Two-stage delete: 
+        # 1. Any Active state -> Inactive (Trash)
+        # 2. Inactive (Trash) -> Deleted (DB-only)
+        current_status = (campaign.get('status') or "").upper()
+        
+        # Define statuses that are considered "Active/Live"
+        # If it's anything other than INACTIVE (I) or DELETED (D), it goes to Trash (I)
+        if current_status not in [CampaignStatus.INACTIVE.value, CampaignStatus.DELETED.value]:
+            new_status = CampaignStatus.INACTIVE.value
+            message = "Campaign moved to trash"
+        else:
+            # It's already in Trash or already Deleted
+            new_status = CampaignStatus.DELETED.value
+            message = "Campaign deleted permanently"
+
         # Soft delete by updating status
         campaigns_table.update_item(
             Key={'id': campaign_id},
             UpdateExpression="SET #status = :status, updated_at = :updated_at",
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
-                ':status': CampaignStatus.DELETED.value,
+                ':status': new_status,
                 ':updated_at': int(time.time())
             }
         )
         
-        return _response(200, {"message": "Campaign deleted successfully"})
+        return _response(200, {"message": message, "status": new_status})
         
     except ValueError as e:
         return _response(401, {"error": f"Authentication failed: {str(e)}"})

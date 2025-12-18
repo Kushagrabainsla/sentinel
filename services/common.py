@@ -18,6 +18,9 @@ Consolidated into a single file for simplified deployment.
 import json
 import os
 import re
+import time
+import random
+import hashlib
 from decimal import Decimal
 from enum import Enum
 import boto3
@@ -424,110 +427,6 @@ def parse_user_agent(user_agent):
         'is_desktop': is_desktop
     }
 
-# User agent parsing utility
-import re
-
-def parse_user_agent(user_agent):
-    """Parse user agent string to extract browser, OS, and device information"""
-    if not user_agent:
-        return {
-            'browser': 'Unknown',
-            'browser_version': 'Unknown',
-            'os': 'Unknown',
-            'os_version': 'Unknown',
-            'device_type': 'Unknown',
-            'is_mobile': False,
-            'is_tablet': False,
-            'is_desktop': True
-        }
-    
-    user_agent = user_agent.lower()
-    
-    # Browser detection
-    browser = 'Unknown'
-    browser_version = 'Unknown'
-    
-    if 'chrome' in user_agent and 'edge' not in user_agent:
-        browser = 'Chrome'
-        match = re.search(r'chrome/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'firefox' in user_agent:
-        browser = 'Firefox'
-        match = re.search(r'firefox/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'safari' in user_agent and 'chrome' not in user_agent:
-        browser = 'Safari'
-        match = re.search(r'version/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'edge' in user_agent:
-        browser = 'Edge'
-        match = re.search(r'edge/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    elif 'opera' in user_agent:
-        browser = 'Opera'
-        match = re.search(r'opera/([\d\.]+)', user_agent)
-        if match:
-            browser_version = match.group(1)
-    
-    # OS detection
-    os_name = 'Unknown'
-    os_version = 'Unknown'
-    
-    if 'windows nt' in user_agent:
-        os_name = 'Windows'
-        if 'windows nt 10.0' in user_agent:
-            os_version = '10/11'
-        elif 'windows nt 6.3' in user_agent:
-            os_version = '8.1'
-        elif 'windows nt 6.2' in user_agent:
-            os_version = '8'
-        elif 'windows nt 6.1' in user_agent:
-            os_version = '7'
-    elif 'mac os x' in user_agent or 'macos' in user_agent:
-        os_name = 'macOS'
-        match = re.search(r'mac os x ([\d_\.]+)', user_agent)
-        if match:
-            os_version = match.group(1).replace('_', '.')
-    elif 'linux' in user_agent:
-        os_name = 'Linux'
-        if 'ubuntu' in user_agent:
-            os_version = 'Ubuntu'
-    elif 'android' in user_agent:
-        os_name = 'Android'
-        match = re.search(r'android ([\d\.]+)', user_agent)
-        if match:
-            os_version = match.group(1)
-    elif 'iphone os' in user_agent or 'ios' in user_agent:
-        os_name = 'iOS'
-        match = re.search(r'os ([\d_]+)', user_agent)
-        if match:
-            os_version = match.group(1).replace('_', '.')
-    
-    # Device type detection
-    is_mobile = bool(re.search(r'mobile|android|iphone|ipod|blackberry|windows phone', user_agent))
-    is_tablet = bool(re.search(r'tablet|ipad|kindle|silk', user_agent))
-    is_desktop = not (is_mobile or is_tablet)
-    
-    device_type = 'Desktop'
-    if is_mobile:
-        device_type = 'Mobile'
-    elif is_tablet:
-        device_type = 'Tablet'
-    
-    return {
-        'browser': browser,
-        'browser_version': browser_version,
-        'os': os_name,
-        'os_version': os_version,
-        'device_type': device_type,
-        'is_mobile': is_mobile,
-        'is_tablet': is_tablet,
-        'is_desktop': is_desktop
-    }
 
 # ================================
 # HTML SANITIZATION UTILITIES
@@ -689,8 +588,6 @@ def sanitize_html_content(html_content):
 # RETRY UTILITIES WITH EXPONENTIAL BACKOFF
 # ================================
 
-import time
-import random
 
 # Transient errors that should be retried
 RETRYABLE_ERROR_CODES = {
@@ -929,7 +826,6 @@ def add_dynamic_image(html_content, image_url, alt_text="Dynamic Content", posit
     Returns:
         Modified HTML with dynamic image
     """
-    import hashlib
     
     # Build URL parameters
     params = []
@@ -989,6 +885,5 @@ def create_tracking_pixel(campaign_id, subscriber_id, base_url):
     Returns:
         HTML img tag for tracking pixel
     """
-    import time
     pixel_url = f"{base_url}/track/open?cid={campaign_id}&sid={subscriber_id}&t={int(time.time())}"
     return f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;" />'

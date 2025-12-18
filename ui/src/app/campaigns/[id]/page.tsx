@@ -59,6 +59,35 @@ export default function CampaignDetailsPage() {
     const recipientCount = campaign.recipient_count || stats?.event_counts?.sent || 0;
     const isABTest = campaign.type === 'AB';
 
+    const getStatusLabel = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        switch (s) {
+            case 'A':
+            case 'ACTIVE': return 'Active';
+            case 'I':
+            case 'INACTIVE':
+            case 'TRASH': return 'Trash';
+            case 'D':
+            case 'DELETED': return 'Deleted';
+            case 'COMPLETED': return 'Completed';
+            case 'SENDING': return 'Sending';
+            case 'SENT': return 'Sent';
+            case 'SCHEDULED':
+            case 'SC':
+            case 'S': return 'Scheduled';
+            default: return status;
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        if (['A', 'ACTIVE', 'COMPLETED', 'SENT'].includes(s)) return 'bg-green-500/10 text-green-500';
+        if (['SENDING', 'SCHEDULED', 'SC', 'S'].includes(s)) return 'bg-blue-500/10 text-blue-500';
+        if (['I', 'INACTIVE', 'TRASH'].includes(s)) return 'bg-yellow-500/10 text-yellow-500';
+        if (['D', 'DELETED'].includes(s)) return 'bg-red-500/10 text-red-500';
+        return 'bg-gray-500/10 text-gray-500';
+    };
+
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
             <div className="flex items-center gap-4">
@@ -73,11 +102,8 @@ export default function CampaignDetailsPage() {
                         {campaign.name}
                     </h1>
                     <div className="flex items-center gap-2 text-muted-foreground mt-1">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${campaign.status === 'completed' ? 'bg-green-500/10 text-green-500' :
-                            campaign.status === 'scheduled' ? 'bg-blue-500/10 text-blue-500' :
-                                'bg-yellow-500/10 text-yellow-500'
-                            }`}>
-                            {campaign.status}
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(campaign.status)}`}>
+                            {getStatusLabel(campaign.status)}
                         </span>
                         <span>•</span>
                         <span className="text-sm">ID: {campaign.id}</span>

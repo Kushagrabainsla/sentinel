@@ -94,7 +94,9 @@ export default function NewCampaignPage() {
         const fetchSegments = async () => {
             try {
                 const response = await api.get('/segments');
-                setSegments(response.data.segments || []);
+                const allSegments = response.data.segments || [];
+                // Only show active segments in the dropdown for selection
+                setSegments(allSegments.filter((s: Segment) => s.status === 'A'));
             } catch (error) {
                 console.error('Failed to fetch segments:', error);
                 toast.error('Failed to load segments');

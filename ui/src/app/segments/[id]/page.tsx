@@ -35,6 +35,28 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
         fetchData();
     }, [id]);
 
+    const getStatusLabel = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        switch (s) {
+            case 'A':
+            case 'ACTIVE': return 'Active';
+            case 'I':
+            case 'INACTIVE':
+            case 'TRASH': return 'Trash';
+            case 'D':
+            case 'DELETED': return 'Deleted';
+            default: return status;
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        const s = (status || "").trim().toUpperCase();
+        if (['A', 'ACTIVE'].includes(s)) return 'bg-green-500/10 text-green-500';
+        if (['I', 'INACTIVE', 'TRASH'].includes(s)) return 'bg-yellow-500/10 text-yellow-500';
+        if (['D', 'DELETED'].includes(s)) return 'bg-red-500/10 text-red-500';
+        return 'bg-gray-500/10 text-gray-500';
+    };
+
     const handleAddEmails = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newEmails.trim()) return;
@@ -94,9 +116,15 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                     <h1 className="text-3xl font-display font-bold tracking-tight">
                         {segment.name}
                     </h1>
-                    <p className="text-muted-foreground">
-                        {segment.description || 'No description'}
-                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(segment.status)}`}>
+                            {getStatusLabel(segment.status)}
+                        </span>
+                        <span className="text-muted-foreground">•</span>
+                        <p className="text-muted-foreground">
+                            {segment.description || 'No description'}
+                        </p>
+                    </div>
                 </div>
             </div>
 

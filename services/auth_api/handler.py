@@ -9,11 +9,16 @@ import os
 import time
 import uuid
 import hashlib
+import hmac
 import secrets
+import re
 from decimal import Decimal
 import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
+
+# Email validation pattern
+EMAIL_PATTERN = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
 # Import common utilities and enums
 from common import _response, convert_decimals, get_users_table, UserStatus
@@ -32,9 +37,17 @@ def verify_password(password, stored_hash):
     """Verify password against stored hash"""
     try:
         salt, password_hash = stored_hash.split(':')
-        return hashlib.sha256((password + salt).encode()).hexdigest() == password_hash
-    except ValueError:
+        calculated_hash = hashlib.sha256((password + salt).encode()).hexdigest()
+        return hmac.compare_digest(calculated_hash, password_hash)
+    except (ValueError, AttributeError):
         return False
+
+def get_api_key_from_event(event):
+    """Extract API key from headers (handles case-sensitivity)"""
+    headers = event.get('headers', {})
+    if not headers:
+        return None
+    return headers.get('X-API-Key') or headers.get('x-api-key')
 
 def create_user(event):
     """Create a new user"""
@@ -52,9 +65,7 @@ def create_user(event):
         return _response(400, {"error": "email, password, and name are required"})
     
     # Validate email format
-    import re
-    email_pattern = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-    if not email_pattern.match(email):
+    if not EMAIL_PATTERN.match(email):
         return _response(400, {"error": "Invalid email format"})
     
     if len(password) < 8:
@@ -201,7 +212,7 @@ def get_user_by_api_key(api_key):
 
 def get_current_user(event):
     """Get current user info from API key"""
-    api_key = event.get('headers', {}).get('X-API-Key') or event.get('headers', {}).get('x-api-key')
+    api_key = get_api_key_from_event(event)
     
     if not api_key:
         return _response(401, {"error": "API key required in X-API-Key header"})
@@ -214,7 +225,7 @@ def get_current_user(event):
 
 def update_user(event):
     """Update user profile details (name, timezone)"""
-    api_key = event.get('headers', {}).get('X-API-Key') or event.get('headers', {}).get('x-api-key')
+    api_key = get_api_key_from_event(event)
     if not api_key:
         return _response(401, {"error": "API key required in X-API-Key header"})
     user = get_user_by_api_key(api_key)
@@ -248,7 +259,7 @@ def update_user(event):
 
 def regenerate_api_key(event):
     """Regenerate API key for authenticated user"""
-    api_key = event.get('headers', {}).get('X-API-Key') or event.get('headers', {}).get('x-api-key')
+    api_key = get_api_key_from_event(event)
     
     if not api_key:
         return _response(401, {"error": "API key required in X-API-Key header"})
