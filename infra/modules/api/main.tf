@@ -310,6 +310,38 @@ resource "aws_apigatewayv2_route" "auth_regenerate_key" {
     authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
 }
 
+resource "aws_apigatewayv2_route" "auth_google_url" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "GET /v1/auth/google/url"
+    target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "auth_google_callback" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/auth/google/callback"
+    target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "auth_google_toggle_gmail" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/auth/google/toggle-gmail"
+    target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
+resource "aws_apigatewayv2_route" "auth_google_disconnect" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/auth/google/disconnect"
+    target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
+    authorization_type = "CUSTOM"
+    authorizer_id     = aws_apigatewayv2_authorizer.api_key_auth.id
+}
+
 
 resource "aws_lambda_permission" "api_invoke_tracking" {
     statement_id  = "AllowAPIGatewayInvokeTracking"
