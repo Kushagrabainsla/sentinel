@@ -46,12 +46,28 @@ export default function PrivacyPolicy() {
 
                     <section className="space-y-4">
                         <h2 className="text-2xl font-bold text-white">4. Google User Data</h2>
-                        <p>
-                            Sentinel limits use of data to providing or improving user-facing features that are prominent in the requesting application's user interface.
-                        </p>
-                        <p>
-                            If you choose to connect your Google account, we may access certain information as permitted by your settings. We do not sell your Google user data to third parties.
-                        </p>
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-xl font-semibold text-white mb-2">Data Sharing and Disclosure</h3>
+                                <p>
+                                    Sentinel strictly limits the use of Google user data to providing or improving user-facing features that are prominent in the requesting application's user interface. We do not share, transfer, or disclose your Google user data to third parties, except as required by law or solely for the purpose of security and protecting our rights. We absolutely do not sell your Google user data to any third parties.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="text-xl font-semibold text-white mb-2">Data Protection Mechanisms</h3>
+                                <p>
+                                    We employ industry-standard security measures to protect your sensitive data. All Google user data, including access tokens and user profile information, is encrypted both in transit (using TLS/SSL) and at rest using strong encryption standards (such as AES-256). Access to this data is strictly limited to authorized personnel and systems required to provide the service.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="text-xl font-semibold text-white mb-2">Data Retention and Deletion</h3>
+                                <p>
+                                    We retain your Google user data only for as long as your account is active or as needed to provide you the services. You have the right to request the deletion of your data at any time. Upon your request to delete your account or specific data, we will securely remove your Google user data from our systems within a reasonable timeframe (typically 30 days), unless a longer retention period is required by law.
+                                </p>
+                            </div>
+                        </div>
                     </section>
 
                     <section className="space-y-4">
