@@ -61,6 +61,9 @@ export const metadata: Metadata = {
   },
   // Note: Using DNS verification in Google Search Console instead of HTML tag
   // This is more reliable and doesn't require code changes
+  alternates: {
+    canonical: './',
+  },
 };
 
 export default function RootLayout({
@@ -71,7 +74,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        <link rel="canonical" href="https://dashboard.thesentinel.site" />
+
       </head>
       <body
         className={`${inter.variable} ${outfit.variable} antialiased bg-background text-foreground`}

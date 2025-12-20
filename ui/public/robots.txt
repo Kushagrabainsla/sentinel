@@ -5,6 +5,9 @@ Allow: /
 # Disallow admin and API routes
 Disallow: /api/
 Disallow: /dashboard/
+Disallow: /analytics/
+Disallow: /campaigns/
+Disallow: /segments/
 Disallow: /profile/
 
 # Sitemap location
