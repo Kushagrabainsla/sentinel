@@ -173,8 +173,8 @@ export default function ProfilePage() {
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-background border border-border p-8 md:p-12 shadow-xl">
                 <div className="absolute top-0 right-0 -mt-20 -mr-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
                 <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                    <div className="w-32 h-32 rounded-3xl bg-gradient-to-tr from-primary to-primary/60 flex items-center justify-center text-primary-foreground shadow-2xl ring-8 ring-background">
-                        <UserIcon className="w-12 h-12 opacity-80" />
+                    <div className="w-32 h-32 rounded-3xl bg-gradient-to-tr from-blue-600 to-blue-600/60 flex items-center justify-center text-white shadow-2xl ring-8 ring-background">
+                        <UserIcon className="w-12 h-12 opacity-90" />
                     </div>
                     <div className="flex-1 text-center md:text-left space-y-3">
                         <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
@@ -189,7 +189,7 @@ export default function ProfilePage() {
                         </p>
                         <div className="pt-4 flex flex-wrap items-center justify-center md:justify-start gap-6 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-xl border border-border transition-colors hover:bg-muted">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                <CheckCircle2 className="w-4 h-4 text-primary" />
                                 <span className="font-medium">Account Verified</span>
                             </div>
                             {user?.created_at && (
@@ -292,9 +292,9 @@ export default function ProfilePage() {
                 {/* Right Column Stack */}
                 <div className="space-y-8">
                     {/* API Configuration Card */}
-                    <div className="rounded-3xl border border-border bg-card/60 backdrop-blur-sm p-8 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
+                    <div className="rounded-3xl border border-border bg-card/60 backdrop-blur-sm p-8 shadow-sm transition-all hover:shadow-md hover:border-blue-500/20">
                         <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-500">
+                            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-500">
                                 <RefreshCw className="w-7 h-7" />
                             </div>
                             <div>
@@ -333,7 +333,7 @@ export default function ProfilePage() {
                                         </button>
                                     </div>
                                 </div>
-                                <p className="text-[11px] text-orange-600/80 font-medium flex items-center gap-1 ml-1">
+                                <p className="text-[11px] text-amber-600/80 font-medium flex items-center gap-1 ml-1">
                                     <AlertCircle className="w-3 h-3" />
                                     Warning: Treat this key like a password.
                                 </p>
@@ -362,9 +362,9 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Email Integration Card */}
-                    <div className="rounded-3xl border border-border bg-card/60 backdrop-blur-sm p-8 shadow-sm transition-all hover:shadow-md hover:border-emerald-500/20">
+                    <div className="rounded-3xl border border-border bg-card/60 backdrop-blur-sm p-8 shadow-sm transition-all hover:shadow-md hover:border-blue-500/20">
                         <div className="flex items-center gap-4 mb-8">
-                            <div className="p-3 rounded-2xl bg-emerald-500/10 text-emerald-500">
+                            <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-500">
                                 <Mail className="w-7 h-7" />
                             </div>
                             <div>
@@ -381,7 +381,7 @@ export default function ProfilePage() {
                                             <CheckCircle2 className="h-6 w-6" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-emerald-950 dark:text-emerald-400">Google Connected</p>
+                                            <p className="text-sm font-bold text-foreground">Google Connected</p>
                                             <p className="text-xs text-muted-foreground truncate">{user.google_email}</p>
                                         </div>
                                         <button
@@ -406,7 +406,7 @@ export default function ProfilePage() {
                                             <button
                                                 onClick={() => handleToggleGmail(!user.gmail_enabled)}
                                                 disabled={isUpdatingGmailStatus}
-                                                className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${user.gmail_enabled ? 'bg-emerald-500' : 'bg-input hover:bg-input/80'}`}
+                                                className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${user.gmail_enabled ? 'bg-emerald-500' : 'bg-input hover:bg-input/80'}`}
                                             >
                                                 <span
                                                     className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${user.gmail_enabled ? 'translate-x-6' : 'translate-x-1'}`}
@@ -422,8 +422,8 @@ export default function ProfilePage() {
                                             <AlertCircle className="h-6 w-6" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-bold text-amber-900 dark:text-amber-400">Gmail Not Optimized</p>
-                                            <p className="text-xs text-amber-800/70 dark:text-amber-400/70 leading-relaxed mt-1">
+                                            <p className="text-sm font-bold text-foreground">Gmail Not Optimized</p>
+                                            <p className="text-xs text-muted-foreground leading-relaxed mt-1">
                                                 Connecting your Gmail account improves email deliverability and helps you avoid spam filters.
                                             </p>
                                         </div>
