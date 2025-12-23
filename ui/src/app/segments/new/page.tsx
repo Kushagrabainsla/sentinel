@@ -13,7 +13,7 @@ import { api } from '@/lib/api';
 const segmentSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     description: z.string().optional(),
-    emails: z.string().optional(), // Comma separated emails
+    emails: z.string().min(1, 'At least one email is required'), // Comma separated emails
 });
 
 type SegmentFormValues = z.infer<typeof segmentSchema>;
@@ -67,13 +67,13 @@ export default function NewSegmentPage() {
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 mb-1">
                             <div className="w-1 h-4 bg-primary rounded-full" />
-                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Segment Foundry</h2>
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Segments</h2>
                         </div>
                         <h1 className="text-4xl font-display font-black tracking-tight text-foreground">
-                            Assemble New Segment
+                            Create New Segment
                         </h1>
                         <p className="text-muted-foreground font-medium">
-                            Synthesize targeted contact groups for your transmissions
+                            Create groups of contacts to send emails to
                         </p>
                     </div>
                 </div>
@@ -89,12 +89,12 @@ export default function NewSegmentPage() {
                         <div className="grid gap-8">
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="name">
-                                    Segment Title
+                                    Segment Name
                                 </label>
                                 <input
                                     {...register('name')}
                                     id="name"
-                                    placeholder="e.g. Early Adopters / Q4 Cohort"
+                                    placeholder="e.g. Newsletter Subscribers"
                                     className="flex h-14 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 text-lg font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                                 />
                                 {errors.name && (
@@ -106,12 +106,12 @@ export default function NewSegmentPage() {
 
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="description">
-                                    Strategic Context (Optional)
+                                    Description (Optional)
                                 </label>
                                 <textarea
                                     {...register('description')}
                                     id="description"
-                                    placeholder="Describe the intent behind this logical grouping..."
+                                    placeholder="Describe what this group is for..."
                                     className="flex min-h-[100px] w-full rounded-2xl border border-border bg-background/50 px-5 py-4 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none resize-none"
                                 />
                             </div>
@@ -119,18 +119,23 @@ export default function NewSegmentPage() {
                             <div className="space-y-4">
                                 <div>
                                     <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="emails">
-                                        Initial Contact Nodes (Optional)
+                                        Email Addresses
                                     </label>
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider opacity-60 ml-1 mt-1">
-                                        Comma-separated email addresses for initial synchronization
+                                        Enter email addresses separated by commas
                                     </p>
                                 </div>
                                 <textarea
                                     {...register('emails')}
                                     id="emails"
-                                    placeholder="alpha@example.com, beta@example.com..."
+                                    placeholder="user1@example.com, user2@example.com..."
                                     className="flex min-h-[160px] w-full rounded-2xl border border-border bg-background/50 px-5 py-4 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none font-mono resize-none"
                                 />
+                                {errors.emails && (
+                                    <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">
+                                        <div className="w-1 h-3 bg-destructive rounded-full" /> {errors.emails.message}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -140,7 +145,7 @@ export default function NewSegmentPage() {
                             href="/segments"
                             className="text-sm font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-6"
                         >
-                            Cancel Assembly
+                            Cancel
                         </Link>
                         <button
                             type="submit"
@@ -150,11 +155,11 @@ export default function NewSegmentPage() {
                             {isLoading ? (
                                 <>
                                     <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                                    Synthesizing...
+                                    Creating...
                                 </>
                             ) : (
                                 <>
-                                    Materialize Segment
+                                    Create Segment
                                     <Plus className="ml-3 h-5 w-5 transition-transform group-hover:rotate-90" />
                                 </>
                             )}

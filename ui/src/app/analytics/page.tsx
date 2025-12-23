@@ -120,23 +120,20 @@ export default function AnalyticsPage() {
     return (
         <div className="max-w-6xl mx-auto space-y-10 pb-20">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <div className="w-1 h-6 bg-primary rounded-full" />
-                        <h2 className="text-sm font-bold uppercase tracking-widest text-primary/80">Performance Center</h2>
-                    </div>
                     <h1 className="text-4xl font-display font-bold tracking-tight text-foreground">
-                        Analytics & Insights
+                        Analytics
                     </h1>
                     <p className="text-muted-foreground mt-1">
-                        Harness data-driven intelligence to optimize your campaigns
+                        View performance metrics and insights for your campaigns
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="px-4 py-2 rounded-xl bg-card border border-border shadow-sm flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm font-bold">Real-time Data Active</span>
+                        <span className="text-sm font-bold">Real-time Updates</span>
                     </div>
                 </div>
             </div>
@@ -154,9 +151,9 @@ export default function AnalyticsPage() {
                             <div>
                                 <h2 className="text-3xl font-display font-bold text-foreground mb-3 flex items-center gap-3">
                                     <BarChart3 className="h-8 w-8 text-primary" />
-                                    Campaign Logic
+                                    Filter Settings
                                 </h2>
-                                <p className="text-muted-foreground text-lg">Filter and refine your performance perspective.</p>
+                                <p className="text-muted-foreground text-lg">Filter and refine your performance view.</p>
                             </div>
 
                             <div className="grid gap-8 sm:grid-cols-2">
@@ -211,7 +208,7 @@ export default function AnalyticsPage() {
                                     </div>
                                     <div>
                                         <h3 className="text-sm font-bold text-foreground">AI Intelligence Report</h3>
-                                        <p className="text-xs text-muted-foreground">Neural analysis of current metrics</p>
+                                        <p className="text-xs text-muted-foreground">Analysis of current metrics</p>
                                     </div>
                                 </div>
                                 <button

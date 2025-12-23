@@ -165,13 +165,13 @@ export default function NewCampaignPage() {
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 mb-1">
                             <div className="w-1 h-4 bg-primary rounded-full" />
-                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Campaign Architect</h2>
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Campaigns</h2>
                         </div>
                         <h1 className="text-4xl font-display font-black tracking-tight text-foreground">
                             Create New Campaign
                         </h1>
                         <p className="text-muted-foreground font-medium">
-                            Synthesize your message and target the right audience
+                            Create and schedule your email campaign
                         </p>
                     </div>
                 </div>
@@ -190,20 +190,20 @@ export default function NewCampaignPage() {
                                 <Users className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold">Identity & Audience</h3>
-                                <p className="text-sm text-muted-foreground">Define who will receive this transmission</p>
+                                <h3 className="text-xl font-bold">Campaign Details</h3>
+                                <p className="text-sm text-muted-foreground">Basic information and recipient selection</p>
                             </div>
                         </div>
 
                         <div className="grid gap-8 md:grid-cols-2">
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="name">
-                                    Internal Campaign Name
+                                    Campaign Name
                                 </label>
                                 <input
                                     {...register('name')}
                                     id="name"
-                                    placeholder="e.g. Q4 Growth Acceleration"
+                                    placeholder="e.g. Monthly Newsletter"
                                     className="flex h-14 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                                 />
                                 {errors.name && (
@@ -215,7 +215,7 @@ export default function NewCampaignPage() {
 
                             <div className="space-y-3">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="segment_id">
-                                    Target Recipient Segment
+                                    Send To
                                 </label>
                                 <div className="relative group/select">
                                     <select
@@ -223,7 +223,7 @@ export default function NewCampaignPage() {
                                         id="segment_id"
                                         className="flex h-14 w-full rounded-2xl border border-border bg-background/50 px-5 py-2 text-base font-medium shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none pr-10"
                                     >
-                                        <option value="">Select a target group</option>
+                                        <option value="">Select a segment</option>
                                         {segments.map((segment) => (
                                             <option key={segment.id} value={segment.id}>
                                                 {segment.name} — {segment.contact_count} contacts
@@ -251,8 +251,8 @@ export default function NewCampaignPage() {
                                     <CalendarIcon className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold">Creative & Intelligence</h3>
-                                    <p className="text-sm text-muted-foreground">Draft your message or use AI synthesis</p>
+                                    <h3 className="text-xl font-bold">Content</h3>
+                                    <p className="text-sm text-muted-foreground">Create your email content</p>
                                 </div>
                             </div>
                             <AiGeneratorModal
@@ -262,12 +262,12 @@ export default function NewCampaignPage() {
                                         if (variations && variations.length > 0) {
                                             const validVariations = variations.slice(0, 3);
                                             setValue('variations', validVariations, { shouldValidate: true });
-                                            toast.success('AI synthesized 3 distinct variations!');
+                                            toast.success('3 variations generated!');
                                         }
                                     } else {
                                         setValue('subject', s, { shouldValidate: true });
                                         setValue('content', c, { shouldValidate: true });
-                                        toast.success('AI content masterfully generated!');
+                                        toast.success('Content generated!');
                                     }
                                 }}
                             />
@@ -290,10 +290,10 @@ export default function NewCampaignPage() {
                                             {...register('test_percentage', { valueAsNumber: true })}
                                             className="w-full h-2 bg-primary/20 rounded-lg appearance-none cursor-pointer accent-primary"
                                         />
-                                        <p className="text-xs text-muted-foreground font-medium">Portion of audience receiving variations before the winner is chosen.</p>
+                                        <p className="text-xs text-muted-foreground font-medium">Percentage of recipients to test on.</p>
                                     </div>
                                     <div className="space-y-4">
-                                        <label className="text-sm font-bold uppercase tracking-widest text-primary block px-1">Decision Horizon</label>
+                                        <label className="text-sm font-bold uppercase tracking-widest text-primary block px-1">Test Duration</label>
                                         <div className="relative">
                                             <input
                                                 type="number"
@@ -304,7 +304,7 @@ export default function NewCampaignPage() {
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-primary/40 uppercase">Hours</span>
                                         </div>
-                                        <p className="text-xs text-muted-foreground font-medium">Statistical window for determining the highest engagement rate.</p>
+                                        <p className="text-xs text-muted-foreground font-medium">How long to run the test before picking a winner.</p>
                                     </div>
                                 </div>
 
@@ -321,7 +321,7 @@ export default function NewCampaignPage() {
                                                     : 'text-muted-foreground hover:text-foreground'
                                                     }`}
                                             >
-                                                VARIANT {['A', 'B', 'C'][i]}
+                                                Variation {['A', 'B', 'C'][i]}
                                                 {activeVariation === i && (
                                                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
                                                 )}
@@ -334,7 +334,7 @@ export default function NewCampaignPage() {
                                             <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1">Variation {['A', 'B', 'C'][activeVariation]} Subject</label>
                                             <input
                                                 {...register(`variations.${activeVariation}.subject`)}
-                                                placeholder="Enter magnetic subject line..."
+                                                placeholder="Enter subject line..."
                                                 className="flex h-14 w-full rounded-2xl border border-border bg-background px-5 py-2 text-lg font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 outline-none"
                                             />
                                             {errors.variations?.[activeVariation]?.subject && (
@@ -352,7 +352,7 @@ export default function NewCampaignPage() {
                                                         <RichTextEditor
                                                             value={field.value || ''}
                                                             onChange={field.onChange}
-                                                            placeholder="Compose the narrative for this variation..."
+                                                            placeholder="Write your email content..."
                                                         />
                                                     </div>
                                                 )}
@@ -368,12 +368,12 @@ export default function NewCampaignPage() {
                             <div className="space-y-8">
                                 <div className="space-y-3">
                                     <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="subject">
-                                        Primary Subject Line
+                                        Subject Line
                                     </label>
                                     <input
                                         {...register('subject')}
                                         id="subject"
-                                        placeholder="Target the recipient's attention..."
+                                        placeholder="Enter subject line..."
                                         className="flex h-14 w-full rounded-2xl border border-border bg-background px-5 py-2 text-lg font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 outline-none"
                                     />
                                     {errors.subject && (
@@ -382,7 +382,7 @@ export default function NewCampaignPage() {
                                 </div>
                                 <div className="space-y-3">
                                     <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="content">
-                                        Transmission Content (HTML)
+                                        Email Content
                                     </label>
                                     <Controller
                                         name="content"
@@ -392,7 +392,7 @@ export default function NewCampaignPage() {
                                                 <RichTextEditor
                                                     value={field.value || ''}
                                                     onChange={field.onChange}
-                                                    placeholder="Construct your message logic and styling..."
+                                                    placeholder="Write your email content..."
                                                 />
                                             </div>
                                         )}
@@ -414,16 +414,16 @@ export default function NewCampaignPage() {
                                 <Clock className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-bold">Execution Strategy</h3>
-                                <p className="text-sm text-muted-foreground">Determine the temporal logic for dispatch</p>
+                                <h3 className="text-xl font-bold">Schedule</h3>
+                                <p className="text-sm text-muted-foreground">When should this campaign be sent?</p>
                             </div>
                         </div>
 
                         <div className="grid gap-6 sm:grid-cols-3">
                             {[
-                                { id: 'immediate', label: 'Real-time', desc: 'Instant dispatch', icon: Send },
-                                { id: 'scheduled', label: 'Temporal', desc: 'Futuristic timing', icon: CalendarIcon },
-                                { id: 'ab_test', label: 'Automated', desc: 'Neural optimization', icon: Activity },
+                                { id: 'immediate', label: 'Send Now', desc: 'Send immediately', icon: Send },
+                                { id: 'scheduled', label: 'Schedule', desc: 'Send later', icon: CalendarIcon },
+                                { id: 'ab_test', label: 'A/B Test', desc: 'Optimize content', icon: Activity },
                             ].map((type) => (
                                 <label
                                     key={type.id}
@@ -461,7 +461,7 @@ export default function NewCampaignPage() {
                         {scheduleType === 'scheduled' && (
                             <div className="space-y-4 p-8 bg-muted/30 rounded-[2rem] border border-border/50 animate-in zoom-in-95 duration-200">
                                 <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="scheduled_time">
-                                    Temporal Dispatch Horizon
+                                    Send Time
                                 </label>
                                 <div className="relative max-w-sm">
                                     <input
@@ -487,7 +487,7 @@ export default function NewCampaignPage() {
                         href="/campaigns"
                         className="text-sm font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors px-6"
                     >
-                        Abort Draft
+                        Cancel
                     </Link>
                     <button
                         type="submit"
@@ -497,11 +497,11 @@ export default function NewCampaignPage() {
                         {isLoading ? (
                             <>
                                 <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                                Processing Neural Logic...
+                                Saving...
                             </>
                         ) : (
                             <>
-                                {scheduleType === 'immediate' ? 'Initiate Transmission' : 'Finalize Strategy'}
+                                {scheduleType === 'immediate' ? 'Send Campaign' : 'Schedule Campaign'}
                                 <ArrowLeft className="ml-3 h-5 w-5 rotate-180 transition-transform group-hover:translate-x-1" />
                             </>
                         )}

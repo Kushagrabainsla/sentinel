@@ -117,7 +117,7 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                     <div className="space-y-1">
                         <div className="flex items-center gap-2 mb-1">
                             <div className="w-1 h-4 bg-primary rounded-full" />
-                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Segment Intelligence</h2>
+                            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Segment Details</h2>
                         </div>
                         <h1 className="text-4xl font-display font-black tracking-tight text-foreground">
                             {segment.name}
@@ -130,7 +130,7 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                             <span className="text-muted-foreground/30">•</span>
                             <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Activity className="h-4 w-4" />
-                                {segment.description || 'No strategic description provided'}
+                                {segment.description || 'No description provided'}
                             </p>
                         </div>
                     </div>
@@ -147,8 +147,8 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                                     <Mail className="h-5 w-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-bold">Synchronized Contacts</h3>
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Active nodes in segment</p>
+                                    <h3 className="text-xl font-bold">Contacts</h3>
+                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Emails in this segment</p>
                                 </div>
                             </div>
                             <div className="px-4 py-2 rounded-2xl bg-background border border-border shadow-sm">
@@ -164,7 +164,7 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                                         <Mail className="h-8 w-8 text-muted-foreground" />
                                     </div>
                                     <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">
-                                        No active nodes detected in this grouping
+                                        No emails found in this segment
                                     </p>
                                 </div>
                             ) : (
@@ -176,7 +176,7 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                                             </div>
                                             <div>
                                                 <span className="text-base font-bold text-foreground block">{email}</span>
-                                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-60">Verified Identity</span>
+                                                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] opacity-60">Verified Email</span>
                                             </div>
                                         </div>
                                         <button
@@ -201,8 +201,8 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
 
                         <div className="relative space-y-8">
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold">Inbound Link</h3>
-                                <p className="text-sm text-muted-foreground font-medium">Inject new identities into this segment logic</p>
+                                <h3 className="text-xl font-bold">Add Contacts</h3>
+                                <p className="text-sm text-muted-foreground font-medium">Add new email addresses to this segment</p>
                             </div>
 
                             <form onSubmit={handleAddEmails} className="space-y-6">
@@ -228,11 +228,11 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
                                     {isAdding ? (
                                         <>
                                             <Loader2 className="mr-3 h-4 w-4 animate-spin" />
-                                            Synchronizing...
+                                            Adding...
                                         </>
                                     ) : (
                                         <>
-                                            Inject Identities
+                                            Add Emails
                                             <Plus className="ml-2 h-4 w-4 transition-transform group-hover:rotate-90" />
                                         </>
                                     )}
@@ -243,7 +243,7 @@ export default function SegmentDetailsPage({ params }: { params: Promise<{ id: s
 
                     {/* Insights Mini Card */}
                     <div className="rounded-[2rem] border border-border bg-card/40 p-8 space-y-4">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">System Status</h4>
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</h4>
                         <div className="flex items-center justify-between">
                             <span className="text-sm font-bold">Deduplication</span>
                             <span className="text-xs font-black text-emerald-500 uppercase">Active</span>
