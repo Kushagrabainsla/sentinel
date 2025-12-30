@@ -244,7 +244,10 @@ def lambda_handler(event, _context):
                 )
             else:
                 print(f"📤 Sending via AWS SES for {email}")
-                from_email = f"{msg_template_data.get('from_name', 'Sentinel')} <{msg_template_data.get('from_email', FROM)}>"
+                
+                # Use owner's name for SES sender, fallback to Sentinel
+                from_name = (user_data.get('name') if user_data else None) or 'Sentinel'
+                from_email = f"{from_name} <{msg_template_data.get('from_email', FROM)}>"
                 
                 message_id = exponential_backoff_retry(
                     lambda: send_ses_raw(

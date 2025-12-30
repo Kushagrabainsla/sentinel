@@ -978,7 +978,14 @@ def send_gmail(user_data, recipient_email, subject, html_body, text_body=None, u
             return False, "Failed to refresh Google token"
 
     # Create message using common utility
-    from_email = user_data.get('google_email', recipient_email)
+    email_addr = user_data.get('google_email')
+    display_name = user_data.get('google_name')
+    
+    if display_name and email_addr:
+        from_email = f"{display_name} <{email_addr}>"
+    else:
+        from_email = email_addr or recipient_email
+        
     message = create_raw_email_message(from_email, recipient_email, subject, html_body, text_body, unsubscribe_url)
     raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
     

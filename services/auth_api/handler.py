@@ -376,13 +376,15 @@ def google_callback(event):
         with urllib.request.urlopen(user_info_req) as user_info_response:
             google_user = json.loads(user_info_response.read().decode())
         google_email = google_user.get('email')
+        google_name = google_user.get('name')
         
         # Update user in DynamoDB
         users_table = get_users_table()
-        update_expr = 'SET google_connected = :conn, google_email = :email, google_access_token = :at, google_token_expiry = :exp'
+        update_expr = 'SET google_connected = :conn, google_email = :email, google_name = :gname, google_access_token = :at, google_token_expiry = :exp'
         attr_vals = {
             ':conn': True,
             ':email': google_email,
+            ':gname': google_name,
             ':at': access_token,
             ':exp': int(time.time()) + expires_in
         }
