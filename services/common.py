@@ -250,6 +250,21 @@ def get_table(table_env_var):
         raise RuntimeError(f"{table_env_var} environment variable not set")
     return get_dynamodb().Table(table_name)
 
+def is_unsubscribed(campaign_id, email):
+    """Check if recipient has unsubscribed from this campaign"""
+    try:
+        from boto3.dynamodb.conditions import Key, Attr
+        table = get_table('DYNAMODB_EVENTS_TABLE')
+        response = table.query(
+            IndexName='campaign_index',
+            KeyConditionExpression=Key('campaign_id').eq(str(campaign_id)),
+            FilterExpression=Attr('type').eq(EventType.UNSUBSCRIBE.value) & Attr('email').eq(email)
+        )
+        return len(response.get('Items', [])) > 0
+    except Exception as e:
+        print(f"⚠️ Error checking unsubscribe status for {email}: {e}")
+        return False
+
 # Database table getters for common tables
 def get_users_table():
     """Get users table"""
@@ -886,6 +901,28 @@ def create_tracking_pixel(campaign_id, subscriber_id, base_url):
     pixel_url = f"{base_url}/track/open?cid={campaign_id}&sid={subscriber_id}&t={int(time.time())}"
     return f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;" />'
 
+def create_raw_email_message(from_email, to_email, subject, html_body, text_body=None, unsubscribe_url=None):
+    """Create a MIME message with standard compliant headers"""
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    message = MIMEMultipart("alternative")
+    message["Subject"] = subject
+    message["From"] = from_email
+    message["To"] = to_email
+    
+    # Add List-Unsubscribe headers for RFC 8058 compliance
+    if unsubscribe_url:
+        message["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+        message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+    
+    if text_body:
+        message.attach(MIMEText(text_body, "plain"))
+    if html_body:
+        message.attach(MIMEText(html_body, "html"))
+        
+    return message
+
 # ================================
 # GMAIL API UTILITIES
 # ================================
@@ -921,37 +958,23 @@ def refresh_google_token(refresh_token):
         print(f"Error refreshing Google token: {e}")
         return None
 
-def send_gmail(user_data, recipient_email, subject, html_body, text_body=None):
-    """Send email via Gmail API using raw message and standard libraries"""
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    
+def send_gmail(user_data, recipient_email, subject, html_body, text_body=None, unsubscribe_url=None):
+    """Send email via Gmail API using raw message"""
     access_token = user_data.get('google_access_token')
     refresh_token = user_data.get('google_refresh_token')
     expiry = user_data.get('google_token_expiry', 0)
     
-    # Check if token is expired (with 1 min buffer)
+    # Refresh token if needed
     if time.time() > (int(expiry) - 60):
-        print("Token expired, refreshing...")
         new_token_data = refresh_google_token(refresh_token)
         if new_token_data:
             access_token = new_token_data['access_token']
-            # Note: The caller should ideally update the DB with the new token
         else:
             return False, "Failed to refresh Google token"
 
-    # Create message
-    message = MIMEMultipart("alternative")
-    message["Subject"] = subject
-    message["From"] = user_data.get('google_email', recipient_email)
-    message["To"] = recipient_email
-    
-    if text_body:
-        message.attach(MIMEText(text_body, "plain"))
-    if html_body:
-        message.attach(MIMEText(html_body, "html"))
-        
-    # Encode message
+    # Create message using common utility
+    from_email = user_data.get('google_email', recipient_email)
+    message = create_raw_email_message(from_email, recipient_email, subject, html_body, text_body, unsubscribe_url)
     raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
     
     try:
@@ -973,3 +996,14 @@ def send_gmail(user_data, recipient_email, subject, html_body, text_body=None):
             
     except Exception as e:
         return False, str(e)
+
+def send_ses_raw(ses_client, from_email, to_email, subject, html_body, text_body=None, unsubscribe_url=None):
+    """Send email via AWS SES using RawMessage to support custom headers"""
+    message = create_raw_email_message(from_email, to_email, subject, html_body, text_body, unsubscribe_url)
+    
+    response = ses_client.send_raw_email(
+        Source=from_email,
+        Destinations=[to_email],
+        RawMessage={"Data": message.as_bytes()}
+    )
+    return response.get("MessageId")

@@ -9,7 +9,11 @@ from botocore.exceptions import ClientError
 from tracking import generate_tracking_data
 
 # Import common utilities and enums
-from common import DeliveryStatus, EventType, exponential_backoff_retry, is_retryable_error, add_dynamic_image, get_users_table, get_campaigns_table, send_gmail
+from common import (
+    DeliveryStatus, EventType, exponential_backoff_retry, is_retryable_error, 
+    add_dynamic_image, get_users_table, get_campaigns_table, get_events_table,
+    send_gmail, send_ses_raw, is_unsubscribed
+)
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -144,6 +148,11 @@ def lambda_handler(event, _context):
         variation_id = body.get("variation_id")
 
         try:
+            # Check if recipient has unsubscribed
+            if is_unsubscribed(campaign_id, email):
+                print(f"🚫 Skipping {email} - recipient has unsubscribed.")
+                continue
+
             # Get template data from the message
             msg_template_data = body.get("template_data", {})
             html_body = msg_template_data.get("html_body", "")
@@ -177,6 +186,10 @@ def lambda_handler(event, _context):
             # Optimize HTML for better deliverability
             processed_html = optimize_html_for_deliverability(processed_html)
             
+            # Note: Unsubscribe footer injection removed per user request. 
+            # Compliance is handled via List-Unsubscribe headers.
+            unsubscribe_url = tracking_data.get("unsubscribe_url")
+            
             # Add dynamic image if campaign specifies one
             dynamic_image_url = msg_template_data.get("dynamic_image_url")
             if dynamic_image_url:
@@ -192,33 +205,12 @@ def lambda_handler(event, _context):
                 )
                 print(f"🖼️ Added dynamic image: {dynamic_image_url}")
             
-            # Prepare template data for SES
-            template_data = {
-                "name": email.split("@")[0],
-                "subject": msg_template_data.get("subject", "Newsletter"),
-                "html_body": processed_html,
-            }
-            
-            print(f"📧 Sending email to {email} for campaign {campaign_id}")
-            if tracking_data.get("tracked_cta_links"):
-                print(f"🎯 CTA links tracked: {list(tracking_data['tracked_cta_links'].keys())}")
-            
-            # Add tracking pixel to HTML content
+            # Prepare content for sending
             html_content = template_data["html_body"]
             if tracking_data.get("tracking_pixel"):
                 html_content += tracking_data["tracking_pixel"]
-                print(f"📊 Added open tracking pixel: {tracking_data.get('pixel_url')}")
             
-            # Generate plain text content from HTML (fallback)
-            import re
-            text_content = re.sub('<[^<]+?>', '', template_data["html_body"])  # Simple HTML strip
-            text_content = text_content.strip() or "Please view this email in HTML format."
-            
-            # Add unsubscribe link to text version
-            if tracking_data.get("unsubscribe_url"):
-                text_content += f"\n\nUnsubscribe: {tracking_data['unsubscribe_url']}"
-            
-            # Check if we should use Gmail API
+            # Use Gmail API if enabled, otherwise fallback to SES
             user_data = get_campaign_owner(campaign_id)
             use_gmail = user_data and user_data.get('gmail_enabled') and user_data.get('google_connected')
             
@@ -231,7 +223,8 @@ def lambda_handler(event, _context):
                         recipient_email=email,
                         subject=template_data["subject"],
                         html_body=html_content,
-                        text_body=text_content
+                        text_body=text_content,
+                        unsubscribe_url=unsubscribe_url
                     )
                     if not success:
                         raise Exception(f"Gmail Send Failed: {result}")
@@ -242,35 +235,26 @@ def lambda_handler(event, _context):
                     max_retries=3,
                     base_delay=1.0
                 )
-                print(f"✅ Email sent successfully via Gmail API: {message_id}")
             else:
-                # Send email via SES with enhanced tracking and retry logic
-                ses_response = exponential_backoff_retry(
-                    lambda: ses.send_email(
-                        Source=f"{msg_template_data.get('from_name', 'Sentinel')} <{msg_template_data.get('from_email', FROM)}>",
-                        Destination={"ToAddresses": [email]},
-                        Message={
-                            "Subject": {"Data": template_data["subject"]},
-                            "Body": {
-                                "Html": {"Data": html_content},
-                                "Text": {"Data": text_content}
-                            }
-                        },
-                        Tags=[
-                            {"Name": "campaign_id", "Value": str(campaign_id)},
-                            {"Name": "recipient_id", "Value": str(recipient_id)},
-                            {"Name": "cta_count", "Value": str(len(cta_links))}
-                        ]
+                print(f"📤 Sending via AWS SES for {email}")
+                from_email = f"{msg_template_data.get('from_name', 'Sentinel')} <{msg_template_data.get('from_email', FROM)}>"
+                
+                message_id = exponential_backoff_retry(
+                    lambda: send_ses_raw(
+                        ses_client=ses,
+                        from_email=from_email,
+                        to_email=email,
+                        subject=template_data["subject"],
+                        html_body=html_content,
+                        text_body=text_content,
+                        unsubscribe_url=unsubscribe_url
                     ),
                     max_retries=3,
                     base_delay=1.0
                 )
-                message_id = ses_response.get("MessageId", "unknown")
-            status = DeliveryStatus.SENT.value
             
-            print(f"✅ Email sent successfully to {email}")
-            print(f"📨 SES Message ID: {message_id}")
-            print(f"📊 Tracking method: {tracking_data.get('tracking_method', 'None')}")
+            status = DeliveryStatus.SENT.value
+            print(f"✅ Email sent successfully: {message_id}")
             
         except Exception as e:
             status = DeliveryStatus.FAILED.value

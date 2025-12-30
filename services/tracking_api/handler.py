@@ -157,7 +157,7 @@ def lambda_handler(event, context):
         elif path.startswith('/track/click/'):
             return handle_click_tracking(path, headers, query_params, tracking_id)
         elif path.startswith('/unsubscribe/'):
-            return handle_unsubscribe(path, headers, query_params)
+            return handle_unsubscribe(path, headers, query_params, http_method)
         elif path.startswith('/events/'):
             return handle_events_api(path, http_method, query_params)
         else:
@@ -392,59 +392,65 @@ def handle_click_tracking(path, headers, query_params, tracking_id=None):
         'body': ''
     }
 
-def handle_unsubscribe(path, headers, query_params):
-    """Handle unsubscribe tracking"""
+def handle_unsubscribe(path, headers, query_params, http_method='GET'):
+    """
+    Handle unsubscribe tracking.
+    Supports both GET (user clicks link) and POST (Gmail One-Click Unsubscribe).
+    """
+    is_post = http_method.upper() == 'POST'
     
-    # Parse path: /unsubscribe/{token}
+    # Parse path: /unsubscribe/{unsubscribe_id}
     path_parts = path.strip('/').split('/')
     
+    unsubscribe_id = None
     if len(path_parts) >= 2:
-        token = path_parts[1]
-        
-        # TODO: Implement token validation and unsubscribe logic
-        # For now, return a simple unsubscribe page
-        
-        # Record unsubscribe event with comprehensive analytics
-        metadata = get_analytics_metadata(headers, query_params)
-        
-        # Add unsubscribe-specific metadata
-        metadata.update({
-            'event_type': 'unsubscribe',
-            'token': token
-        })
-        
-        # Note: In production, decode token to get actual campaign_id and recipient_id
-        print(f"📋 Unsubscribe request with token: {token}")
+        unsubscribe_id = path_parts[1]
     
-    # Return unsubscribe confirmation page
-    unsubscribe_html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Unsubscribe - Sentinel</title>
-        <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            .container { max-width: 500px; margin: 0 auto; }
-            .success { color: #28a745; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Unsubscribe Successful</h1>
-            <p class="success">✅ You have been successfully unsubscribed from our mailing list.</p>
-            <p>You will no longer receive emails from this campaign.</p>
-            <p><a href="https://thesentinel.site">Return to Sentinel</a></p>
-        </div>
-    </body>
-    </html>
-    """
+    email = 'unknown'
+    campaign_id = 'unknown'
+    recipient_id = 'unknown'
     
+    if unsubscribe_id:
+        print(f"📋 Unsubscribe request for ID: {unsubscribe_id}")
+        # Get mapping to retrieve email and campaign info
+        mapping = get_link_mapping(unsubscribe_id)
+        
+        if mapping:
+            campaign_id = mapping['campaign_id']
+            recipient_id = mapping['recipient_id']
+            email = mapping.get('email', 'unknown')
+            
+            # Record unsubscribe event with comprehensive analytics
+            metadata = get_analytics_metadata(headers, query_params)
+            
+            # Add unsubscribe-specific metadata
+            metadata.update({
+                'event_type': EventType.UNSUBSCRIBE.value,
+                'unsubscribe_id': unsubscribe_id,
+                'campaign_id': campaign_id,
+                'recipient_id': recipient_id,
+                'email': email
+            })
+            
+            print(f"📧 Recording unsubscribe event - Campaign: {campaign_id}, Email: {email}")
+            
+            record_tracking_event(
+                campaign_id=campaign_id,
+                recipient_id=recipient_id,
+                email=email,
+                event_type=EventType.UNSUBSCRIBE.value,
+                metadata=metadata
+            )
+            
+    # For all requests (GET or POST), return a simple 200 OK.
+    # Gmail handles the UI for the One-Click unsubscribe.
     return {
         'statusCode': 200,
         'headers': {
-            'Content-Type': 'text/html'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        'body': unsubscribe_html
+        'body': json.dumps({'status': 'success', 'message': 'unsubscribed'})
     }
 
 def handle_events_api(path, http_method, query_params):

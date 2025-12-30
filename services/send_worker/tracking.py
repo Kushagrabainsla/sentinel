@@ -134,9 +134,19 @@ def generate_tracking_data(campaign_id, recipient_id, email, cta_links=None, bas
                 )
                 tracked_cta_links[cta_id] = tracking_url
     
-    # Unsubscribe link
-    unsubscribe_token = f"{campaign_id}-{recipient_id}-{int(time.time())}"
-    unsubscribe_url = f"{base_url}/unsubscribe/{unsubscribe_token}"
+    # Unsubscribe link - using a unique ID and storing mapping to find email later
+    unsubscribe_id = str(uuid.uuid4())
+    unsubscribe_url = f"{base_url}/unsubscribe/{unsubscribe_id}"
+    
+    store_link_mapping(
+        campaign_id=campaign_id,
+        recipient_id=recipient_id,
+        link_id="unsubscribe",
+        original_url="UNSUBSCRIBE",
+        tracking_id=unsubscribe_id,
+        email=email,
+        variation_id=variation_id
+    )
     
     return {
         "tracked_cta_links": tracked_cta_links,
