@@ -28,6 +28,9 @@ from decimal import Decimal
 from enum import Enum
 import boto3
 from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key, Attr
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ================================
 # USER AND AUTHENTICATION ENUMS
@@ -253,7 +256,6 @@ def get_table(table_env_var):
 def is_unsubscribed(campaign_id, email):
     """Check if recipient has unsubscribed from this campaign"""
     try:
-        from boto3.dynamodb.conditions import Key, Attr
         table = get_table('DYNAMODB_EVENTS_TABLE')
         response = table.query(
             IndexName='campaign_index',
@@ -903,9 +905,6 @@ def create_tracking_pixel(campaign_id, subscriber_id, base_url):
 
 def create_raw_email_message(from_email, to_email, subject, html_body, text_body=None, unsubscribe_url=None):
     """Create a MIME message with standard compliant headers"""
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    
     message = MIMEMultipart("alternative")
     message["Subject"] = subject
     message["From"] = from_email
@@ -913,7 +912,13 @@ def create_raw_email_message(from_email, to_email, subject, html_body, text_body
     
     # Add List-Unsubscribe headers for RFC 8058 compliance
     if unsubscribe_url:
-        message["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+        # Use both HTTPS and mailto for maximum compatibility with Gmail
+        # Extract domain for mailto
+        domain = "thesentinel.site"
+        mailto_link = f"<mailto:unsubscribe@{domain}?subject=unsubscribe-{to_email}>"
+        https_link = f"<{unsubscribe_url}>"
+        
+        message["List-Unsubscribe"] = f"{https_link}, {mailto_link}"
         message["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
     
     if text_body:
