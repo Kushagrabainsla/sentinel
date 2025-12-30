@@ -205,8 +205,15 @@ def lambda_handler(event, _context):
                 )
                 print(f"🖼️ Added dynamic image: {dynamic_image_url}")
             
-            # Prepare content for sending
-            html_content = template_data["html_body"]
+            # Prepare template data for sending
+            subject = msg_template_data.get("subject", "Newsletter")
+            
+            # Generate plain text content from HTML (fallback)
+            text_content = re.sub('<[^<]+?>', '', processed_html)  # Simple HTML strip
+            text_content = text_content.strip() or "Please view this email in HTML format."
+            
+            # Add tracking pixel to HTML content
+            html_content = processed_html
             if tracking_data.get("tracking_pixel"):
                 html_content += tracking_data["tracking_pixel"]
             
@@ -221,7 +228,7 @@ def lambda_handler(event, _context):
                     success, result = send_gmail(
                         user_data=user_data,
                         recipient_email=email,
-                        subject=template_data["subject"],
+                        subject=subject,
                         html_body=html_content,
                         text_body=text_content,
                         unsubscribe_url=unsubscribe_url
@@ -244,7 +251,7 @@ def lambda_handler(event, _context):
                         ses_client=ses,
                         from_email=from_email,
                         to_email=email,
-                        subject=template_data["subject"],
+                        subject=subject,
                         html_body=html_content,
                         text_body=text_content,
                         unsubscribe_url=unsubscribe_url
