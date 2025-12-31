@@ -528,7 +528,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                         <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">High-Interaction Links</h4>
                     </div>
                     {data.summary?.top_clicked_links && data.summary.top_clicked_links.length > 0 ? (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid gap-4 grid-cols-1">
                             {data.summary.top_clicked_links.map((link: any, index: number) => (
                                 <div key={index} className="group/link flex items-center justify-between p-6 rounded-2xl bg-muted/10 border border-border/40 hover:bg-muted/20 hover:border-primary/20 transition-all">
                                     <div className="flex-1 min-w-0 mr-4">
