@@ -63,13 +63,3 @@ The Sentinel API is organized around REST. All requests must be authenticated us
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](.github/LICENSE.md) file for details.
-
----
-
-<div align="center">
-  <p align="center">
-    <a href="#sentinel">
-      <img src="https://img.shields.io/badge/-Back%20to%20Top-eaecef?style=flat-square&logo=gitbook&logoColor=bcbcbc" alt="Back to Top">
-    </a>
-  </p>
-</div>
