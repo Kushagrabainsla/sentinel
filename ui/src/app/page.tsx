@@ -356,10 +356,10 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="relative animate-fade-in-up opacity-0 [animation-delay:200ms] aspect-square flex items-center justify-center">
+                  <div className="relative animate-fade-in-up opacity-0 [animation-delay:200ms] flex items-center justify-center min-h-[500px]">
                     <div className="absolute inset-0 bg-white/5 rounded-full blur-3xl animate-pulse" />
-                    <div className="relative z-10 w-full h-full max-w-[500px] max-h-[500px]">
-                      <Globe />
+                    <div className="relative z-10 w-full flex items-center justify-center">
+                      <Globe className="!max-w-none !mx-0 w-[500px] h-[500px]" />
                     </div>
                   </div>
                 </div>

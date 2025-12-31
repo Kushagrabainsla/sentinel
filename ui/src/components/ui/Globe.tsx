@@ -8,9 +8,10 @@ interface GlobeProps {
     selectedCountry?: string;
     onSelectCountry?: (country: string) => void;
     availableCountries?: string[];
+    className?: string;
 }
 
-export function Globe({ selectedCountry = 'all', onSelectCountry, availableCountries }: GlobeProps) {
+export function Globe({ selectedCountry = 'all', onSelectCountry, availableCountries, className }: GlobeProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const pointerInteracting = useRef<number | null>(null);
     const pointerInteractionMovement = useRef(0);
@@ -122,7 +123,7 @@ export function Globe({ selectedCountry = 'all', onSelectCountry, availableCount
     };
 
     return (
-        <div className="relative w-full max-w-[400px] mx-auto aspect-square">
+        <div className={`relative w-full max-w-[400px] mx-auto aspect-square ${className || ''}`}>
             <canvas
                 ref={canvasRef}
                 style={{ width: '100%', height: '100%', contain: 'layout paint size', opacity: 0, transition: 'opacity 1s ease' }}
