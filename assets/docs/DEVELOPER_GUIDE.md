@@ -4,9 +4,16 @@ Detailed information for developers contributing to or self-hosting the Sentinel
 
 ---
 
-## 🏗️ Architecture Deep Dive
+## 🏗️ Architecture Overview
 
-Sentinel uses a fully serverless architecture built primarily on AWS. For a comprehensive breakdown of the system components, data flow diagrams, and scalability design, refer to the [Technical Project Report](PROJECT_REPORT.md).
+Sentinel operates on a fully **Serverless Microservices Architecture**, optimizing for cost-efficiency and infinite horizontal scale. All components are designed to scale from zero to millions of events without manual intervention.
+
+<div align="center">
+  <img src="../images/sentinel-architecture-diagram.png?q=1" alt="Sentinel System Architecture" width="800" style="border-radius: 12px; border: 1px solid #e1e5e9;">
+</div>
+
+### Deep Dive
+For a comprehensive breakdown of all system components, modular data flow diagrams, and deep scalability analysis, please refer to the **[Technical Project Report](PROJECT_REPORT.md#3-cloud-architecture--technical-design)**.
 
 ## 📁 Project Structure
 

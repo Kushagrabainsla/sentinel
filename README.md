@@ -19,7 +19,6 @@
 ## 📋 Table of Contents
 
 - [✨ Features](#-features)
-- [🏗️ Architecture](#️-architecture)
 - [💻 Platform Usage](#-platform-usage)
 - [📚 API Reference](#-api-reference)
 - [📄 License](#-license)
@@ -36,18 +35,6 @@
 - 📱 **Premium Dashboard** — A state-of-the-art Next.js 16 interface with interactive charts and real-time polling.
 
 > 🔍 For a technical deep-dive into security and performance metrics, see the [Project Report](assets/docs/PROJECT_REPORT.md).
-
----
-
-## 🏗️ Architecture
-
-Sentinel operates on a fully **Serverless Microservices Architecture**, optimizing for cost-efficiency and infinite horizontal scale.
-
-<div align="center">
-  <img src="/assets/images/sentinel-architecture-diagram.png?q=1" alt="Sentinel System Architecture" width="800" style="border-radius: 12px; border: 1px solid #e1e5e9;">
-</div>
-
-> 🛠️ Detailed component maps and data flow diagrams are available in the [Developer Guide](assets/docs/DEVELOPER_GUIDE.md).
 
 ---
 
