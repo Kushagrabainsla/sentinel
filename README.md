@@ -68,8 +68,6 @@ This project is licensed under the MIT License - see the [LICENSE](.github/LICEN
 
 <div align="center">
   <p align="center">
-    Built with precision by the <b>Sentinel Team</b>
-    <br />
     <a href="#sentinel">
       <img src="https://img.shields.io/badge/-Back%20to%20Top-eaecef?style=flat-square&logo=gitbook&logoColor=bcbcbc" alt="Back to Top">
     </a>
