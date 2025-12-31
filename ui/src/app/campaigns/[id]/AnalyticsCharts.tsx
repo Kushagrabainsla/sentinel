@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, AreaChart, Area, CartesianGrid } from 'recharts';
 import { api, TemporalAnalytics, EngagementMetrics, RecipientInsights, DistributionItem, CampaignEventsResponse, Campaign } from '@/lib/api';
 import { Loader2, Clock, Users, MousePointerClick, Zap, Globe, Monitor, Link as LinkIcon, Activity, MousePointer2 } from 'lucide-react';
-
-
 
 interface AnalyticsChartsProps {
     campaignId: string;
@@ -15,16 +13,14 @@ interface AnalyticsChartsProps {
     variationFilter?: string;
     onAvailableCountriesChange?: (countries: string[]) => void;
     onDataLoaded?: (summary: CampaignEventsResponse['summary']) => void;
+    refreshTrigger?: number;
+    onRefreshingChange?: (refreshing: boolean) => void;
 }
-
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#06b6d4'];
 
-// Helper function to format timestamp to date and time with user timezone
 const formatTime = (timestamp: number, timezone?: string): string => {
     const date = new Date(timestamp * 1000);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
     const formatter = new Intl.DateTimeFormat('en-US', {
         timeZone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         year: 'numeric',
@@ -34,11 +30,9 @@ const formatTime = (timestamp: number, timezone?: string): string => {
         minute: '2-digit',
         hour12: true
     });
-
     return formatter.format(date);
 };
 
-// Helper function to format hour in 12-hour format with AM/PM (for peak hours display)
 const formatHour = (hour: number): string => {
     const h = hour % 12 || 12;
     const period = hour < 12 ? 'AM' : 'PM';
@@ -46,19 +40,75 @@ const formatHour = (hour: number): string => {
 };
 
 const formatDuration = (seconds: number): string => {
-    if (seconds < 60) {
-        return `${Math.round(seconds)}s`;
-    }
+    if (seconds < 60) return `${Math.round(seconds)}s`;
     return `${Math.round(seconds / 60)}m`;
 };
 
-// ... (existing imports)
+// Extracted UI Components for performance
+const InsightCard = ({ title, value, icon: Icon, subtext }: { title: string, value: string | number, icon: any, subtext?: string }) => (
+    <div className="group rounded-[2rem] border border-border bg-card p-8 shadow-xl transition-all hover:border-primary/20 hover:-translate-y-1 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform">
+            <Icon className="h-20 w-20" />
+        </div>
+        <div className="flex items-start justify-between relative z-10">
+            <div className="space-y-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{title}</p>
+                    <h3 className="text-3xl font-black mt-1 tracking-tight">{value}</h3>
+                    {subtext && <p className="text-[10px] font-bold text-muted-foreground/60 mt-1 uppercase tracking-widest">{subtext}</p>}
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
-export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', country = 'all', variationFilter, onAvailableCountriesChange, onDataLoaded }: AnalyticsChartsProps) {
+const ChartCard = ({ title, subtitle, children, className }: { title: string, subtitle?: string, children: React.ReactNode, className?: string }) => (
+    <div className={`group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20 ${className}`}>
+        <div className="mb-8 flex items-start justify-between">
+            <div>
+                <h3 className="text-xl font-bold tracking-tight">{title}</h3>
+                {subtitle && <p className="text-xs font-medium text-muted-foreground mt-1 uppercase tracking-widest opacity-60">{subtitle}</p>}
+            </div>
+        </div>
+        <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+                {children}
+            </ResponsiveContainer>
+        </div>
+    </div>
+);
+
+const EmptyPieChart = ({ message }: { message: string }) => (
+    <PieChart>
+        <Pie
+            data={[{ name: 'empty', value: 1 }]}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={80}
+            dataKey="value"
+            stroke="none"
+            fill="currentColor"
+            className="text-muted/10"
+        />
+        <text
+            x="50%"
+            y="50%"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="fill-muted-foreground font-black uppercase tracking-[0.2em] text-[10px]"
+        >
+            {message}
+        </text>
+    </PieChart>
+);
+
+export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', country = 'all', variationFilter, onAvailableCountriesChange, onDataLoaded, refreshTrigger, onRefreshingChange }: AnalyticsChartsProps) {
     const [data, setData] = useState<{
-        openData: {
-            country: DistributionItem[];
-        };
+        openData: { country: DistributionItem[]; };
         clickData: {
             os: DistributionItem[];
             device: DistributionItem[];
@@ -71,66 +121,76 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
         summary?: CampaignEventsResponse['summary'];
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isInternalRefreshing, setIsInternalRefreshing] = useState(false);
     const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    const lastRequestKey = useRef<string>('');
 
+    // Fetch user timezone only once
+    useEffect(() => {
+        let isMounted = true;
+        const fetchTimezone = async () => {
+            try {
+                const response = await api.get('/auth/me');
+                if (isMounted && response.data?.user?.timezone) {
+                    setUserTimezone(response.data.user.timezone);
+                }
+            } catch (error) {
+                console.log('Using default browser timezone');
+            }
+        };
+        fetchTimezone();
+        return () => { isMounted = false; };
+    }, []);
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchData = async () => {
-            setIsLoading(true);
+            const currentRequestKey = `${campaignId}-${timeRange}-${country}-${variationFilter}-${refreshTrigger}`;
+
+            // Prevent redundant loads if the effect is triggered but parameters haven't really changed
+            if (lastRequestKey.current === currentRequestKey && data) return;
+            lastRequestKey.current = currentRequestKey;
+
+            // Check if context changed (ignoring refreshTrigger) to show loader
+            const contextChanged = !lastRequestKey.current.startsWith(currentRequestKey.split('-').slice(0, 4).join('-')) || !data;
+
+            if (contextChanged) {
+                setData(null);
+                setIsLoading(true);
+            }
+
+            setIsInternalRefreshing(true);
+            onRefreshingChange?.(true);
+
             try {
-                // Get user timezone preference
-                try {
-                    const userResponse = await api.get('/auth/me');
-                    if (userResponse.data?.user?.timezone) {
-                        setUserTimezone(userResponse.data.user.timezone);
-                    }
-                } catch (error) {
-                    console.log('Could not fetch user timezone, using browser default');
+                // Buffer first visual context change slightly
+                if (contextChanged) {
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
 
-                // Simulate network delay
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                // Real API Call Logic
                 const now = Math.floor(Date.now() / 1000);
                 let from_epoch = 0;
-
                 switch (timeRange) {
-                    case '24h':
-                        from_epoch = now - 86400;
-                        break;
-                    case '7d':
-                        from_epoch = now - 604800;
-                        break;
-                    case '30d':
-                        from_epoch = now - 2592000;
-                        break;
-                    case 'all':
-                    default:
-                        from_epoch = 0;
-                        break;
+                    case '24h': from_epoch = now - 86400; break;
+                    case '7d': from_epoch = now - 604800; break;
+                    case '30d': from_epoch = now - 2592000; break;
+                    default: from_epoch = 0; break;
                 }
 
                 const params: any = {
                     from_epoch,
                     to_epoch: now,
-                    limit: 1000
+                    limit: 1000,
+                    ...(country && country !== 'all' ? { country_code: country } : {}),
+                    ...(variationFilter ? { variation_id: variationFilter } : {})
                 };
 
-                if (country && country !== 'all') {
-                    params.country_code = country;
-                }
-
-                if (variationFilter) {
-                    params.variation_id = variationFilter;
-                }
-
                 const response = await api.get(`/campaigns/${campaignId}/events`, { params });
-                const { distributions, events } = response.data;
-                console.log('Full response:', response.data);
-                console.log('Distributions:', distributions);
 
-                // Calculate metrics client-side if not provided by backend
+                if (!isMounted) return;
+
+                const { distributions, events } = response.data;
                 let temporal_analytics = response.data.temporal_analytics;
                 let engagement_metrics = response.data.engagement_metrics;
                 let recipient_insights = response.data.recipient_insights;
@@ -143,115 +203,53 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 }
 
                 if (distributions) {
-                    const openData = {
-                        country: distributions.open_data?.country_distribution || []
-                    };
-
-                    const clickData = {
-                        os: distributions.click_data?.os_distribution || [],
-                        device: distributions.click_data?.device_distribution || [],
-                        browser: distributions.click_data?.browser_distribution || [],
-                        country: distributions.click_data?.country_distribution || []
-                    };
-
-                    console.log('Open data:', openData);
-                    console.log('Click data:', clickData);
-
-                    setData({
-                        openData,
-                        clickData,
+                    const newData = {
+                        openData: { country: distributions.open_data?.country_distribution || [] },
+                        clickData: {
+                            os: distributions.click_data?.os_distribution || [],
+                            device: distributions.click_data?.device_distribution || [],
+                            browser: distributions.click_data?.browser_distribution || [],
+                            country: distributions.click_data?.country_distribution || []
+                        },
                         temporal: temporal_analytics,
                         engagement: engagement_metrics,
                         insights: recipient_insights,
                         summary: response.data.summary
-                    });
+                    };
 
-                    // Extract available countries from both click and open data
+                    setData(newData);
+
                     if (onAvailableCountriesChange) {
                         const clickCountries = distributions.click_data?.country_distribution?.map((d: any) => d.name) || [];
                         const openCountries = distributions.open_data?.country_distribution?.map((d: any) => d.name) || [];
-
-                        // Combine both, preferring click data but including open data as fallback
                         const allCountries = [...new Set([...clickCountries, ...openCountries])].filter(c => c && c !== 'Unknown');
-
-                        if (allCountries.length > 0) {
-                            onAvailableCountriesChange(allCountries);
-                        }
+                        if (allCountries.length > 0) onAvailableCountriesChange(allCountries);
                     }
 
-                    // Pass summary data to parent
-                    if (response.data.summary && onDataLoaded) {
-                        onDataLoaded(response.data.summary);
-                    }
+                    if (response.data.summary && onDataLoaded) onDataLoaded(response.data.summary);
                 }
             } catch (error) {
                 console.error('Failed to fetch analytics:', error);
             } finally {
-                setIsLoading(false);
+                if (isMounted) {
+                    setIsLoading(false);
+                    setIsInternalRefreshing(false);
+                    onRefreshingChange?.(false);
+                }
             }
         };
 
         if (campaignId) {
             fetchData();
         }
-    }, [campaignId, timeRange, country, variationFilter]);
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
+        return () => { isMounted = false; };
+    }, [campaignId, timeRange, country, variationFilter, refreshTrigger, onAvailableCountriesChange, onDataLoaded, onRefreshingChange]);
 
-    if (!data) {
-        return (
-            <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-                No data available for this period
-            </div>
-        );
-    }
-
-    const InsightCard = ({ title, value, icon: Icon, subtext }: { title: string, value: string | number, icon: any, subtext?: string }) => (
-        <div className="group rounded-[2rem] border border-border bg-card p-8 shadow-xl transition-all hover:border-primary/20 hover:-translate-y-1 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-6 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform">
-                <Icon className="h-20 w-20" />
-            </div>
-            <div className="flex items-start justify-between relative z-10">
-                <div className="space-y-4">
-                    <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                        <Icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">{title}</p>
-                        <h3 className="text-3xl font-black mt-1 tracking-tight">{value}</h3>
-                        {subtext && <p className="text-[10px] font-bold text-muted-foreground/60 mt-1 uppercase tracking-widest">{subtext}</p>}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    const ChartCard = ({ title, subtitle, children, className }: { title: string, subtitle?: string, children: React.ReactNode, className?: string }) => (
-        <div className={`group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20 ${className}`}>
-            <div className="mb-8 flex items-start justify-between">
-                <div>
-                    <h3 className="text-xl font-bold tracking-tight">{title}</h3>
-                    {subtitle && <p className="text-xs font-medium text-muted-foreground mt-1 uppercase tracking-widest opacity-60">{subtitle}</p>}
-                </div>
-            </div>
-            <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    {children}
-                </ResponsiveContainer>
-            </div>
-        </div>
-    );
-
-    const CustomTooltip = ({ active, payload, label }: any) => {
+    // Tooltip and Legend renderers (Memoized)
+    const CustomTooltip = useMemo(() => ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
             const formattedLabel = label > 100 ? formatTime(label, userTimezone) : formatHour(label);
-
             return (
                 <div className="bg-popover/90 backdrop-blur-xl border border-border p-4 rounded-2xl shadow-2xl min-w-[200px]">
                     <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">{formattedLabel}</p>
@@ -270,12 +268,11 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
             );
         }
         return null;
-    };
+    }, [userTimezone]);
 
-    const renderCustomLegend = (props: any) => {
+    const renderCustomLegend = useMemo(() => (props: any) => {
         const { payload } = props;
         const total = payload.reduce((acc: number, entry: any) => acc + (entry.payload?.value || 0), 0);
-
         return (
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 mt-8 pt-6 pb-2 border-t border-border/40">
                 {payload.map((entry: any, index: number) => {
@@ -292,42 +289,32 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 })}
             </div>
         );
-    };
+    }, []);
 
-    const EmptyPieChart = ({ message }: { message: string }) => (
-        <PieChart>
-            <Pie
-                data={[{ name: 'empty', value: 1 }]}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                dataKey="value"
-                stroke="none"
-                fill="currentColor"
-                className="text-muted/10"
-            />
-            <text
-                x="50%"
-                y="50%"
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="fill-muted-foreground font-black uppercase tracking-[0.2em] text-[10px]"
-            >
-                {message}
-            </text>
-        </PieChart>
-    );
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!data) {
+        return (
+            <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+                No data available for this period
+            </div>
+        );
+    }
 
     const segmentsData = [
-        { name: 'Elite Engagers', value: data.insights.engagement_segments.highly_engaged.count },
-        { name: 'Active Participants', value: data.insights.engagement_segments.moderately_engaged.count },
-        { name: 'Passive Observers', value: data.insights.engagement_segments.low_engaged.count },
+        { name: 'Elite Engagers', value: data?.insights?.engagement_segments?.highly_engaged?.count || 0 },
+        { name: 'Active Participants', value: data?.insights?.engagement_segments?.moderately_engaged?.count || 0 },
+        { name: 'Passive Observers', value: data?.insights?.engagement_segments?.low_engaged?.count || 0 },
     ].filter(item => item.value > 0);
 
     return (
-        <div className="space-y-12">
-            {/* Key Insights Grid */}
+        <div className={`space-y-12 transition-opacity duration-500 ${isInternalRefreshing && !isLoading ? 'opacity-80' : 'opacity-100'}`}>
             <div className="grid gap-6 grid-cols-2 lg:grid-cols-4">
                 <InsightCard
                     title="Optimal Send Window"
@@ -359,13 +346,12 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 />
                 <InsightCard
                     title="Network Reach"
-                    value={data.insights.unique_recipients}
+                    value={data?.insights?.unique_recipients || 0}
                     icon={Users}
                     subtext="Unique active connections"
                 />
             </div>
 
-            {/* Advanced Charts Row 1 */}
             <div className="grid gap-10 lg:grid-cols-3">
                 <ChartCard
                     title="Temporal Engagement Matrix"
@@ -392,19 +378,8 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" opacity={0.1} />
-                        <XAxis
-                            dataKey="hour"
-                            stroke="#9ca3af"
-                            tick={false}
-                            axisLine={false}
-                        />
-                        <YAxis
-                            stroke="#9ca3af"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 10, fontWeight: 'bold' }}
-                            allowDecimals={false}
-                        />
+                        <XAxis dataKey="hour" stroke="#9ca3af" tick={false} axisLine={false} />
+                        <YAxis stroke="#9ca3af" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} allowDecimals={false} />
                         <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.05)', strokeWidth: 2 }} />
                         <Legend
                             verticalAlign="top"
@@ -450,7 +425,6 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 </ChartCard>
             </div>
 
-            {/* Campaign Summary Section */}
             {data.summary && (
                 <div className="group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20">
                     <div className="flex items-center gap-4 mb-10">
@@ -462,7 +436,6 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">Complete campaign telemetry</p>
                         </div>
                     </div>
-
                     <div className="grid gap-8 grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-12">
                         {[
                             { label: 'Total Events', value: data.summary.total_events, icon: Activity },
@@ -478,7 +451,6 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             </div>
                         ))}
                     </div>
-
                     {data.summary.event_types_breakdown && data.summary.event_types_breakdown.length > 0 && (
                         <div className="space-y-6 pt-10 border-t border-border/40">
                             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Type Synchronicity</h4>
@@ -498,7 +470,6 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                 </div>
             )}
 
-            {/* Click Analytics Distribution Section */}
             <div className="group rounded-[2.5rem] border border-border bg-card p-10 shadow-xl transition-all hover:border-primary/20">
                 <div className="flex items-center gap-4 mb-10">
                     <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
@@ -509,7 +480,6 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">Terminal and platform distribution</p>
                     </div>
                 </div>
-
                 <div className="grid gap-10 grid-cols-1 lg:grid-cols-3 mb-12">
                     {[
                         { title: 'Device Matrix', data: data.clickData.device, subtitle: 'Hardware distribution' },
@@ -552,8 +522,6 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                         </div>
                     ))}
                 </div>
-
-                {/* Top Clicked Links */}
                 <div className="pt-10 border-t border-border/40">
                     <div className="flex items-center gap-3 mb-8">
                         <LinkIcon className="h-4 w-4 text-primary" />

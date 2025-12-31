@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { api, Campaign } from '@/lib/api';
 import { AnalyticsCharts } from '@/app/campaigns/[id]/AnalyticsCharts';
 import { Globe } from '@/components/ui/Globe';
-import { Loader2, BarChart3, Globe2, Sparkles, CheckCircle2, AlertTriangle, Lightbulb, ArrowRight, ChevronDown } from 'lucide-react';
+import { Loader2, BarChart3, Globe2, Sparkles, CheckCircle2, AlertTriangle, Lightbulb, ArrowRight, ChevronDown, RefreshCcw } from 'lucide-react';
 import { Dialog } from '@/components/ui/Dialog';
 import { CampaignEventsResponse } from '@/lib/api';
 
@@ -47,6 +47,46 @@ export default function AnalyticsPage() {
     const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
     const [aiReport, setAiReport] = useState<InsightsReport | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [isPolling, setIsPolling] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [userTimezone, setUserTimezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+    useEffect(() => {
+        const fetchTimezone = async () => {
+            try {
+                const response = await api.get('/auth/me');
+                if (response.data?.user?.timezone) {
+                    setUserTimezone(response.data.user.timezone);
+                }
+            } catch (error) {
+                console.log('Using default browser timezone');
+            }
+        };
+        fetchTimezone();
+    }, []);
+
+    useEffect(() => {
+        if (!isRefreshing && (refreshTrigger > 0 || summary)) {
+            setLastUpdated(new Date());
+        }
+    }, [isRefreshing, refreshTrigger, summary]);
+
+    const handleRefresh = () => {
+        setRefreshTrigger(prev => prev + 1);
+    };
+
+    // Polling effect
+    useEffect(() => {
+        if (!isPolling) return;
+
+        const interval = setInterval(() => {
+            handleRefresh();
+        }, 30000); // Poll every 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isPolling]);
 
     const generateInsights = async () => {
         const campaign = campaigns.find(c => c.id === selectedCampaignId);
@@ -118,7 +158,20 @@ export default function AnalyticsPage() {
     // ...
 
     return (
-        <div className="max-w-6xl mx-auto space-y-10 pb-20">
+        <div className="max-w-6xl mx-auto space-y-10 pb-20 relative">
+            {/* Top Progress Bar for Fluency */}
+            <div className={`fixed top-0 left-0 right-0 h-1 bg-primary/20 z-[100] transition-opacity duration-500 ${isRefreshing ? 'opacity-100' : 'opacity-0'}`}>
+                <div className="h-full bg-primary animate-[progressBar_2s_ease-in-out_infinite] w-full origin-left" />
+            </div>
+
+            <style jsx global>{`
+                @keyframes progressBar {
+                    0% { transform: scaleX(0); }
+                    50% { transform: scaleX(0.7); }
+                    100% { transform: scaleX(1); opacity: 0; }
+                }
+            `}</style>
+
             {/* Header Section */}
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -130,10 +183,40 @@ export default function AnalyticsPage() {
                         View performance metrics and insights for your campaigns
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="px-4 py-2 rounded-xl bg-card border border-border shadow-sm flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm font-bold">Real-time Updates</span>
+                <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-3">
+                        {lastUpdated && (
+                            <span className={`text-[10px] font-bold text-muted-foreground uppercase tracking-widest transition-opacity duration-300 ${isRefreshing ? 'opacity-40' : 'opacity-100'}`}>
+                                Last synced: {lastUpdated.toLocaleTimeString('en-US', {
+                                    timeZone: userTimezone,
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit',
+                                    hour12: true
+                                })}
+                            </span>
+                        )}
+                        <button
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className={`p-2.5 rounded-xl bg-card border border-border shadow-sm hover:border-primary/50 transition-all active:scale-95 group ${isRefreshing ? 'opacity-70' : ''}`}
+                            title="Manual Refresh"
+                        >
+                            <RefreshCcw className={`w-5 h-5 text-muted-foreground group-hover:text-primary transition-transform duration-700 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        </button>
+                        <button
+                            onClick={() => setIsPolling(!isPolling)}
+                            className={`px-4 py-2 rounded-xl border border-border shadow-sm flex items-center gap-3 transition-all group/poll ${isPolling ? 'bg-primary/5 border-primary/20 hover:bg-primary/[0.08]' : 'bg-card hover:bg-muted/50'}`}
+                            title={isPolling ? "Disable real-time updates" : "Enable real-time updates"}
+                        >
+                            <div className={`w-2 h-2 rounded-full transition-all ${isPolling ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30 group-hover/poll:bg-muted-foreground/50'}`} />
+                            <div className="flex flex-col items-start leading-tight">
+                                <span className="text-sm font-bold">{isPolling ? 'Real-time Active' : 'Real-time Paused'}</span>
+                                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/40 transition-all group-hover/poll:text-primary/70">
+                                    Click to {isPolling ? 'Pause' : 'Resume'}
+                                </span>
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -201,7 +284,7 @@ export default function AnalyticsPage() {
                                 )}
                             </div>
 
-                            <div className="p-1 pr-1 pl-6 rounded-2xl bg-primary/5 border border-primary/10 backdrop-blur-md flex items-center justify-between group/ai transition-all hover:bg-primary/10">
+                            <div className="p-2 pr-2 pl-6 rounded-2xl bg-primary/5 border border-primary/10 backdrop-blur-md flex items-center justify-between group/ai transition-all hover:bg-primary/10">
                                 <div className="flex items-center gap-4 py-3">
                                     <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover/ai:scale-110 transition-transform">
                                         <Sparkles className="h-6 w-6" />
@@ -252,6 +335,8 @@ export default function AnalyticsPage() {
                             variationFilter={isABTest && selectedVariation !== 'all' ? selectedVariation : undefined}
                             onAvailableCountriesChange={setAvailableCountries}
                             onDataLoaded={setSummary}
+                            refreshTrigger={refreshTrigger}
+                            onRefreshingChange={setIsRefreshing}
                         />
                     </div>
                 ) : (
