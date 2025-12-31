@@ -8,7 +8,6 @@
   [![Terraform](https://img.shields.io/badge/IaC-Terraform-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
   [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
   [![Next.js](https://img.shields.io/badge/Next.js-16.0-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
-  [![License](https://img.shields.io/badge/License-MIT-green.svg)](.github/LICENSE.md)
 
   **Serverless email marketing platform built on AWS with real-time analytics, AI-powered content generation, and multi-region deployment.**
 
@@ -21,7 +20,6 @@
 
 - [✨ Features](#-features)
 - [🏗️ Architecture](#️-architecture)
-- [🚀 Quick Start](#-quick-start)
 - [💻 Platform Usage](#-platform-usage)
 - [📚 API Reference](#-api-reference)
 - [📄 License](#-license)
@@ -53,16 +51,6 @@ Sentinel operates on a fully **Serverless Microservices Architecture**, optimizi
 
 ---
 
-## � Quick Start
-
-To begin developing or hosting your own instance of Sentinel:
-
-1. **Prerequisites**: Ensure you have an AWS Account, Terraform, and Node.js 20+ installed.
-2. **Setup**: Follow the **[Developer Guide](assets/docs/DEVELOPER_GUIDE.md)** for step-by-step install and config instructions.
-3. **Environment**: Configure your AWS Secrets Manager with Gemini API keys as described in the guide.
-
----
-
 ## 💻 Platform Usage
 
 Sentinel is designed for both high-productivity web usage and heavy-duty programmatic integration.
@@ -85,18 +73,9 @@ The Sentinel API is organized around REST. All requests must be authenticated us
 
 ---
 
-## � License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](.github/LICENSE.md) file for details.
-
----
-
-## �🙏 Acknowledgments
-
-- **AWS** — Powering the serverless backbone.
-- **Google Gemini** — Bringing state-of-the-art AI to marketing.
-- **Terraform** — Providing reliable infrastructure as code.
-- **Next.js** — Delivering a world-class frontend experience.
 
 ---
 
