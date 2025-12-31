@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export function PublicFooter() {
@@ -7,7 +8,7 @@ export function PublicFooter() {
                 <div className="flex flex-col md:flex-row justify-between items-start gap-12">
                     <div className="space-y-4">
                         <div className="flex items-center gap-3">
-                            <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-6 w-auto opacity-80" />
+                            <Image src="/images/sentinel-logo.png" alt="Sentinel Logo" width={24} height={24} className="h-6 w-auto opacity-80" />
                             <span className="font-display font-black text-xl tracking-tighter uppercase">Sentinel</span>
                         </div>
                         <p className="text-sm text-muted-foreground font-medium max-w-xs">
@@ -19,6 +20,7 @@ export function PublicFooter() {
                         <div className="space-y-4">
                             <h4 className="text-sm font-bold uppercase tracking-widest text-foreground">Resources</h4>
                             <ul className="space-y-2 text-sm font-medium text-muted-foreground">
+                                <li><Link href="/blog" className="hover:text-primary transition-colors">Blog & Guides</Link></li>
                                 <li><Link href="https://github.com/Kushagrabainsla/sentinel/blob/main/assets/docs/API_USAGE_GUIDE.md" className="hover:text-primary transition-colors">Documentation</Link></li>
                                 <li><Link href="https://github.com/Kushagrabainsla/sentinel" className="hover:text-primary transition-colors">GitHub</Link></li>
                             </ul>

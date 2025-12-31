@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Zap, Shield, Mail, CheckCircle2, Users, BarChart3, ChevronDown, Activity, Server, Key, DollarSign, Sparkles, Layers, Search, MessageSquare, Smartphone, Monitor, Globe2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -16,7 +17,7 @@ export default function LandingPage() {
   }, []);
 
   // Structured Data for SEO
-  const structuredData = {
+  const softwareSchema = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Sentinel",
@@ -37,9 +38,48 @@ export default function LandingPage() {
       "Email Campaign Management",
       "AI-Powered Content Generation",
       "Advanced Analytics",
-      "Audience Segmentation",
+      "Audience segmentation",
       "A/B Testing",
       "Real-time Tracking"
+    ]
+  };
+
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Sentinel exactly?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sentinel is a high-performance email marketing infrastructure built for teams who need more control, better deliverability, and AI-powered automation without the complexity of traditional platforms."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need my own email provider?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Sentinel currently integrates seamlessly with AWS SES to provide the most reliable and cost-effective sending infrastructure, though we handle all the complexity of management for you."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does the AI generation work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "We leverage advanced AI to analyze your audience's historical engagement and generate high-converting subject lines and email copy tailored to your brand voice."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is my data secure?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Security is built into our core. We use enterprise-grade encryption for all data at rest and in transit, and we never use your proprietary email data to train public AI models."
+        }
+      }
     ]
   };
 
@@ -48,7 +88,11 @@ export default function LandingPage() {
       {/* Structured Data for SEO */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
       {/* Cinematic Background */}
@@ -108,9 +152,12 @@ export default function LandingPage() {
                 <div className="relative rounded-[4rem] overflow-hidden border border-white/10 bg-black/30 backdrop-blur-2xl shadow-[0_0_60px_-10px_rgba(107,17,244,0.4)] transition-all duration-1000 aspect-square flex items-center justify-center mx-auto">
                   <div className="relative z-10 p-0 flex items-center justify-center w-full h-full">
                     <div className="absolute inset-0 bg-primary/30 rounded-full blur-[80px] animate-pulse [animation-duration:3s]" />
-                    <img
+                    <Image
                       src="/images/sentinel-logo.png"
                       alt="Sentinel"
+                      width={450}
+                      height={450}
+                      priority
                       className="w-full h-full object-contain relative z-20 drop-shadow-[0_0_40px_rgba(107,17,244,0.5)] transition-all duration-1000 group-hover:scale-105 invert dark:invert-0"
                     />
                   </div>
@@ -149,8 +196,8 @@ export default function LandingPage() {
                   <div className="flex items-center gap-4">
                     <div className="flex -space-x-4">
                       {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="w-10 h-10 rounded-full border-4 border-card bg-muted flex items-center justify-center overflow-hidden">
-                          <img src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="user" className="w-full h-full object-cover" />
+                        <div key={i} className="w-10 h-10 rounded-full border-4 border-card bg-muted flex items-center justify-center overflow-hidden relative">
+                          <Image src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="user" fill className="object-cover" />
                         </div>
                       ))}
                     </div>
@@ -270,7 +317,7 @@ export default function LandingPage() {
                           <div className="w-12 h-0.5 border-t-2 border-dashed border-primary/20" />
                         </div>
                         <div className="w-20 h-20 rounded-3xl bg-primary text-primary-foreground shadow-2xl flex items-center justify-center transition-all duration-700 hover:scale-105">
-                          <img src="/images/sentinel-logo.png" alt="Sentinel" width={32} height={32} className="h-8 w-8 invert dark:invert-0" />
+                          <Image src="/images/sentinel-logo.png" alt="Sentinel" width={32} height={32} className="h-8 w-8 invert dark:invert-0" />
                         </div>
                       </div>
 

@@ -6,7 +6,7 @@ import { AuthGuard } from '../auth/AuthGuard';
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const isPublicPage = ['/', '/login', '/register', '/privacy', '/terms'].includes(pathname);
+    const isPublicPage = ['/', '/login', '/register', '/privacy', '/terms'].includes(pathname) || pathname?.startsWith('/blog');
 
     return (
         <AuthGuard>

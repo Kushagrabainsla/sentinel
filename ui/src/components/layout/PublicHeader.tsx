@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -14,13 +15,14 @@ export function PublicHeader() {
     return (
         <header className="px-6 py-4 flex items-center justify-between border-b border-border/40 bg-background/60 backdrop-blur-xl sticky top-0 z-[100]" role="banner">
             <div className="flex items-center gap-2 group cursor-pointer">
-                <img src="/images/sentinel-logo.png" alt="Sentinel Logo" className="h-7 w-auto transition-transform group-hover:scale-110" />
+                <Image src="/images/sentinel-logo.png" alt="Sentinel Logo" width={28} height={28} className="h-7 w-auto transition-transform group-hover:scale-110" />
                 <Link href="/" className="font-display font-black text-xl tracking-tighter">Sentinel</Link>
             </div>
 
             <nav className="hidden md:flex items-center gap-12 absolute left-1/2 -translate-x-1/2" role="navigation">
-                <Link href="#features" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">Features</Link>
-                <Link href="#pricing" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
+                <Link href="/#features" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">Features</Link>
+                <Link href="/blog" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">Blog</Link>
+                <Link href="/#pricing" className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
             </nav>
 
             <div className="flex items-center gap-3">
