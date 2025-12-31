@@ -67,10 +67,6 @@ This project is licensed under the MIT License - see the [LICENSE](.github/LICEN
 ---
 
 <div align="center">
-  <br />
-  <img src="/assets/images/sentinel-logo.png" alt="Sentinel Logo" width="32" height="32" style="vertical-align: middle; margin-right: 8px;">
-  <b>Sentinel</b> — The Serverless Marketing Engine
-  <br />
   <p align="center">
     Built with precision by the <b>Sentinel Team</b>
     <br />
