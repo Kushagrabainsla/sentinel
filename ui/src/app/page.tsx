@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { ArrowRight, Zap, Shield, Mail, CheckCircle2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Globe } from "@/components/ui/Globe";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 
 export default function LandingPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const apiKey = localStorage.getItem('sentinel_api_key');
+    setIsLoggedIn(!!apiKey);
+  }, []);
+
   // Structured Data for SEO
   const structuredData = {
     "@context": "https://schema.org",
@@ -133,10 +140,10 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6 pt-8">
             <Link
-              href="/register"
+              href={isLoggedIn ? "/dashboard" : "/register"}
               className="group inline-flex items-center justify-center rounded-full text-lg font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6B11F4] disabled:pointer-events-none disabled:opacity-50 bg-[#6B11F4] text-white hover:bg-[#5b0ecf] hover:scale-105 h-14 px-10 shadow-[0_0_20px_rgba(107,17,244,0.5)]"
             >
-              Start for free
+              {isLoggedIn ? "Go to Dashboard" : "Start for free"}
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
@@ -240,10 +247,10 @@ export default function LandingPage() {
               </p>
               <div className="pt-6">
                 <Link
-                  href="/register"
+                  href={isLoggedIn ? "/dashboard" : "/register"}
                   className="inline-flex items-center justify-center rounded-full text-lg font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6B11F4] disabled:pointer-events-none disabled:opacity-50 bg-white text-black hover:bg-gray-200 h-14 px-12 shadow-lg"
                 >
-                  Create free account
+                  {isLoggedIn ? "Go to Dashboard" : "Create free account"}
                 </Link>
               </div>
               <p className="text-sm text-gray-500 pt-4">
