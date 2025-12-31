@@ -16,29 +16,29 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [✨ Features](#-features)
-- [💻 Platform Usage](#-platform-usage)
-- [📚 API Reference](#-api-reference)
-- [📄 License](#-license)
-
----
-
-## ✨ Features
-
-- 🔐 **Secure Authentication** — API key-based access with custom Lambda authorizers and route protection.
-- 📧 **Campaign Management** — Seamlessly create, schedule, and track immediate or timed email campaigns.
-- 📊 **Real-time Analytics** — Deep insights into opens (human vs. proxy), clicks, and behavioral distribution.
-- 🤖 **AI-Powered Insights** — Generate high-converting email content and performance recommendations via Gemini AI.
-- 🌍 **Global Scalability** — Built on multi-region DynamoDB Global Tables for sub-second latency worldwide.
-- 📱 **Premium Dashboard** — A state-of-the-art Next.js 16 interface with interactive charts and real-time polling.
-
-> 🔍 For a technical deep-dive into security and performance metrics, see the [Project Report](assets/docs/PROJECT_REPORT.md).
+- [Features](#features)
+- [Platform Usage](#platform-usage)
+- [API Reference](#api-reference)
+- [License](#license)
 
 ---
 
-## 💻 Platform Usage
+## Features
+
+- **Secure Authentication** — API key-based access with custom Lambda authorizers and route protection.
+- **Campaign Management** — Seamlessly create, schedule, and track immediate or timed email campaigns.
+- **Real-time Analytics** — Deep insights into opens (human vs. proxy), clicks, and behavioral distribution.
+- **AI-Powered Insights** — Generate high-converting email content and performance recommendations via Gemini AI.
+- **Global Scalability** — Built on multi-region DynamoDB Global Tables for sub-second latency worldwide.
+- **Premium Dashboard** — A state-of-the-art Next.js 16 interface with interactive charts and real-time polling.
+
+> For a technical deep-dive into security and performance metrics, see the [Project Report](assets/docs/PROJECT_REPORT.md).
+
+---
+
+## Platform Usage
 
 Sentinel is designed for both high-productivity web usage and heavy-duty programmatic integration.
 
@@ -47,7 +47,7 @@ Sentinel is designed for both high-productivity web usage and heavy-duty program
 
 ---
 
-## 📚 API Reference
+## API Reference
 
 The Sentinel API is organized around REST. All requests must be authenticated using the `X-API-Key` header.
 
@@ -60,15 +60,23 @@ The Sentinel API is organized around REST. All requests must be authenticated us
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](.github/LICENSE.md) file for details.
 
 ---
 
 <div align="center">
-  Released under the [MIT License](.github/LICENSE.md). <br>
-  Developed by the Sentinel Team.
-  
-  [⬆ Back to Top](#sentinel)
+  <br />
+  <img src="/assets/images/sentinel-logo.png" alt="Sentinel Logo" width="32" height="32" style="vertical-align: middle; margin-right: 8px;">
+  <b>Sentinel</b> — The Serverless Marketing Engine
+  <br />
+  <p align="center">
+    Built with precision by the <b>Sentinel Team</b>
+    <br />
+    <br />
+    <a href="#sentinel">
+      <img src="https://img.shields.io/badge/-Back%20to%20Top-eaecef?style=flat-square&logo=gitbook&logoColor=bcbcbc" alt="Back to Top">
+    </a>
+  </p>
 </div>
