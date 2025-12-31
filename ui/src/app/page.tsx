@@ -63,16 +63,21 @@ export default function LandingPage() {
       <main className="flex-1 relative z-10 w-full">
         {/* Massive Apple-style Hero */}
         <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 text-center pt-40 md:pt-48 pb-40 overflow-hidden">
-          <div className="container max-w-7xl mx-auto space-y-12">
+          {/* Cinematic Background Elements */}
+          <div className="absolute inset-0 z-0">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/20 rounded-full blur-[120px] opacity-20" />
+          </div>
+
+          <div className="container max-w-7xl mx-auto space-y-12 relative z-10">
             <div className="space-y-6 animate-fade-in-up opacity-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-bold tracking-tight text-primary backdrop-blur-md">
-                <Zap className="w-4 h-4 fill-primary" />
-                <span>Introducing Sentinel v2.0</span>
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-purple-500/10 px-4 py-2 text-sm font-bold tracking-tight text-primary backdrop-blur-md shadow-[0_0_20px_-5px_rgba(107,17,244,0.3)]">
+                <Zap className="w-4 h-4 fill-primary animate-pulse" />
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">Introducing Sentinel v2.0</span>
               </div>
 
-              <h1 className="text-7xl md:text-[120px] font-display font-black tracking-[-0.04em] leading-[0.95] text-balance">
+              <h1 className="text-7xl md:text-[140px] font-display font-black tracking-[-0.06em] leading-[0.9] text-balance">
                 Email marketing, <br />
-                <span className="bg-clip-text text-transparent bg-gradient-to-b from-primary via-primary to-primary/40">refined.</span>
+                <span className="bg-clip-text text-transparent bg-gradient-to-b from-primary via-primary to-primary/20">reimagined.</span>
               </h1>
 
               <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto leading-relaxed font-medium">
@@ -97,35 +102,67 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            {/* Floating Device Mockup */}
+            {/* Refined Balanced Logo Container */}
             <div className="relative pt-20 animate-fade-in-up opacity-0 [animation-delay:400ms]">
-              <div className="relative mx-auto max-w-5xl group overflow-hidden rounded-[3rem] p-2 bg-gradient-to-b from-border/50 via-border/20 to-transparent border border-border/50 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)] dark:shadow-[0_40px_100px_-20px_rgba(107,17,244,0.2)]">
-                <div className="rounded-[2.5rem] overflow-hidden border border-border bg-card shadow-inner transition-transform duration-1000 group-hover:scale-[1.01] aspect-video bg-muted/50">
-                  <img
-                    src="/images/og-image.png"
-                    alt="Sentinel Dashboard"
-                    className="w-full h-full object-cover opacity-90 transition-opacity duration-700 group-hover:opacity-100"
-                  />
+              <div className="relative mx-auto max-w-[450px] group">
+                <div className="relative rounded-[4rem] overflow-hidden border border-white/10 bg-black/30 backdrop-blur-2xl shadow-[0_0_60px_-10px_rgba(107,17,244,0.4)] transition-all duration-1000 aspect-square flex items-center justify-center mx-auto">
+                  <div className="relative z-10 p-0 flex items-center justify-center w-full h-full">
+                    <div className="absolute inset-0 bg-primary/30 rounded-full blur-[80px] animate-pulse [animation-duration:3s]" />
+                    <img
+                      src="/images/sentinel-logo.png"
+                      alt="Sentinel"
+                      className="w-full h-full object-contain relative z-20 drop-shadow-[0_0_40px_rgba(107,17,244,0.5)] transition-all duration-1000 group-hover:scale-105 invert dark:invert-0"
+                    />
+                  </div>
+
+                  {/* Elegant ambient gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10 pointer-events-none" />
                 </div>
-                {/* Glass overlay effect */}
-                <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-background to-transparent pointer-events-none" />
               </div>
 
-              {/* Secondary Floating Elements */}
-              <div className="absolute -left-12 top-1/2 -translate-y-1/2 animate-float hidden lg:block">
-                <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl backdrop-blur-xl space-y-3 shadow-primary/5">
-                  <div className="h-2 w-20 bg-primary/20 rounded-full" />
-                  <div className="h-2 w-12 bg-primary/10 rounded-full" />
+              {/* Enhanced Secondary Floating Elements */}
+              <div className="absolute -left-16 top-1/2 -translate-y-1/2 animate-float hidden xl:block z-20">
+                <div className="p-8 rounded-[2.5rem] bg-card/80 border border-white/10 shadow-3xl backdrop-blur-3xl space-y-6 w-80 text-left">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
+                      <Zap className="w-6 h-6 fill-primary" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-widest opacity-50">AI Content Engine</div>
+                      <div className="text-base font-bold">Generating Draft...</div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-2 w-full bg-primary/10 rounded-full overflow-hidden">
+                      <div className="h-full w-[70%] bg-primary animate-pulse" />
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
+                      <span>70% Confidence</span>
+                      <span className="text-primary">Live</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="absolute -right-12 bottom-20 animate-float [animation-delay:1s] hidden lg:block">
-                <div className="p-4 rounded-3xl bg-card border border-border shadow-2xl backdrop-blur-xl flex gap-3 items-center shadow-primary/5">
-                  <div className="h-8 w-8 rounded-xl bg-green-500/20 flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+
+              <div className="absolute -right-24 bottom-20 animate-float [animation-delay:1.5s] hidden xl:block z-20">
+                <div className="p-8 rounded-[2.5rem] bg-card/80 border border-white/10 shadow-3xl backdrop-blur-3xl space-y-6 w-80 text-left">
+                  <div className="flex items-center gap-4">
+                    <div className="flex -space-x-4">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="w-10 h-10 rounded-full border-4 border-card bg-muted flex items-center justify-center overflow-hidden">
+                          <img src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="user" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="h-6 w-px bg-white/10" />
+                    <div className="text-base font-bold">+1,248</div>
                   </div>
-                  <div className="space-y-1">
-                    <div className="h-2 w-12 bg-primary/20 rounded-full" />
-                    <div className="h-1.5 w-8 bg-primary/10 rounded-full" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20 text-[11px] font-black text-green-500 uppercase">
+                      <Activity className="w-3.5 h-3.5" />
+                      Live Conversion
+                    </div>
+                    <span className="text-[10px] font-bold opacity-40">2s ago</span>
                   </div>
                 </div>
               </div>
