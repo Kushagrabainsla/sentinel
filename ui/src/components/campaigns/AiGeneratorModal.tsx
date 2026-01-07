@@ -260,7 +260,28 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
                         <div className="flex flex-col sm:flex-row gap-4">
                             <input
                                 value={newLinkText}
-                                onChange={(e) => setNewLinkText(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    // If user pastes a URL into the text field, automatically move it to URL field
+                                    if (/^https?:\/\/\S+$/.test(val) && !newLinkUrl) {
+                                        setNewLinkUrl(val);
+                                        // Try to extract a decent label from the domain
+                                        try {
+                                            const domain = new URL(val).hostname.replace('www.', '');
+                                            setNewLinkText(domain.charAt(0).toUpperCase() + domain.slice(1));
+                                        } catch (e) {
+                                            setNewLinkText('');
+                                        }
+                                    } else {
+                                        setNewLinkText(val);
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newLinkText && newLinkUrl) {
+                                        e.preventDefault();
+                                        handleAddLink();
+                                    }
+                                }}
                                 placeholder="Protocol Label (Text)"
                                 className="h-14 flex-1 rounded-2xl border border-border bg-background/50 px-5 py-2 text-sm font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                             />
@@ -268,6 +289,12 @@ export function AiGeneratorModal({ onGenerate, mode = 'single' }: AiGeneratorMod
                                 <input
                                     value={newLinkUrl}
                                     onChange={(e) => setNewLinkUrl(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && newLinkText && newLinkUrl) {
+                                            e.preventDefault();
+                                            handleAddLink();
+                                        }
+                                    }}
                                     placeholder="Source URI (URL)"
                                     className="h-14 flex-1 rounded-2xl border border-border bg-background/50 px-5 py-2 text-sm font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none"
                                 />
