@@ -18,6 +18,7 @@ import uuid
 import re
 from decimal import Decimal
 from datetime import datetime, timezone
+import pytz
 import boto3
 from botocore.exceptions import ClientError
 from boto3.dynamodb.conditions import Key, Attr
@@ -124,7 +125,7 @@ def get_campaign(event):
 
 def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_type=None, recipient_email=None, 
                    schedule_at=None, subject=None, html_body=None, from_email=None, from_name=None, owner_id=None,
-                   ab_test_config=None, variations=None):
+                   ab_test_config=None, variations=None, timezone=None):
     """Create a campaign item and return its id (string UUID)."""
     
     campaigns_table = get_campaigns_table()
@@ -183,7 +184,8 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
         "tags": [],  # For categorization and filtering
         "metadata": {},  # For additional custom fields
         "ab_test_config": ab_test_config,
-        "variations": variations
+        "variations": variations,
+        "timezone": timezone
     }
     
     try:
@@ -194,8 +196,8 @@ def create_campaign_record(name, segment_id=None, campaign_type=None, delivery_t
 
 
 
-def create_scheduler_rule(campaign_id, schedule_at):
-    """Create EventBridge Scheduler rule to automatically start campaign"""
+def create_scheduler_rule(campaign_id, schedule_at, user_timezone="UTC"):
+    """Create EventBridge Scheduler rule to automatically start campaign using strict user timezone"""
     scheduler = boto3.client("scheduler")
     start_lambda_arn = os.environ.get("START_CAMPAIGN_LAMBDA_ARN")
     scheduler_role_arn = os.environ.get("EVENTBRIDGE_ROLE_ARN")
@@ -205,11 +207,21 @@ def create_scheduler_rule(campaign_id, schedule_at):
         return False
     
     try:
-        # Convert epoch timestamp to datetime
-        schedule_dt = datetime.fromtimestamp(schedule_at, timezone.utc)
+        # Convert absolute epoch to the 'wall-clock' time string in the target timezone
+        # This ensures the AWS Scheduler log and execution matches the user's intent precisely
+        try:
+            tz = pytz.timezone(user_timezone)
+        except pytz.exceptions.UnknownTimeZoneError:
+            print(f"⚠️ Unknown timezone {user_timezone}, falling back to UTC")
+            tz = pytz.UTC
+            user_timezone = "UTC"
+        
+        # Convert epoch to localized datetime object
+        dt = datetime.fromtimestamp(schedule_at, tz=tz)
+        expression_time = dt.strftime('%Y-%m-%dT%H:%M:%S')
         
         # Only create scheduler if it's in the future
-        if schedule_dt <= datetime.now(timezone.utc):
+        if schedule_at <= time.time():
             print(f"Schedule time {schedule_at} is in the past, skipping scheduler")
             return False
         
@@ -219,7 +231,8 @@ def create_scheduler_rule(campaign_id, schedule_at):
         scheduler.create_schedule(
             Name=schedule_name,
             Description=f"Auto-start campaign {campaign_id}",
-            ScheduleExpression=f"at({schedule_dt.strftime('%Y-%m-%dT%H:%M:%S')})",
+            ScheduleExpression=f"at({expression_time})",
+            ScheduleExpressionTimezone=user_timezone, # Explicitly use user's timezone
             Target={
                 "Arn": start_lambda_arn,
                 "RoleArn": scheduler_role_arn,
@@ -229,7 +242,7 @@ def create_scheduler_rule(campaign_id, schedule_at):
             ActionAfterCompletion="DELETE"  # Auto-delete after execution
         )
         
-        print(f"✅ Created scheduler rule: {schedule_name} for {schedule_at}")
+        print(f"✅ Created scheduler rule: {schedule_name} for {expression_time} ({user_timezone})")
         return True
         
     except Exception as e:
@@ -282,6 +295,8 @@ def create_campaign(event):
         delivery_type = body.get("delivery_type")  # "IND" for individual, "SEG" for segment
         recipient_email = body.get("recipient_email")  # For individual campaigns
         schedule_at = body.get("schedule_at")  # Epoch timestamp or None
+        user_timezone = user.get("timezone", "UTC") # Always use user's object timezone
+        
         
         # Direct email content is required
         subject = body.get("subject")
@@ -390,7 +405,8 @@ def create_campaign(event):
             from_name=from_name,
             owner_id=user['id'],
             ab_test_config=ab_test_config,
-            variations=variations
+            variations=variations,
+            timezone=user_timezone
         )
         
         # Dual-path approach based on campaign type:
@@ -417,8 +433,8 @@ def create_campaign(event):
                 else:
                     response_data["temporary_segment"] = False
         elif campaign_type == CampaignType.SCHEDULED.value:  # Scheduled campaigns
-            print(f"📅 Scheduled execution path for campaign {campaign_id}")
-            scheduler_created = create_scheduler_rule(campaign_id, schedule_at)
+            print(f"📅 Scheduled execution path for campaign {campaign_id} in {user_timezone}")
+            scheduler_created = create_scheduler_rule(campaign_id, schedule_at, user_timezone)
             
             response_data = {
                 "campaign_id": campaign_id,
@@ -428,6 +444,7 @@ def create_campaign(event):
                 "recipient_email": recipient_email if delivery_type == CampaignDeliveryType.INDIVIDUAL.value else None,
                 "segment_id": final_segment_id if delivery_type == CampaignDeliveryType.SEGMENT.value else None,
                 "schedule_at": schedule_at,
+                "timezone": user_timezone,
                 "auto_scheduler": scheduler_created
             }
             

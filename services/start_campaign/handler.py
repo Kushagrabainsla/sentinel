@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 from common import CampaignState, CampaignStatus, CampaignDeliveryType, SegmentStatus, CampaignType
 import random
 from datetime import datetime, timezone
+import pytz
 
 # Database utilities (moved from common_db.py)
 _dynamo = None
@@ -199,8 +200,8 @@ def _chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i+n]
 
-def create_ab_test_scheduler(campaign_id, decision_time):
-    """Create EventBridge Scheduler rule for A/B test analysis"""
+def create_ab_test_scheduler(campaign_id, decision_time, user_timezone="UTC"):
+    """Create EventBridge Scheduler rule for A/B test analysis using strict user timezone"""
     scheduler = boto3.client("scheduler")
     analyzer_lambda_arn = os.environ.get("AB_TEST_ANALYZER_LAMBDA_ARN")
     scheduler_role_arn = os.environ.get("EVENTBRIDGE_ROLE_ARN")
@@ -210,13 +211,22 @@ def create_ab_test_scheduler(campaign_id, decision_time):
         return False
     
     try:
-        # Convert epoch timestamp to datetime (handle Decimal from DynamoDB)
-        # Force conversion to float first to handle Decimal safely, then to int
+        # Convert epoch timestamp to localized datetime object
         decision_time_int = int(float(decision_time))
-        schedule_dt = datetime.fromtimestamp(decision_time_int, timezone.utc)
         
-        # Only create scheduler if it's in the future
-        if schedule_dt <= datetime.now(timezone.utc):
+        try:
+            tz = pytz.timezone(user_timezone)
+        except pytz.exceptions.UnknownTimeZoneError:
+            print(f"⚠️ Unknown timezone {user_timezone}, falling back to UTC")
+            tz = pytz.UTC
+            user_timezone = "UTC"
+            
+        # Get localized expression time
+        dt = datetime.fromtimestamp(decision_time_int, tz=tz)
+        expression_time = dt.strftime('%Y-%m-%dT%H:%M:%S')
+        
+        # Only create scheduler if it's in the future (use time.time() for absolute check)
+        if decision_time_int <= int(time.time()):
             print(f"Decision time {decision_time} is in the past, skipping scheduler")
             return False
         
@@ -226,7 +236,8 @@ def create_ab_test_scheduler(campaign_id, decision_time):
         scheduler.create_schedule(
             Name=schedule_name,
             Description=f"Analyze A/B test for campaign {campaign_id}",
-            ScheduleExpression=f"at({schedule_dt.strftime('%Y-%m-%dT%H:%M:%S')})",
+            ScheduleExpression=f"at({expression_time})",
+            ScheduleExpressionTimezone=user_timezone, # Explicitly use user's timezone
             Target={
                 "Arn": analyzer_lambda_arn,
                 "RoleArn": scheduler_role_arn,
@@ -236,7 +247,7 @@ def create_ab_test_scheduler(campaign_id, decision_time):
             ActionAfterCompletion="DELETE"
         )
         
-        print(f"✅ Created A/B test analyzer scheduler: {schedule_name} for {decision_time}")
+        print(f"✅ Created A/B test analyzer scheduler: {schedule_name} for {expression_time} ({user_timezone})")
         return True
         
     except Exception as e:
@@ -360,7 +371,7 @@ def lambda_handler(event, _context):
 
         # Schedule the analyzer
         if decision_time:
-            create_ab_test_scheduler(campaign_id, decision_time)
+            create_ab_test_scheduler(campaign_id, decision_time, campaign.get('timezone', 'UTC'))
             
         # Mark as SENDING (or PARTIAL?)
         # We'll keep it as SENDING until the analyzer runs and finishes the job

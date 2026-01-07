@@ -17,7 +17,10 @@ const campaignSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     segment_id: z.string().min(1, 'Segment is required'),
     schedule_type: z.enum(['immediate', 'scheduled', 'ab_test']),
-    scheduled_time: z.string().optional(),
+    scheduled_time: z.string().optional().refine((val) => {
+        if (!val) return true;
+        return new Date(val).getTime() > Date.now();
+    }, "Scheduled time must be in the future"),
 
     // Standard Campaign Fields
     subject: z.string().optional(),
@@ -66,6 +69,37 @@ export default function NewCampaignPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [segments, setSegments] = useState<Segment[]>([]);
     const [activeVariation, setActiveVariation] = useState<0 | 1 | 2>(0);
+    const [userTimezone, setUserTimezone] = useState('UTC');
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const response = await api.get('/auth/me');
+                if (response.data.user?.timezone) {
+                    setUserTimezone(response.data.user.timezone);
+                } else {
+                    setUserTimezone('UTC');
+                }
+            } catch (error) {
+                console.error('Failed to fetch user data:', error);
+                setUserTimezone('UTC');
+            }
+        };
+
+        const fetchSegments = async () => {
+            try {
+                const response = await api.get('/segments');
+                const allSegments = response.data.segments || [];
+                setSegments(allSegments.filter((s: Segment) => s.status === 'A'));
+            } catch (error) {
+                console.error('Failed to fetch segments:', error);
+                toast.error('Failed to load segments');
+            }
+        };
+
+        fetchUserData();
+        fetchSegments();
+    }, []);
 
     const {
         register,
@@ -89,21 +123,52 @@ export default function NewCampaignPage() {
     });
 
     const scheduleType = watch('schedule_type');
+    const scheduledTime = watch('scheduled_time');
 
-    useEffect(() => {
-        const fetchSegments = async () => {
-            try {
-                const response = await api.get('/segments');
-                const allSegments = response.data.segments || [];
-                // Only show active segments in the dropdown for selection
-                setSegments(allSegments.filter((s: Segment) => s.status === 'A'));
-            } catch (error) {
-                console.error('Failed to fetch segments:', error);
-                toast.error('Failed to load segments');
-            }
-        };
-        fetchSegments();
-    }, []);
+    const setPresetTime = (type: 'hour' | 'tomorrow_morning' | 'tomorrow_afternoon' | 'monday_morning') => {
+        const now = new Date();
+        let target = new Date();
+
+        if (type === 'hour') {
+            target.setHours(now.getHours() + 1);
+        } else if (type === 'tomorrow_morning') {
+            target.setDate(now.getDate() + 1);
+            target.setHours(9, 0, 0, 0);
+        } else if (type === 'tomorrow_afternoon') {
+            target.setDate(now.getDate() + 1);
+            target.setHours(14, 0, 0, 0);
+        } else if (type === 'monday_morning') {
+            const day = now.getDay();
+            const diff = day === 0 ? 1 : 8 - day; // 0 is Sunday
+            target.setDate(now.getDate() + diff);
+            target.setHours(9, 0, 0, 0);
+        }
+
+        const year = target.getFullYear();
+        const month = String(target.getMonth() + 1).padStart(2, '0');
+        const day = String(target.getDate()).padStart(2, '0');
+        const h = String(target.getHours()).padStart(2, '0');
+        const m = String(target.getMinutes()).padStart(2, '0');
+
+        setValue('scheduled_time', `${year}-${month}-${day}T${h}:${m}`, { shouldValidate: true });
+    };
+
+    const getRelativeTimeString = (timeStr: string | undefined) => {
+        if (!timeStr) return '';
+        const target = new Date(timeStr).getTime();
+        const now = Date.now();
+        const diff = target - now;
+
+        if (diff <= 0) return 'Scheduled in the past';
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) return `Starts in ${days} day${days > 1 ? 's' : ''} ${hours % 24} hour${hours % 24 !== 1 ? 's' : ''}`;
+        if (hours > 0) return `Starts in ${hours} hour${hours > 1 ? 's' : ''}`;
+        const mins = Math.floor(diff / (1000 * 60));
+        return `Starts in ${mins} minute${mins !== 1 ? 's' : ''}`;
+    };
 
     const onSubmit = async (data: CampaignFormValues) => {
         setIsLoading(true);
@@ -136,6 +201,7 @@ export default function NewCampaignPage() {
 
                 if (data.schedule_type === 'scheduled' && data.scheduled_time) {
                     payload.schedule_at = Math.floor(new Date(data.scheduled_time).getTime() / 1000);
+                    payload.timezone = userTimezone;
                 }
             }
 
@@ -459,17 +525,50 @@ export default function NewCampaignPage() {
                         </div>
 
                         {scheduleType === 'scheduled' && (
-                            <div className="space-y-4 p-8 bg-muted/30 rounded-[2rem] border border-border/50 animate-in zoom-in-95 duration-200">
-                                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest ml-1" htmlFor="scheduled_time">
-                                    Send Time
-                                </label>
-                                <div className="relative max-w-sm">
-                                    <input
-                                        type="datetime-local"
-                                        {...register('scheduled_time')}
-                                        id="scheduled_time"
-                                        className="flex h-14 w-full rounded-2xl border border-border bg-background px-5 py-2 text-base font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 outline-none"
-                                    />
+                            <div className="space-y-6 p-8 bg-primary/5 rounded-[2rem] border border-primary/10 animate-in zoom-in-95 duration-200">
+                                <div className="space-y-4">
+                                    <label className="text-xs font-black text-primary uppercase tracking-widest ml-1" htmlFor="scheduled_time">
+                                        Choose Delivery Time — <span className="text-primary/60">{userTimezone}</span>
+                                    </label>
+
+                                    {/* Quick Select Presets */}
+                                    <div className="flex flex-wrap gap-3">
+                                        {[
+                                            { id: 'hour', label: 'In 1 Hour' },
+                                            { id: 'tomorrow_morning', label: 'Tomorrow Morning' },
+                                            { id: 'tomorrow_afternoon', label: 'Tomorrow Afternoon' },
+                                            { id: 'monday_morning', label: 'Next Monday' },
+                                        ].map((preset) => (
+                                            <button
+                                                key={preset.id}
+                                                type="button"
+                                                onClick={() => setPresetTime(preset.id as any)}
+                                                className="px-4 py-2 rounded-xl bg-background border border-border text-xs font-bold hover:border-primary hover:text-primary transition-all shadow-sm"
+                                            >
+                                                {preset.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+                                        <div className="relative w-full max-w-sm">
+                                            <input
+                                                type="datetime-local"
+                                                {...register('scheduled_time')}
+                                                id="scheduled_time"
+                                                className="flex h-14 w-full rounded-2xl border border-primary/20 bg-background px-5 py-2 text-base font-bold shadow-sm transition-all focus:ring-4 focus:ring-primary/10 outline-none"
+                                            />
+                                        </div>
+
+                                        {scheduledTime && !errors.scheduled_time && (
+                                            <div className="flex items-center gap-3 px-6 py-3 bg-primary/10 rounded-2xl border border-primary/20">
+                                                <Clock className="w-4 h-4 text-primary" />
+                                                <p className="text-sm font-black text-primary uppercase tracking-wider">
+                                                    {getRelativeTimeString(scheduledTime)}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 {errors.scheduled_time && (
                                     <p className="text-xs font-bold text-destructive mt-1 flex items-center gap-1">

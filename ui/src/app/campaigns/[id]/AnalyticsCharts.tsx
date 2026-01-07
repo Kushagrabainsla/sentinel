@@ -368,10 +368,6 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                                 <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
                                 <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                             </linearGradient>
-                            <linearGradient id="colorProxyOpens" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#f97316" stopOpacity={0.2} />
-                                <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                            </linearGradient>
                             <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2} />
                                 <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
@@ -397,8 +393,7 @@ export function AnalyticsCharts({ campaignId, campaign, timeRange = 'all', count
                             )}
                         />
                         <Area type="monotone" dataKey="sent" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorSent)" name="Emails Sent" />
-                        <Area type="monotone" dataKey="opens" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorOpens)" name="Human Opens" />
-                        <Area type="monotone" dataKey="proxy_opens" stroke="#f97316" strokeWidth={2} fillOpacity={1} fill="url(#colorProxyOpens)" name="Proxy Opens" />
+                        <Area type="monotone" dataKey="opens" stroke="#8b5cf6" strokeWidth={3} fillOpacity={1} fill="url(#colorOpens)" name="Total Opens" />
                         <Area type="monotone" dataKey="clicks" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorClicks)" name="Total Clicks" />
                     </AreaChart>
                 </ChartCard>

@@ -102,7 +102,6 @@ export interface HourlyEngagement {
     hour: number;
     sent: number;
     opens: number;
-    proxy_opens?: number;
     clicks: number;
     engagement_score: number;
 }
@@ -110,7 +109,6 @@ export interface HourlyEngagement {
 export interface DailyEngagement {
     day: string;
     opens: number;
-    proxy_opens?: number;
     clicks: number;
     engagement_score: number;
 }
