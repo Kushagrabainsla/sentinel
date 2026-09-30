@@ -68,6 +68,9 @@ export default function RegisterPage() {
                         </div>
                     </div>
                     <div className="space-y-2">
+                        <p className="text-xs font-black text-primary uppercase tracking-[0.3em]">
+                            Step 1 of 2
+                        </p>
                         <h1 className="text-5xl font-display font-black tracking-tighter text-foreground">
                             Create Account
                         </h1>
