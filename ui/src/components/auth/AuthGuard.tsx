@@ -14,7 +14,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     const [isChecking, setIsChecking] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    const publicRoutes = ['/', '/login', '/register', '/privacy', '/terms'];
+    const publicRoutes = ['/', '/login', '/register', '/verify-email', '/privacy', '/terms'];
     const isPublicRoute = publicRoutes.includes(pathname) || pathname?.startsWith('/blog');
 
     useEffect(() => {

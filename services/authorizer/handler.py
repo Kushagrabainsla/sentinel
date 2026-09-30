@@ -1,4 +1,3 @@
-import json
 import os
 import boto3
 from botocore.exceptions import ClientError
@@ -58,8 +57,6 @@ def lambda_handler(event, context):
     """
     
     try:
-        print(f"🔐 Authorizer invoked with event: {json.dumps(event, default=str)}")
-        
         # Extract API key from headers
         headers = event.get('headers', {})
         api_key = (headers.get('x-api-key') or 
@@ -67,7 +64,7 @@ def lambda_handler(event, context):
                   headers.get('Authorization', '').replace('Bearer ', ''))
         
         if not api_key:
-            print("❌ No API key provided")
+            print("Authorization denied: no API key provided")
             raise Exception('Unauthorized')
         
         # Get user by API key
@@ -81,17 +78,21 @@ def lambda_handler(event, context):
             
             users = response.get('Items', [])
             if not users:
-                print(f"❌ Invalid API key: {api_key[:8]}...")
+                print("Authorization denied: invalid API key")
                 raise Exception('Unauthorized')
                 
             user = users[0]
             
             # Check if user is active
             if user.get('status') != UserStatus.ACTIVE.value:
-                print(f"❌ Inactive user: {user.get('email')}")
+                print(f"Authorization denied: inactive user_id={user.get('id')}")
+                raise Exception('Unauthorized')
+
+            if user.get('email_verified') is not True:
+                print(f"Authorization denied: unverified user_id={user.get('id')}")
                 raise Exception('Unauthorized')
                 
-            print(f"✅ User authenticated: {user.get('email')} (ID: {user.get('id')})")
+            print(f"User authenticated: user_id={user.get('id')}")
             
             # Generate allow policy with user context
             # API Gateway v2 requires all context values to be strings
@@ -102,7 +103,8 @@ def lambda_handler(event, context):
                 context={
                     'user_id': str(user['id']),
                     'user_email': str(user['email']),
-                    'user_status': str(user.get('status', UserStatus.ACTIVE.value))
+                    'user_status': str(user.get('status', UserStatus.ACTIVE.value)),
+                    'email_verified': 'true'
                 }
             )
             

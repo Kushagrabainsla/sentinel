@@ -286,6 +286,18 @@ resource "aws_apigatewayv2_route" "auth_login" {
     target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
 }
 
+resource "aws_apigatewayv2_route" "auth_verify_email" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/auth/verify-email"
+    target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
+}
+
+resource "aws_apigatewayv2_route" "auth_resend_verification" {
+    api_id    = aws_apigatewayv2_api.http.id
+    route_key = "POST /v1/auth/resend-verification"
+    target    = "integrations/${aws_apigatewayv2_integration.auth_api.id}"
+}
+
 resource "aws_apigatewayv2_route" "auth_me" {
     api_id    = aws_apigatewayv2_api.http.id
     route_key = "GET /v1/auth/me"

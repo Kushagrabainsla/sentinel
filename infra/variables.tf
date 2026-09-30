@@ -23,3 +23,9 @@ variable "global_table_regions" {
 variable "ses_from_address" {
     type = string
 }
+
+variable "frontend_url" {
+    type        = string
+    default     = "https://dashboard.thesentinel.site"
+    description = "Public dashboard URL used in account verification links"
+}

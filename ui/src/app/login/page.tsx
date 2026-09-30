@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import axios from 'axios';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,6 +17,11 @@ const loginSchema = z.object({
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
+
+interface AuthErrorResponse {
+    error?: string;
+    code?: string;
+}
 
 export default function LoginPage() {
     const router = useRouter();
@@ -41,9 +47,16 @@ export default function LoginPage() {
 
             toast.success('Welcome back!');
             router.push('/dashboard');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Login error:', error);
-            toast.error(error.response?.data?.message || 'Failed to login. Please check your credentials.');
+            const responseData = axios.isAxiosError<AuthErrorResponse>(error) ? error.response?.data : undefined;
+            if (responseData?.code === 'EMAIL_NOT_VERIFIED') {
+                sessionStorage.setItem('sentinel_pending_verification_email', data.email);
+                toast.error('Verify your email address before signing in.');
+                router.push('/verify-email');
+            } else {
+                toast.error(responseData?.error || 'Failed to login. Please check your credentials.');
+            }
         } finally {
             setIsLoading(false);
         }
@@ -142,7 +155,7 @@ export default function LoginPage() {
 
                 <div className="text-center">
                     <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest opacity-80">
-                        Don't have an account?{' '}
+                        Don&apos;t have an account?{' '}
                         <Link href="/register" className="font-black text-primary hover:text-primary/80 transition-colors border-b-2 border-primary/20 hover:border-primary">
                             Create Account
                         </Link>

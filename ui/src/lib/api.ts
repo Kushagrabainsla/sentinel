@@ -29,7 +29,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        const publicAuthPaths = [
+            '/auth/login',
+            '/auth/register',
+            '/auth/verify-email',
+            '/auth/resend-verification',
+        ];
+        const isPublicAuthRequest = publicAuthPaths.some((path) => error.config?.url?.includes(path));
+
+        if (!isPublicAuthRequest && error.response && (error.response.status === 401 || error.response.status === 403)) {
             // Clear authentication data
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('sentinel_api_key');
@@ -50,6 +58,7 @@ export interface User {
     status: string;
     timezone?: string;
     created_at?: number;
+    email_verified?: boolean;
     google_connected?: boolean;
     google_email?: string;
     gmail_enabled?: boolean;

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import axios from 'axios';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,6 +18,10 @@ const registerSchema = z.object({
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
+
+interface AuthErrorResponse {
+    error?: string;
+}
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -34,17 +39,13 @@ export default function RegisterPage() {
         setIsLoading(true);
         try {
             const response = await api.post('/auth/register', data);
-            const { api_key, name } = response.data.user;
-
-            // Store API key and user info
-            localStorage.setItem('sentinel_api_key', api_key);
-            localStorage.setItem('sentinel_user_name', name);
-
-            toast.success('Account created successfully!');
-            router.push('/dashboard');
-        } catch (error: any) {
+            sessionStorage.setItem('sentinel_pending_verification_email', data.email);
+            toast.success(response.data.message || 'Check your email to verify your account.');
+            router.push('/verify-email');
+        } catch (error: unknown) {
             console.error('Registration error:', error);
-            toast.error(error.response?.data?.message || 'Failed to create account. Please try again.');
+            const responseData = axios.isAxiosError<AuthErrorResponse>(error) ? error.response?.data : undefined;
+            toast.error(responseData?.error || 'Failed to create account. Please try again.');
         } finally {
             setIsLoading(false);
         }

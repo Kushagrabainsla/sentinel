@@ -10,6 +10,7 @@ variable "dynamodb_events_table"        { type = string }
 variable "dynamodb_link_mappings_table" { type = string }
 
 variable "ses_from_address"  { type = string }
+variable "frontend_url"      { type = string }
 
 variable "scheduler_invoke_role_arn" { type = string }
 variable "tracking_base_url" { type = string }
@@ -218,6 +219,8 @@ resource "aws_lambda_function" "auth_api" {
     environment {
         variables = {
             DYNAMODB_USERS_TABLE = var.dynamodb_users_table
+            SES_FROM_ADDRESS     = var.ses_from_address
+            FRONTEND_URL         = var.frontend_url
         }
     }
     
@@ -329,4 +332,3 @@ output "campaigns_api_arn"    { value = aws_lambda_function.campaigns_api.arn }
 output "generate_email_arn"   { value = aws_lambda_function.generate_email.arn }
 output "generate_insights_arn" { value = aws_lambda_function.generate_insights.arn }
 output "ab_test_analyzer_arn" { value = aws_lambda_function.ab_test_analyzer.arn }
-
